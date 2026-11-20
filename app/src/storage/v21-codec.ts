@@ -60,10 +60,12 @@ export function validateV21Transition(project:ResearchProjectV21, next:InFlightE
     if(call!.recoveryGeneration<prior.recoveryGeneration) reject('recovery generation regressed');
     if((prior.systemChangeSkipped && !call!.systemChangeSkipped)||(call!.systemChangeSkipped && next.loop.researchLoopVersion!=='4.0'))reject('invalid system-operation notice');
     if(prior.captured&&!isDeepStrictEqual(prior.captured,call!.captured))reject('captured original changed');
+    if(call!.status==='rejected' && (!next.optionalFlow||!call!.captured||call!.result!==undefined))reject('rejected call requires an unassessed original');
+    if(prior.status==='rejected' && !isDeepStrictEqual(prior,call))reject('rejected scientific call changed');
     if(prior.status==='completed' && !isDeepStrictEqual(prior,call)) reject('completed call changed');
     if(prior.status==='denied' && (call!.status!=='denied'||call!.recoveryGeneration!==prior.recoveryGeneration))reject('denied invocation replay');
     const reconciledDenial=next.loop.researchLoopVersion==='4.0' && call!.status==='denied';
-    if(prior.status==='pending' && call!.status==='not-started'||prior.status==='uncertain' && !reconciledDenial && !['uncertain','completed'].includes(call!.status)) reject('uncertain invocation replay');
+    if(prior.status==='pending' && call!.status==='not-started'||prior.status==='uncertain' && !reconciledDenial && !['uncertain','completed','rejected'].includes(call!.status)) reject('uncertain invocation replay');
   }
   for(const prior of old.tasks) {
     const task=next.tasks.find(item=>item.id===prior.id);

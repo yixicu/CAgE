@@ -1,0 +1,23 @@
+# Run CAgE with independent Codex session agents
+
+CAgE owns the research loop, workspace and tools. A running Codex session supplies the researchers. Start that session in a private scratch directory outside the source checkout and installed program. The host receives the messages, images, schemas and tool results that the selected provider would ordinarily receive.
+
+## Connect once
+
+1. In the Codex session, start `node <app>/scripts/subagent-host.mjs`. Keep the process running during research. In a Windows installation, `<app>` is `payload/app` under the installation folder. In a Linux portable release it is the extracted application directory.
+2. The host prints a pairing key on first launch. Keep it private. To reuse a key across restarts, set `CARNOT_SUBAGENT_TOKEN` to a random secret of at least 16 characters before starting the host. Set the same variable for the session client below.
+3. Open **Settings → Models & connections → Local subagents**, enter the key and choose **Pair host**. Select the corresponding subagent model for each desired role. The default endpoint is `http://127.0.0.1:4319/v1`. For a different port, set `CARNOT_SUBAGENT_PORT` on host and client and `CARNOT_SUBAGENT_URL` on CAgE before launching them. [Role and stage bindings](ROLE_MODELS.md)
+
+## Instructions for the driving Codex session
+
+Ask the session to **drive the connected CAgE project through completion using independent Codex subagents**. Give it this guide, the app directory and a private scratch directory. The pairing key belongs in the session's environment. The user can then start a project normally in CAgE.
+
+For example: “Read `docs/SUBAGENTS.md` in this CAgE installation and host my next V4 run. Start the broker and tell me when to pair it. Delegate each claimed research role to a separate subagent, return its own answer and requested tool calls, and keep serving through the archived report and background stages. Keep transcripts outside the installation.” The normal CAgE research interface remains the place to start and stop the work.
+
+1. Claim the next actual model request with `node <app>/scripts/subagent-session.mjs next any <new-job-file>`. This waits for work. Run it asynchronously when waiting for other agents. Each claim has an ID, selected model, full request, and a session identifier when supplied by the runtime.
+2. Dispatch an independent Codex subagent for the requested role. Hand it the job file. Have it answer the ordered messages using the tool schemas from that request. Allow concurrent roles when the engine issues concurrent requests. A new job file is required for each call. Use the supplied transcript as the source of truth, including previous tool results. Keep separate projects and research sessions isolated.
+3. Have the subagent generate its own assistant response in a private JSON file. Use `{"role":"assistant","content":"…"}` for text. To request a tool, use an OpenAI-style `tool_calls` array with a unique `id`, `type:"function"` and `function:{name,arguments}`, where `arguments` is a JSON **string**. A response can contain both text and tool calls. When the host has a measured usage receipt, include optional top-level `usage` with OpenAI prompt, completion and total token counts. Use `finish_reason:"length"` for a truncated text response. Omit unknown usage. Submit it with `node <app>/scripts/subagent-session.mjs reply <id> <response-file>`. CAgE executes authorized tools and includes their results in the next model request.
+4. For incremental text, send `{"text":"…"}` files with the `text` command and include only the remaining text and complete tool calls in the final reply. Use `status <id>` to check an outstanding claim and cancel its Codex subagent if the claim has ended. Use `fail <id>` when delegation fails. A disconnected or cancelled research request discards its claim; late replies are rejected. A host restart drops in-flight jobs.
+5. Continue through Theorist acceptance, report archival and any requested follow-up research. Check CAgE's persisted project status and report. A successful Worker response or an accepted HTTP reply alone does not establish that the project finished.
+
+The broker binds to loopback, requires its bearer key on every endpoint and keeps pending requests in memory. CAgE's research budgets and cancellation govern request lifetime. Set `CARNOT_SUBAGENT_TIMEOUT_MS` if the host also needs a deadline. A paired host can read research content and submit tool proposals within the project's grants. Keep its port local. The session client leaves its scratch files under the caller's control.

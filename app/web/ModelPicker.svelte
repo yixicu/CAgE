@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { ModelSelection } from '../src/engine/types';
   import type { ModelDescriptor } from './api';
-  let { label, value, models, inherit = false, onchange }: {
-    label: string; value?: ModelSelection; models: ModelDescriptor[]; inherit?: boolean; onchange: (value: ModelSelection | undefined) => void;
+  let { label, value, models, inherit = false, inheritLabel, onchange }: {
+    label: string; value?: ModelSelection; models: ModelDescriptor[]; inherit?: boolean; inheritLabel?: string; onchange: (value: ModelSelection | undefined) => void;
   } = $props();
   import EffortPicker from './EffortPicker.svelte';
   let selected = $derived(value ? JSON.stringify([value.provider, value.modelId]) : '');
@@ -15,7 +15,7 @@
 <div class="model-picker">
   <label>{label}
     <select aria-label={label} value={selected} onchange={event => select(event.currentTarget.value)}>
-      <option value="">{inherit ? 'Inherit global model' : 'Select a model'}</option>
+      <option value="">{inherit ? (inheritLabel ?? 'Inherit global model') : 'Select a model'}</option>
       {#if value && !models.some(item => item.provider === value.provider && item.id === value.modelId)}
         <option value={selected} disabled>{value.provider} / {value.modelId} (unavailable — reconnect provider)</option>
       {/if}

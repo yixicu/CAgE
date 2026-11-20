@@ -24,7 +24,7 @@ export class OptionalProofControlV21 extends V21Control {
       if (!retained.value || retained.value.technical.completeness !== 'complete') throw new RuntimeError('INVALID_OUTPUT');
       return { control: prepare(value), ...retained.value } satisfies OptionalTheoristResultV21;
     }, true, {
-      singleScientificResponse: true, cancelled,
+      optionalProof: true, singleScientificResponse: true, cancelled,
       resultReady: value => journal.capture({kind:'v21-optional-result-ready',result:value}),
       metadataTagPaths: [/^\/outcome\/tags$/, /^\/adoptions\/\d+\/outcome\/tags$/],
     });

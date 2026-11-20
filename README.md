@@ -21,6 +21,8 @@ Open the local address printed by the server. Research files and provider creden
 
 ## Project guide
 
+To delegate research to independent agents in a running Codex session, pair the bundled local host in **Settings → Models & connections**. [Subagent setup](docs/SUBAGENTS.md)
+
 | Folder | What you will find |
 | --- | --- |
 | [app](app/) | The shared research engine, browser interface, launch scripts and bundled plugin manifest. |

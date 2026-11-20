@@ -1,3 +1,4 @@
+import {stageModel} from './model-bindings.js';
 import {routeSelectionPresentation} from '../../../learning/knowledge-map-presentation.js';
 import {reconcileReportReviews,reviewOpposedArchives} from './report-review.js';
 import {matchesPendingReview} from '../../../learning/report-assessment.js';
@@ -85,13 +86,15 @@ export class ProofBridgeV4 {
       for(const a of m.optionalFlow?.artifacts??[])await this.report(p,m,a);
       for(const b of m.optionalFlow?.branches??[])if(b.artifactId&&(m.optionalFlow?.artifacts??[]).some(a=>a.publicReport?.pendingBranches.some(p=>p.id===b.id))){const a=m.optionalFlow?.artifacts.find(a=>a.id===b.artifactId);if(a)await this.supplement(p,m,a);}
       if(this.knowledgeLibrary)await reviewOpposedArchives(this.dataRoot,this.knowledgeLibrary,p,m);
-      const model=m.snapshot.modelConfig.roleModels?.moderator??m.snapshot.modelConfig.defaultModel;
+      const model=stageModel(m.snapshot.modelConfig,'report');
+      const mapModel=stageModel(m.snapshot.modelConfig,'mapMaintenance');
       const map=m.snapshot.knowledgeMapRevision&&this.knowledgeLibrary?new MapResearch(this.dataRoot,this.knowledgeLibrary):undefined;
       const reconcileAssessments=()=>this.knowledgeLibrary&&m.snapshot.mapGapPolicy?reconcileReportReviews(this.dataRoot,this.knowledgeLibrary,p.id,this.scope(p,m)):Promise.resolve();
       await reconcileAssessments();
-      if(!model||!this.runtime.invokeTheoryV4)return;
-      const pumpMap=async()=>{if(!map||!this.knowledgeLibrary)return;await admitMapMaintenance({dataRoot:this.dataRoot,library:this.knowledgeLibrary,ownerId:'local-user',projectId:p.id,model,budget:m.snapshot.config.roleBudget});startMapMaintenance({dataRoot:this.dataRoot,library:this.knowledgeLibrary,runtime:this.runtime,projectId:p.id,signal:this.controller.signal,onError:()=>warn('Knowledge maintenance deferred; its exact source and task remain saved.')});};
+      if(!this.runtime.invokeTheoryV4)return;
+      const pumpMap=async()=>{if(!map||!mapModel||!this.knowledgeLibrary)return;await admitMapMaintenance({dataRoot:this.dataRoot,library:this.knowledgeLibrary,ownerId:'local-user',projectId:p.id,model:mapModel,budget:m.snapshot.config.roleBudget});startMapMaintenance({dataRoot:this.dataRoot,library:this.knowledgeLibrary,runtime:this.runtime,projectId:p.id,signal:this.controller.signal,onError:()=>warn('Knowledge maintenance deferred; its exact source and task remain saved.')});};
       if(map){for(const study of (await this.coordinator.snapshot(this.scope(p,m))).postReports)if(await this.authorizeReport(p,m,study.report))await map.reconcile(study);await pumpMap();}
+      if(!model)return;
       while(!await halted()&&!this.controller.signal.aborted){
         const known=await this.catalogue.readReportStudies(report=>this.authorizeReport(p,m,report));
         const sources=[];for(const prior of await this.coordinator.researchReports())if(prior.report.scope.projectId===p.id&&await this.authorizeReport(p,m,prior.report))sources.push(prior.report);

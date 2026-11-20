@@ -1,5 +1,5 @@
 /** Stable public errors. Never attach provider exceptions, request bodies, keys or causes. */
-export type RuntimeErrorCode = 'INSUFFICIENT_PERMISSION' | 'OPERATION_RECONCILIATION_REQUIRED' | 'TOOL_PROTOCOL_FAILED' | 'STRICT_REQUEST_REJECTED' | 'STRICT_OUTPUT_UNSUPPORTED' | 'STRICT_SCHEMA_UNSUPPORTED' | 'MODEL_REQUIRED' | 'MODEL_UNAVAILABLE' | 'AUTH_REQUIRED' | 'AUTH_FAILED' | 'AUTH_UNSUPPORTED' | 'AUTH_CANCELLED' | 'AUTH_INPUT_REQUIRED' | 'INVALID_CONFIGURATION' | 'INVALID_TOOL' | 'INVALID_OUTPUT' | 'SESSION_NOT_FOUND' | 'SESSION_BUSY' | 'PROVIDER_FAILED' | 'BUDGET_EXHAUSTED' | 'BUDGET_UNAVAILABLE' | 'CONTEXT_EXHAUSTED' | 'TOOL_FAILED';
+export type RuntimeErrorCode = 'SCIENTIFIC_STEP_REJECTED' | 'INSUFFICIENT_PERMISSION' | 'OPERATION_RECONCILIATION_REQUIRED' | 'TOOL_PROTOCOL_FAILED' | 'STRICT_REQUEST_REJECTED' | 'STRICT_OUTPUT_UNSUPPORTED' | 'STRICT_SCHEMA_UNSUPPORTED' | 'MODEL_REQUIRED' | 'MODEL_UNAVAILABLE' | 'AUTH_REQUIRED' | 'AUTH_FAILED' | 'AUTH_UNSUPPORTED' | 'AUTH_CANCELLED' | 'AUTH_INPUT_REQUIRED' | 'INVALID_CONFIGURATION' | 'INVALID_TOOL' | 'INVALID_OUTPUT' | 'SESSION_NOT_FOUND' | 'SESSION_BUSY' | 'PROVIDER_FAILED' | 'BUDGET_EXHAUSTED' | 'BUDGET_UNAVAILABLE' | 'CONTEXT_EXHAUSTED' | 'TOOL_FAILED';
 const messages: Record<RuntimeErrorCode, string> = {
   OPERATION_RECONCILIATION_REQUIRED: 'A prior save may have taken effect without a durable receipt. Saved work is preserved; reconcile this operation before retrying it.',
   TOOL_PROTOCOL_FAILED: 'The model returned an incomplete or unsupported tool-call batch. Saved work remains available; no scientific conclusion was assigned.',
@@ -16,6 +16,7 @@ const messages: Record<RuntimeErrorCode, string> = {
   INVALID_CONFIGURATION: 'The runtime configuration is invalid.',
   INSUFFICIENT_PERMISSION: 'Insufficient permission. Open Maintenance Assistant to request this change.',
   INVALID_TOOL: 'The role requested a tool that is not allowed.',
+  SCIENTIFIC_STEP_REJECTED: 'The scientific declaration was rejected. The saved original remains available. A fresh scientific step is required.',
   INVALID_OUTPUT: 'The model did not return a valid structured result.',
   SESSION_NOT_FOUND: 'The research session is no longer available.',
   SESSION_BUSY: 'The research session already has an active task.',

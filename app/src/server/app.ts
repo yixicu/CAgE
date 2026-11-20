@@ -20,9 +20,10 @@ import { basename, extname, isAbsolute, join, relative, resolve } from 'node:pat
 import { fileURLToPath } from 'node:url';
 import type { ServerResponse } from 'node:http';
 import { ResearchEngine } from '../engine/index.js';
-import type { ResearchRole, UserCommand } from '../engine/types.js';
+import type { ModelSelection, ResearchRole, UserCommand } from '../engine/types.js';
 import type { Attribution } from '../research/contracts/v2.js';
 import type { AnyAgentRuntime, AnyResearchEvent, AnyResearchProject } from '../research/contracts/loop.js';
+import {stageModel} from '../research/versions/v4/model-bindings.js';
 import { ValidationError, createResearchProject, getResearchLoop, listResearchLoops, ResearchSelectionError, ResearchVersionError } from '../research/index.js';
 import { runEvolutionReview, type EvolutionInput } from '../research/versions/v2/evolution.js';
 import { trialSkill } from '../research/versions/v2/learning.js';
@@ -324,16 +325,17 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     void reply.status(safe.status).send({ error: safe.code, message: safe.message });
   });
   const providerViews = async () => (await runtime.auth.listProviders()).map(provider => ({ id: provider.id, name: provider.name, configured: provider.connected, oauthSupported: provider.oauth, apiKeySupported: provider.apiKey }));
-  const assertRoleModels = async (project: AnyResearchProject, roles: readonly ResearchRole[]) => {
-    if (!roles.length) return;
+  const assertModels = async (selections: (ModelSelection | undefined)[]) => {
+    if (!selections.length) return;
     const providers = await providerViews(); const models = runtime.auth.listModels();
-    for (const role of roles) {
-      const model = project.config.roleModels?.[role] ?? project.config.defaultModel;
+    for (const model of selections) {
       if (!model) throw new RuntimeError('MODEL_REQUIRED');
       if (!models.some(item => item.id === model.modelId && item.provider === model.provider)) throw new RuntimeError('MODEL_UNAVAILABLE');
       if (!providers.some(item => item.id === model.provider && item.configured)) throw new RuntimeError('AUTH_REQUIRED');
     }
   };
+  const assertRoleModels = (project: AnyResearchProject, roles: readonly ResearchRole[]) =>
+    assertModels(roles.map(role => project.config.roleModels?.[role] ?? project.config.defaultModel));
   const snapshot = async (id: string) => {
     const unavailable = unavailableProjects.get(id);
     if (unavailable) throw new ApiError(409, unavailable.code, unavailable.message);
@@ -410,9 +412,9 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     if(project.schemaVersion!==3||project.researchLoopVersion!=='4.0')throw new ApiError(403,'V4_REQUIRED','Knowledge-map maintenance requires a V4 project.');
     const stopped=project.status==='stopped'||(await store.listCommands(projectId)).some(c=>c.kind==='stop'&&!project.processedCommandIds.includes(c.id));
     if(stopped)throw new ApiError(409,'PROJECT_STOPPED','Resume the project before admitting new knowledge maintenance.');
-    const model=project.config.roleModels?.moderator??project.config.defaultModel;
+    const model=stageModel(project.config,'mapMaintenance');
     if(!model)throw new RuntimeError('MODEL_REQUIRED');
-    await assertRoleModels(project,['moderator']);
+    await assertModels([model]);
     await mapSources.reconcile(projectId);
     await admitMapMaintenance({dataRoot,library:store.library,ownerId:'local-user',projectId,model,budget:project.config.roleBudget});
     let controller=mapControllers.get(projectId);
@@ -506,7 +508,11 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
   });
   app.put<{ Body: unknown }>('/api/preferences', { schema: { body: body({ defaultModel: { type: 'object' }, maintenanceModel:{type:'object'}, researchDefaults: { type: 'object' }, learningFallbackModels: { type: 'array', items: { type: 'object' } } }, []) } }, request => serial('app-preferences', async () => {
     const next = parsePreferences(request.body);
-    for (const model of [...(next.defaultModel ? [next.defaultModel] : []), ...(next.maintenanceModel?[next.maintenanceModel]:[]), ...(next.learningFallbackModels ?? [])]) {
+    const previousBindings=preferences.researchDefaults?.['4.0']?.roleModels??{};
+    const changedBindings=Object.entries(next.researchDefaults?.['4.0']?.roleModels??{})
+      .filter(([key,value])=>{const previous=previousBindings[key as keyof typeof previousBindings];return value.provider!==previous?.provider||value.modelId!==previous?.modelId;})
+      .map(([,value])=>value);
+    for (const model of [...changedBindings,...(next.defaultModel ? [next.defaultModel] : []), ...(next.maintenanceModel?[next.maintenanceModel]:[]), ...(next.learningFallbackModels ?? [])]) {
       if (!(await providerViews()).some(provider => provider.id === model.provider && provider.configured)) throw new RuntimeError('AUTH_REQUIRED');
       if (!runtime.auth.listModels(model.provider).some(item => item.id === model.modelId)) throw new RuntimeError('MODEL_UNAVAILABLE');
     }

@@ -2,6 +2,7 @@
 import type { RawAnswerRefV21, TechnicalStateV21, RootV21, RootInterpretationV21, FrozenQuestionV21, OperationPinV21 } from '../../contracts/v21.js';
 import type { ResourceRef, ProofRef } from '../../../learning/research-data.js';
 export const OPTIONAL_MODE_V21 = 'theorist-owned-optional-workers-v2' as const;
+export const workerDispatchRule = 'Use dispatch only with outcome.resultKind=open and at least one Worker assignment. A Theorist completing an established root result and a Worker completing its assigned result use complete with no Worker assignments. Put any established intermediate findings in the public derivation.';
 export type OptionalAuthorV21 = 'theorist'|'auxiliary-worker'|'way-worker';
 export interface OptionalRouteV21 { methodKey:string; description:string; reason:string; resourceRefs:ResourceRef[] }
 export interface OptionalOutcomeV21 {

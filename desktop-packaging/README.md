@@ -32,7 +32,7 @@ Version 0.2.5 predates the update controls. To enable them, fully exit that vers
 
 ## Linux amd64 preview
 
-Release 0.2.7 ships the system-Node tarball described in the [project README](../README.md). The optional self-contained Debian build below requires a Linux Node distribution and Linux production packages.
+Build the system-Node tarball described in the [project README](../README.md) with `bash desktop-packaging/build/linux-portable.sh` after building the application. The tarball includes the Codex session host, its client and their setup guide. The optional self-contained Debian build below requires a Linux Node distribution and Linux production packages.
 
 The Debian package runs the same backend on loopback and opens the system browser from the applications menu. It includes Linux Node.js and the locked production dependencies. The default workspace is `$XDG_DATA_HOME/cage` (normally `~/.local/share/cage`). Set `CARNOT_DATA_DIR` to use another workspace. Install a newer .deb to update. The command `carnot-agent-engine --no-browser` prints the address for headless use.
 

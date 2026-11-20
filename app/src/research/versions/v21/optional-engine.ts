@@ -81,6 +81,7 @@ class ConditionResearchRunnerV21 {
   this.ports.emit(p,'research.warning',{userVisible:true,message:ref.completeness==='complete'?'Original text saved and available; scientific completion has not yet been assessed.':'Partial original text saved and available; not a completed proof.'});
  }
  private async invoke(p:ResearchProjectV21,m:InFlightEpochV21,call:CallV21,branch?:OptionalBranchV21):Promise<OptionalTheoristResultV21>{
+  if(call.status==='rejected')throw new RuntimeError('SCIENTIFIC_STEP_REJECTED');
   if(call.status==='denied')throw new RuntimeError('INSUFFICIENT_PERMISSION');
   if(call.status==='completed')return this.transition(m,async()=>{await this.recordRawDelivery(p,m,call);return structuredClone(call.result) as OptionalTheoristResultV21;});
   const spec=this.spec(p,m,call,branch),inv={task:call.task,input:structuredClone(call.input),operation:call.operation,recoveryGeneration:call.recoveryGeneration};
@@ -88,6 +89,7 @@ class ConditionResearchRunnerV21 {
    const recovered=await this.runtime.reconcileV21?.(spec,inv);
    if(recovered?.status==='completed')return this.transition(m,async()=>{if(recovered.systemChangeSkipped)call.systemChangeSkipped=true;call.result=structuredClone(recovered.result);call.status='completed';if(m.snapshot.v3){call.loadedResources=structuredClone(recovered.loadedResources??[]);call.answerDeliveries=structuredClone(recovered.answerDeliveries??[]);}await this.ports.save(m);await this.recordRawDelivery(p,m,call);return recovered.result as OptionalTheoristResultV21;});
    if(recovered&&'captured'in recovered&&recovered.captured)await this.transition(m,async()=>{call.captured=structuredClone(recovered.captured!);await this.ports.save(m);await this.recordRawDelivery(p,m,call);});
+   if(recovered?.status==='rejected'&&recovered.captured){await this.transition(m,async()=>{call.status='rejected';call.usage=recovered.captured!.technical.usage;await this.ports.save(m);});throw new RuntimeError('SCIENTIFIC_STEP_REJECTED');}
    if(recovered?.status==='denied'){await this.transition(m,async()=>{call.status='denied';await this.ports.save(m);});throw new RuntimeError('INSUFFICIENT_PERMISSION');}
    if(recovered?.status!=='not-started')throw new Error('Optional paid call is uncertain; no replay.');
   }
@@ -100,7 +102,9 @@ class ConditionResearchRunnerV21 {
    if(await this.ports.halted(p)){await this.runtime.cancelSession?.(session);throw new Error('Optional session cancelled before invocation.');}
    const result=await this.runtime.invoke(session,inv) as OptionalTheoristResultV21;
    await this.transition(m,async()=>{if(this.runtime.systemChangeSkipped?.(session))call.systemChangeSkipped=true;call.result=structuredClone(result);call.usage=this.runtime.getUsage?.(session);if(m.snapshot.v3){call.loadedResources=structuredClone(this.runtime.loadedResourceRefs?.(session)??[]);call.answerDeliveries=structuredClone(this.runtime.loadedAnswerDeliveries?.(session)??[]);}call.status='completed';await this.ports.save(m);await this.recordRawDelivery(p,m,call);});return result;
-  }catch(error){await this.transition(m,async()=>{if(call.status!=='completed'){if(this.runtime.systemChangeSkipped?.(session))call.systemChangeSkipped=true;const captured=this.runtime.retainedV21Original?.(session);if(captured)call.captured=structuredClone(captured);call.status=error instanceof RuntimeError && error.code==='INSUFFICIENT_PERMISSION'?'denied':'uncertain';await this.ports.save(m);await this.recordRawDelivery(p,m,call);}});throw error;}
+  }catch(error){await this.transition(m,async()=>{if(call.status!=='completed'){if(this.runtime.systemChangeSkipped?.(session))call.systemChangeSkipped=true;const captured=this.runtime.retainedV21Original?.(session);if(captured)call.captured=structuredClone(captured);
+   call.usage=this.runtime.getUsage?.(session);
+   call.status=error instanceof RuntimeError && error.code==='SCIENTIFIC_STEP_REJECTED'&&captured?'rejected':error instanceof RuntimeError && error.code==='INSUFFICIENT_PERMISSION'?'denied':'uncertain';await this.ports.save(m);await this.recordRawDelivery(p,m,call);}});throw error;}
   finally{this.sessions.delete(call.id);await this.runtime.closeSession(session);}
  }
  private operationCall(p:ResearchProjectV21,m:InFlightEpochV21,id:string,task:'v21_theorist'|'v21_optional_worker',input:unknown,branch?:OptionalBranchV21):CallV21 {
@@ -394,6 +398,7 @@ class ConditionResearchRunnerV21 {
    if(recovered?.status==='completed'){if(recovered.systemChangeSkipped)call.systemChangeSkipped=true;call.result=structuredClone(recovered.result);call.status='completed';const result=recovered.result as OptionalTheoristResultV21;if(result.originalRef&&result.technical)call.captured={originalRef:structuredClone(result.originalRef),technical:structuredClone(result.technical)};}
    else if(recovered&&'captured'in recovered&&recovered.captured)call.captured=structuredClone(recovered.captured);
    if(recovered?.status==='denied')call.status='denied';
+   if(recovered?.status==='rejected'&&call.captured){call.status='rejected';call.usage=call.captured.technical.usage;}
    if(branch&&call.captured)branch.state='completed';
   }
   await this.ports.save(m);
@@ -424,15 +429,27 @@ class ConditionResearchRunnerV21 {
    if(!await this.ports.halted(p))for(const branch of f.branches)if(!['completed','cancelled'].includes(branch.state))this.launch(p,m,branch);
    for(;;){
     if(await this.ports.halted(p)){if(this.ports.stopped(p))await this.theory?.finish(p,m,true);else await this.theory?.pause();await this.composition.stopOptionalLearning?.(p);if(this.ports.stopped(p))await this.cancel();await Promise.allSettled([...this.running.values()]);f.phase=this.ports.stopped(p)?'stopped':'paused';await this.ports.save(m);await this.checkpoint(p,m,true);return p;}
-    const pending=m.calls.find(c=>c.task==='v21_theorist'&&!f.artifacts.some(a=>a.id===`artifact_${c.id}`&&a.acceptanceCommitted));
+    const rejected=m.calls.filter(c=>c.task==='v21_theorist'&&c.status==='rejected');
+    if(rejected.length){
+     const last=rejected.at(-1)!;
+     if(!f.rawDeliveryHistory?.some(row=>row.callId===last.id))await this.recordRawDelivery(p,m,last);
+     const notice=rejected.length===1?'The previous scientific declaration was rejected. Make a fresh scientific decision. Dispatch requires an open outcome and a precise Worker assignment.':'Two scientific declarations were rejected. Start a new Epoch to try again.';
+     if(!f.notices.includes(notice)){f.notices.push(notice);await this.ports.save(m);this.ports.emit(p,'research.warning',{userVisible:true,message:notice});}
+     if(rejected.length>1){f.continuationNeeded=false;break;}
+    }
+    const pending=m.calls.find(c=>c.task==='v21_theorist'&&c.status!=='rejected'&&!f.artifacts.some(a=>a.id===`artifact_${c.id}`&&a.acceptanceCommitted));
     const unreviewed=!(m.snapshot.theoryRevision==='v4-operation-5'&&f.selectedArtifactId)&&f.artifacts.some(a=>a.authorRole!=='theorist'&&!f.reviewedArtifactIds.includes(a.id)&&a.technical.executionStatus==='completed');
     const finalizedR5=m.snapshot.theoryRevision==='v4-operation-5'&&f.artifacts.some(a=>a.publicReport);
-    if(pending||f.continuationNeeded||!finalizedR5&&unreviewed){
+    const needsFreshStep=m.calls.findLast(c=>c.task==='v21_theorist')?.status==='rejected';
+    if(pending||needsFreshStep||f.continuationNeeded||!finalizedR5&&unreviewed){
      if(!pending && this.theory) await this.theory.boundary(p,m,this.running.size,()=>this.ports.halted(p),message=>this.ports.emit(p,'research.warning',{userVisible:true,message}));
      if(!pending&&!this.canAdmit(m)){await this.transition(m,async()=>{f.notices.push('Frozen science-call budget exhausted; no additional continuation or adoption was launched.');f.continuationNeeded=false;await this.ports.save(m);});break;}
      const call=await this.transition(m,async()=>{const id=pending?.id??`${m.snapshot.id}_theorist_${++f.sequence}`;
      const admitted=pending??this.operationCall(p,m,id,'v21_theorist',await this.input(p,m,id));await this.ports.save(m);return admitted;});
-     const result=await this.invoke(p,m,call);await this.accept(p,m,call,result);await this.theory?.acknowledge(p,m,call);await this.publish(p,m);
+     let result:OptionalTheoristResultV21;
+     try{result=await this.invoke(p,m,call);}
+     catch(error){if(call.status!=='rejected')throw error;continue;}
+     await this.accept(p,m,call,result);await this.theory?.acknowledge(p,m,call);await this.publish(p,m);
      const dispatched=result.control.action==='dispatch'?await this.dispatchRequests(p,m,result):0;
      await this.transition(m,async()=>{if(result.control.action==='pause'||['v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(f.operationRevision??'')&&result.control.continueMain===false&&dispatched>0)f.continuationNeeded=false;
      // A completed proof ends discretionary main research, not collection/adoption of admitted alternatives.

@@ -1,3 +1,4 @@
+import {stageModel} from '../research/versions/v4/model-bindings.js';
 import {DirectedRouteInputError,directedRouteSelection,directedRoutePresentation,type DirectedRouteQuery} from './directed-route.js';
 import {knowledgeRefKey} from './knowledge-network.js';
 import {knowledgeLearningSchema,freezeKnowledgeLearning,publishKnowledgeLearning,knowledgeLearningBinding,type KnowledgeLearningView} from './knowledge-learning.js';
@@ -539,7 +540,7 @@ export class LearningService {
     const receiptId = `v21-optional-learning-2:${project.id}:${epoch.id}:${stableHash({evidenceRevision:flow.evidenceRevision,
       proofs:qualified.map(item=>item.ref),evidence:validEvidence,branchStates})}`;
     if (this.ledger.receipts.includes(receiptId)) { await this.queueModerator(project,'v2-strategy'); this.wake(); return; }
-    const base = {projectId:project.id,status:'queued' as const,model:project.config.roleModels?.theorist??project.config.defaultModel,
+    const base = {projectId:project.id,status:'queued' as const,model:stageModel(project.config,'learning'),
       budget:structuredClone(project.config.roleBudget),...(project.config.roleBudget.capacityPolicy?{capacitySettings:structuredClone(project.config)}:{}),parents:this.frozenParents(),requestState:'not-started' as const,publicationParentFrozen:false};
     for (const [caseGroupId,items] of caseGroups) {
       const evidenceKeys = items.map(item=>item.source.meta.optionalProof!.evidenceKey).sort();
@@ -613,7 +614,7 @@ export class LearningService {
           optionalCaseGroupId:flow.archives[0]?.selection.caseGroupId??stableHash([project.id,artifacts[0]!.root]),
           optionalEvidence:{sessionId:project.id,artifacts:Object.fromEntries(artifacts.map(artifact=>[artifact.id,evidence[artifact.id]!]))},
           input:{sourceLoopVersion:project.researchLoopVersion,solverMode:OPTIONAL_MODE_V21,pattern:failure,artifacts,reviewCallId:call.id,
-            ...(epoch.snapshot.modelDirectedKnowledge?{}:this.skillCatalog('failure-skill',failure.tags))},sources,model:project.config.roleModels?.theorist??project.config.defaultModel,
+            ...(epoch.snapshot.modelDirectedKnowledge?{}:this.skillCatalog('failure-skill',failure.tags))},sources,model:stageModel(project.config,'learning'),
           budget:structuredClone(project.config.roleBudget),...(project.config.roleBudget.capacityPolicy?{capacitySettings:structuredClone(project.config)}:{}),parents:this.frozenParents(),requestState:'not-started',publicationParentFrozen:false});
       }
     }
@@ -713,7 +714,7 @@ export class LearningService {
     this.ledger.receipts.push(receipt.id); await this.save(); this.wake();
   }
   private async queueModerator(project: Readonly<AnyResearchProject>, purpose: 'v1-decision' | 'v2-strategy'): Promise<void> {
-    return this.reserveModerator({ ...(project.schemaVersion===3&&usesV3Proof(project.researchLoopVersion)?{strategyAdmissionRecipe:'structural-review-v1' as const}:{}),projectId: project.id, model: this.options.moderatorModel(), ...(project.schemaVersion===3&&usesV3Proof(project.researchLoopVersion)?{budget:originatingBudgetV3(project.config,project.config.roleBudget.capacityPolicy),capacitySettings:freezeCapacityConfigV3(project.config)}:{budget:project.config.roleBudget}) }, purpose);
+    return this.reserveModerator({ ...(project.schemaVersion===3&&usesV3Proof(project.researchLoopVersion)?{strategyAdmissionRecipe:'structural-review-v1' as const}:{}),projectId: project.id, model: project.researchLoopVersion==='4.0'?(project.config.roleModels?.moderator??project.config.defaultModel??this.options.moderatorModel()):this.options.moderatorModel(), ...(project.schemaVersion===3&&usesV3Proof(project.researchLoopVersion)?{budget:originatingBudgetV3(project.config,project.config.roleBudget.capacityPolicy),capacitySettings:freezeCapacityConfigV3(project.config)}:{budget:project.config.roleBudget}) }, purpose);
   }
   private async reserveModerator(context: Pick<Job, 'projectId' | 'model' | 'budget' | 'capacitySettings' | 'strategyAdmissionRecipe'>, purpose: 'v1-decision' | 'v2-strategy'): Promise<void> {
     // Recover the narrow crash window between the library reservation and queue publication.
@@ -1015,7 +1016,10 @@ export class LearningService {
     }
     await this.save(); this.options.changed?.();
     if (metadataRecorded || (job.metadataRecipe || job.strategyAdmissionRecipe&&job.purpose==='method-skill') && ['completed','no-change'].includes(job.status)) {
-      try { await this.reserveModerator({projectId:job.projectId,model:this.options.moderatorModel(),budget:job.budget,capacitySettings:job.capacitySettings,...(job.strategyAdmissionRecipe?{strategyAdmissionRecipe:job.strategyAdmissionRecipe}:{})},'v2-strategy'); }
+      const moderator=(job.input as {sourceLoopVersion?:string}).sourceLoopVersion==='4.0'
+        ? job.capacitySettings?.roleModels?.moderator??job.capacitySettings?.defaultModel??this.options.moderatorModel()
+        : this.options.moderatorModel();
+      try { await this.reserveModerator({projectId:job.projectId,model:moderator,budget:job.budget,capacitySettings:job.capacitySettings,...(job.strategyAdmissionRecipe?{strategyAdmissionRecipe:job.strategyAdmissionRecipe}:{})},'v2-strategy'); }
       catch (error) { job.message = [job.message,`Metadata saved; Moderator registration remains pending: ${error instanceof Error ? error.message : 'queue unavailable'}`].filter(Boolean).join(' '); await this.save(); }
     }
     // A concurrent checkpoint may have found this purpose already reserved. Drain its

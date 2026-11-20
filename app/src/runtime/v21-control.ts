@@ -1,3 +1,4 @@
+import {workerDispatchRule} from '../research/versions/v21/optional-types.js';
 import {scientificMapFormatIssue} from '../research/versions/v4/scientific-map-write.js';
 import { DeclarationSupplementError } from './declaration-supplement.js';
 import {guidanceReferenceComparisonV3,type GuidanceReferenceStateV3} from './guidance-reference-repair.js';
@@ -18,6 +19,7 @@ import { V0AnswerCollector } from './v0-answer.js';
 export interface V21ControlOptions {
   /** Fresh V4 permits one format-only repair, independently of scientific budgets. */
   nativeHandoff?: boolean;
+  optionalProof?: boolean;
   declarationSupplement?: boolean;
   /** Fresh host-root classifier has no legally editable metadata fields. */
   rejectInvalidDeclaration?: boolean;
@@ -52,7 +54,12 @@ export class V21Control {
   }
   constructor(readonly journal: OperationJournal, tools: ToolDefinition[], private readonly schema: TSchema, private readonly prepare: (value: unknown) => unknown, readonly judgmentBatch = false, private readonly options: V21ControlOptions = {}) {
     for (const tool of tools) this.tools.set(tool.name,tool);
-    for (const tool of tools) this.codecs.set(tool.name, canonicalCodec(tool.name === SUBMIT_RESULT ? schema : tool.parameters));
+    // Keep saved operation pins stable. Only the provider-facing description changes.
+    const fields=(schema as Shape).properties;
+    const wireSchema=options.optionalProof&&fields?.action
+      ? {...schema,properties:{...fields,action:{...fields.action,description:workerDispatchRule}}}
+      : schema;
+    for (const tool of tools) this.codecs.set(tool.name, canonicalCodec(tool.name === SUBMIT_RESULT ? wireSchema : tool.parameters));
   }
   /** Pi must not silently extend a metadata repair into another scientific turn. */
   get allowsDispatch(): boolean { if (this.options.cancelled?.()) return false; if (this.options.singleScientificResponse) return !this.accepted && !this.fatal && this.dispatch === this.journal.state.corrections; return !this.judgmentBatch || (!this.accepted && !this.fatal && (!this.correction || this.correctionDispatches < this.journal.state.corrections)); }
@@ -106,6 +113,14 @@ export class V21Control {
         await this.journal.capture({ kind: 'arguments', callId: call.id, evidence, effective: decoded });
         const supplement=this.correction&&call.name===SUBMIT_RESULT?this.supplement:undefined;
         if (this.judgmentBatch && call.name === SUBMIT_RESULT && !supplement) await this.guardDeclaration(decoded.value);
+        if(this.options.optionalProof && call.name===SUBMIT_RESULT && !supplement && record(decoded.value)){
+          const {action,outcome,workers}=decoded.value;
+          if(action==='dispatch' && (!record(outcome)||outcome.resultKind!=='open'||!Array.isArray(workers)||!workers.length)
+            || action!=='dispatch' && Array.isArray(workers) && workers.length){
+            await this.rejectScientificStep(workerDispatchRule);
+            return;
+          }
+        }
         const codec = this.codecs.get(call.name);
         if (!codec) throw new RuntimeError('TOOL_PROTOCOL_FAILED');
         if(!this.correction&&call.name===SUBMIT_RESULT&&this.options.declarationSupplement&&(this.schema as Shape).properties?.mapChanges){
@@ -121,6 +136,10 @@ export class V21Control {
     } catch (error) {
       this.prepared.clear();
       if (await this.rejectToolArguments(error,calls)) return;
+      if(this.options.optionalProof && error instanceof DeclarationSupplementError && (error.fields==='action'||error.fields==='measured-outcome')){
+        await this.rejectScientificStep(error.message);
+        return;
+      }
       if(error instanceof DeclarationSupplementError&&this.options.declarationSupplement&&!this.correction&&this.canRequestFormatCorrection()&&this.declarationSeen){
         this.supplement=error;
         this.codecs.set(SUBMIT_RESULT,canonicalCodec(error.schema));
@@ -129,6 +148,12 @@ export class V21Control {
         return;
       }
       if (error instanceof ContractValidationError || error instanceof SafeToolArgumentsError && error.kind === 'format') {
+        if(this.options.optionalProof && calls.some(call=>call.name===SUBMIT_RESULT) && error instanceof ContractValidationError
+          && !(this.options.zeroExposureGuidance && !this.options.nativeHandoff && error.kind==='semantic' && error.issues.every(issue=>issue==='Selected method resource requires an exact delivered frozen version.'))
+          && (error.kind==='semantic'||!this.repairableMetadata())){
+          await this.rejectScientificStep(error.message);
+          return;
+        }
         if(this.options.nativeHandoff && (error instanceof ContractValidationError && error.kind!=='format' || !this.canRequestFormatCorrection())){await this.rejectUnassessed(error.message);return;}
         if(this.options.nativeHandoff&&calls.some(call=>call.name===SUBMIT_RESULT)&&!this.repairableMetadata()){await this.rejectUnassessed('The original report is retained. This declaration cannot be repaired without changing scientific fields.');return;}
         if(this.options.rejectInvalidDeclaration&&this.judgmentBatch&&this.declarationSeen&&error instanceof ContractValidationError&&calls.some(call=>call.name===SUBMIT_RESULT)){await this.rejectUnassessed('Unrepairable root classification: the retained scientific declaration has no editable metadata fields.\n'+error.issues.join('\n'));return;}
@@ -150,6 +175,10 @@ export class V21Control {
       const missing=(error.params as {requiredProperties?:unknown}).requiredProperties;
       return error.keyword==='required'&&Array.isArray(missing)&&missing.length>0&&missing.every(key=>typeof key==='string'&&paths.some(pattern=>pattern.test(`${error.instancePath}/${key}`)));
     });
+  }
+  private async rejectScientificStep(diagnostics:string):Promise<void>{
+    await this.journal.capture({kind:'v21-rejected-scientific-step',diagnostics});
+    this.fatal=new RuntimeError('SCIENTIFIC_STEP_REJECTED');
   }
   private async rejectUnassessed(diagnostics: string): Promise<void> {
     await this.journal.capture({kind:'v21-unassessed-declaration',diagnostics});

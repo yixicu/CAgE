@@ -7,6 +7,7 @@ import { foregroundBudgetV4 } from '../research/versions/v4/foreground-budget.js
 import { usesV3Proof } from '../research/versions/v3/proof-version.js';
 import {KnowledgeMapTools} from './knowledge-map-tools.js';
 import type {MapReader} from '../research/versions/v4/map-reader.js';
+import {registerSubagentProvider} from './subagent-provider.js';
 import {MODEL_DIRECTED_PROOF_GUIDANCE,AUTHOR_MAP_PROOF_GUIDANCE,LEMMA_GROUPING_GUIDANCE,REVIEWED_DOMAIN_PROOF_GUIDANCE} from './directed-route-tools.js';
 import {MAP_PROOF_GUIDANCE,MAP_LAYERED_PROOF_GUIDANCE} from './map-maintenance.js';
 import type {CatalogPortV3} from '../research/versions/v3/catalog-context.js';
@@ -30,6 +31,7 @@ import { presentedResourceBodiesV3 } from '../research/versions/v3/integration.j
 import { ArtifactStoreV3 } from './v3-artifacts.js';
 import { ProofControlV3 } from './v3-control.js';
 import { RuntimeToolsV3, type RuntimeContextV3 } from './v3-tools.js';
+import { workerDispatchRule } from '../research/versions/v21/optional-types.js';
 import { OptionalProofControlV21, type OptionalRetainedV21 } from './v21-optional-control.js';
 import { optionalInvocationV21, optionalOperationV21, optionalOwnerV21, optionalCallIdV21, optionalPinsV21, recoverOptionalResultV21, recoverOptionalOriginalV21 } from './v21-optional-recovery.js';
 import { createOperationV21 } from '../research/versions/v21/operation-contract.js';
@@ -236,10 +238,11 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       authPath: join(authDir, 'auth.json'), modelsPath: join(authDir, 'models.json'), modelsStorePath: join(authDir, 'models-cache.json'),
       allowModelNetwork: false, refreshOnCreate: false,
     });
+    if (!options.modelRuntime) registerSubagentProvider(models);
     const auth = await CAgEAuthManager.create(models, authDir);
     return new CAgERuntimeAdapter(options, models, auth, root);
   }
-  async reconcileV21(spec: AgentSessionSpecV21, invocation: AgentInvocationV21): Promise<{status:'completed';result:unknown;systemChangeSkipped?:boolean;loadedResources?:ResourceReadRef[];answerDeliveries?:import('../research/contracts/v21.js').AnswerDeliveryV21[]}|{status:'not-started'|'pending'|'uncertain'|'denied';captured?:OptionalRetainedV21}> {
+  async reconcileV21(spec: AgentSessionSpecV21, invocation: AgentInvocationV21): Promise<{status:'completed';result:unknown;systemChangeSkipped?:boolean;loadedResources?:ResourceReadRef[];answerDeliveries?:import('../research/contracts/v21.js').AnswerDeliveryV21[]}|{status:'not-started'|'pending'|'uncertain'|'denied'|'rejected';captured?:OptionalRetainedV21}> {
     spec = structuredClone(spec); invocation = structuredClone(invocation);
     validateSpec(spec);
     validateInvocation(loopForSession(spec,this.options.resolveResearchLoop),spec,invocation);
@@ -251,6 +254,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       if(!journal)return {status:'not-started'};
       if(journal.isActive)return {status:'pending'};
       if (journal.state.status === 'denied') return {status:'denied', captured:await recoverOptionalOriginalV21(spec,invocation,journal,this.options.rawAnswers)};
+      if((await journal.captured()).some(row=>(row as {kind?:string}).kind==='v21-rejected-scientific-step'))return {status:'rejected',captured:await recoverOptionalOriginalV21(spec,invocation,journal,this.options.rawAnswers)};
       const result=await recoverOptionalResultV21(spec,invocation,journal,this.options.rawAnswers,('brief'in spec.context?spec.context.brief.knowledgeMapRevision:spec.context.snapshot.knowledgeMapRevision)==='dual-cluster-map-v1'?await this.options.resolveKnowledgeMap?.(spec):undefined);
       if(result){
         const base='brief'in spec.context?spec.context.brief.v3:spec.context.snapshot.v3;
@@ -1214,6 +1218,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
     },()=>!!record.v21OptionalCancelled||this.shuttingDown,()=>record.v3Tools!.summary(),['v3-operation-2','v3-operation-3','v3-operation-4','v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(invocation.operation?.revision??''),record.v3Guidance?.guidanceReferenceState()?()=>record.v3Guidance!.guidanceReferenceState()!:undefined,record.spec.budget.capacityPolicy,nativeHandoff,('brief'in spec.context?spec.context.brief:spec.context.marker.snapshot).inquiryGuidance==='theorist-prior-v3');
     record.v21Control=control;this.syncAvailableTools(record);
     let prompt=taskPrompt(record.bundle,invocation);
+    if(invocation.task==='v21_theorist')prompt+='\n'+workerDispatchRule;
 
     try{
       for(;;){

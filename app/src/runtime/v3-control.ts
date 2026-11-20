@@ -39,7 +39,7 @@ export class ProofControlV3 extends V21Control {
     super(journal, tools, schema, value => {
       if (!retained.value || retained.value.technical.completeness !== 'complete') throw new RuntimeError('INVALID_OUTPUT');
       return {control:prepare(value),...retained.value,v3Execution:execution()} as OptionalTheoristResultV21;
-    },true,{nativeHandoff,declarationSupplement,cancelled,zeroExposureGuidance,resultReady:value=>journal.capture({kind:'v21-optional-result-ready',result:value}),metadataTagPaths:[/^\/outcome\/tags$/,/^\/adoptions\/\d+\/outcome\/tags$/]});
+    },true,{optionalProof:true,nativeHandoff,declarationSupplement,cancelled,zeroExposureGuidance,resultReady:value=>journal.capture({kind:'v21-optional-result-ready',result:value}),metadataTagPaths:[/^\/outcome\/tags$/,/^\/adoptions\/\d+\/outcome\/tags$/]});
     this.retainedState=retained;
   }
   get retained(): OptionalRetainedV21 | undefined { return this.retainedState.value; }

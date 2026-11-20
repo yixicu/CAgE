@@ -1,4 +1,5 @@
 import './oauth-branding.js';
+import { checkSubagentHost } from './subagent-provider.js';
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -51,6 +52,7 @@ export class CAgEAuthManager {
     validateSecret(key);
     let supplied = false;
     try {
+      if (provider === 'cage-subagents') await checkSubagentHost(key);
       await this.models.login(provider, 'api_key', {
         prompt: async prompt => { if (prompt.type !== 'secret' || supplied) throw new RuntimeError('AUTH_INPUT_REQUIRED'); supplied = true; return key; },
         notify: () => {},
@@ -59,6 +61,7 @@ export class CAgEAuthManager {
     } catch (error) { throw error instanceof RuntimeError ? error : new RuntimeError('AUTH_FAILED'); }
   }
   startLogin(provider: string, type: AuthType = 'oauth'): LoginView {
+    if (provider === 'cage-subagents') throw new RuntimeError('AUTH_UNSUPPORTED');
     this.assertMethod(provider, type);
     // One in-flight login per provider; never let repeated UI clicks create multiple callbacks.
     for (const record of this.logins.values()) if (record.view.provider === provider && ['pending', 'awaiting_input'].includes(record.view.status)) return copy(record.view);

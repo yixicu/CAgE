@@ -1,7 +1,7 @@
 import type { ResearchLoopBundleV21 } from '../../contracts/loop.js';
 import { v3 } from '../v3/index.js';
 import { createProject } from '../v21/state.js';
-import { parseProject, parseInFlight } from '../v21/schemas.js';
+import { parseProject, parseConfig, parseInFlight } from '../v21/schemas.js';
 import { assertBoundary, validateInvocation } from '../v21/boundaries.js';
 import { roleSystemPrompt, taskPrompt } from '../v21/prompts.js';
 import { ResearchVersionError } from '../../contracts/errors.js';
@@ -13,5 +13,5 @@ export const v4:ResearchLoopBundleV21=Object.freeze<ResearchLoopBundleV21>({
  parseProject:value=>{const project=parseProject(value);if(project.researchLoopVersion!=='4.0')throw new ResearchVersionError();return project;},
  parseInFlight:value=>{const marker=parseInFlight(value);if(marker.loop.researchLoopVersion!=='4.0')throw new ResearchVersionError();return marker;},
  assertBoundary:(project,marker,purpose)=>{if(project.researchLoopVersion!=='4.0'||marker&&marker.loop.researchLoopVersion!=='4.0')throw new ResearchVersionError();assertBoundary(project,marker,purpose);},
- parseConfig:v3.parseConfig,validateInvocation,roleSystemPrompt,taskPrompt,
+ parseConfig:value=>parseConfig({budgetControlEnabled:true,...value as object},'4.0'),validateInvocation,roleSystemPrompt,taskPrompt,
 });

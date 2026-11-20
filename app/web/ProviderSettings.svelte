@@ -10,7 +10,7 @@
   $effect(() => { if (!modelDirty) model = defaultModel ? { ...defaultModel } : undefined; });
   let maintenanceModel=$state<ModelSelection>();
   $effect(()=>{if(!modelDirty)maintenanceModel=preferences.maintenanceModel});
-  const agentRoles = ['theorist','worker','moderator'] as const;
+  import { v4ModelBindings, v4ModelLabels, v4StageOwners, type V4Stage } from '../src/research/versions/v4/model-bindings';
   let overrides = $state({ ...untrack(()=>config.roleModels) });
   $effect(()=>{if(!modelDirty) overrides={...config.roleModels}});
   let selected = $state('');
@@ -61,9 +61,10 @@
   </select></label>
   {#if provider}
     <form onsubmit={saveKey} class="provider-form">
-      {#if provider.apiKeySupported !== false}<label>API key<input type="password" bind:value={key} autocomplete="off" placeholder="Enter a new key" disabled={busy || !!flow && !terminal(flow.status)} required /></label>{/if}
+      {#if provider.id === 'cage-subagents'}<p>Start the bundled subagent host in your Codex session, then enter its pairing key.</p>{/if}
+      {#if provider.apiKeySupported !== false}<label>{provider.id === 'cage-subagents' ? 'Host pairing key' : 'API key'}<input type="password" bind:value={key} autocomplete="off" placeholder="Enter a new key" disabled={busy || !!flow && !terminal(flow.status)} required /></label>{/if}
       <div class="inline-actions">
-        {#if provider.apiKeySupported !== false}<button class="primary" type="submit" disabled={busy || !key || !!flow && !terminal(flow.status)}>Save API key</button><button type="button" disabled={busy || !!flow && !terminal(flow.status)} onclick={() => run(async () => { key = ''; flow = await api.beginOAuth(selected, 'api_key'); response = ''; void poll(); })}>Guided API-key connection</button>{/if}
+        {#if provider.apiKeySupported !== false}<button class="primary" type="submit" disabled={busy || !key || !!flow && !terminal(flow.status)}>{provider.id === 'cage-subagents' ? 'Pair host' : 'Save API key'}</button>{#if provider.id !== 'cage-subagents'}<button type="button" disabled={busy || !!flow && !terminal(flow.status)} onclick={() => run(async () => { key = ''; flow = await api.beginOAuth(selected, 'api_key'); response = ''; void poll(); })}>Guided API-key connection</button>{/if}{/if}
         {#if provider.oauthSupported}<button type="button" disabled={busy || !!flow && !terminal(flow.status)} onclick={() => run(async () => { flow = await api.beginOAuth(selected); response = ''; void poll(); })}>Sign in with {provider.name}</button>{/if}
         {#if provider.configured}<button type="button" class="danger-text" disabled={busy || !!flow && !terminal(flow.status)} onclick={() => run(async () => { await api.disconnect(selected); await onchange(); message = 'Provider disconnected for all CAgE projects.'; })}>Disconnect</button>{/if}
       </div>
@@ -92,8 +93,8 @@
     <fieldset class="flat-fieldset" disabled={busy}>
       <ModelPicker label="CAgE default model" value={model} {models} onchange={value => { modelDirty = true; model = value; }} />
       <h3>V4 agent models</h3>
-      {#each agentRoles as role}
-        <ModelPicker label={role==='worker'?'Optional Worker':role==='theorist'?'Theorist':'Moderator'} value={overrides[role]} {models} inherit onchange={value=>{modelDirty=true;if(value)overrides[role]=value;else delete overrides[role]}}/>
+      {#each v4ModelBindings as role}
+        <ModelPicker label={v4ModelLabels[role]} inheritLabel={role in v4StageOwners ? 'Inherit '+v4ModelLabels[v4StageOwners[role as V4Stage]]+' model' : undefined} value={overrides[role]} {models} inherit onchange={value=>{modelDirty=true;if(value)overrides[role]=value;else delete overrides[role]}}/>
       {/each}
       <ModelPicker label="Maintenance Assistant" value={maintenanceModel} {models} inherit onchange={v=>{modelDirty=true;maintenanceModel=v}}/>
       <button class="primary" type="submit" disabled={!!model && !models.some(item => item.provider === model?.provider && item.id === model?.modelId)}>Save models</button>
