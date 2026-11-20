@@ -1,53 +1,80 @@
-# Maintaining a V4 knowledge workspace
+# Maintenance Assistant
 
-Open **System maintenance** and select the destination before sending a request. Select a V4 project for its knowledge map or **Shared Skill / Strategy library** for method cards. Enable **Allow changes** for a turn that should write. Each operation has a recorded result and the final reply summarizes the turn. A follow-up can refer to a previous operation in the same scope.
+Open **Maintenance Assistant** in the sidebar. Select a project for its saved rounds and V4 knowledge map, or **Shared library** for Skills and Strategies used across projects. Choose a connected model. Leave **Allow changes** clear to inspect records or preview an edit. To apply a proposal, stay in the same scope, check **Allow changes**, and send a new instruction. The checkbox resets after submission and when you change scope.
 
-## Files and directories
+## Diagnose a project or recover an interrupted turn
 
-Carnot stores local application data in `.carnot-data/` under the application root by default. Set `CARNOT_DATA_DIR` to select an external data directory. Project records live under `projects/`, attached notes under `maintenance/notes/`, and provider credentials under `pi/auth/` within the selected data directory. Keep that directory private when sharing the application. The repository map identifies the source, UI, scripts and documentation directories. [Repository map](REPOSITORY_MAP.md)
+Select the project and ask “What happened in epoch 3? Show the failed call, its recorded error category and the public report, if available.” The assistant can read saved round outcomes, the project's last error, recent learning jobs, and V4 research-review and map-maintenance task statuses. A numbered epoch exposes its recorded call statuses and public reports. Ask the Theorist to solve or refute a new proposition.
 
-## Import a note
+The conversation displays tool progress. **Stop** interrupts the turn. An earlier write may already have completed. Before retrying, ask “Check the receipts from the interrupted turn and read the current version of the affected node.” The assistant can search earlier maintenance turns and read attached notes in the selected scope.
 
-1. Select the project, choose **Attach a note**, and enter an instruction. For example, “Read the attached derivation. Compare it with existing nodes. Add missing definitions and the supported theorem, and connect each to the exact premises it uses.”
-2. Send with **Allow changes** enabled. For a preview, leave it unchecked and ask for proposed changes. To apply the proposal later, stay in the same scope, enable writes, and refer to the previous note.
-3. The assistant reads the selected UTF-8 text in pages. Markdown, plain text, LaTeX source, CSV and textual JSON are supported. Each request accepts one note of up to 200,000 characters. For longer notes, divide at scientific section boundaries and include the needed assumptions. Convert scanned or binary documents to text before attaching.
-4. The assistant lists existing entries, opens the exact matching versions and writes justified additions or revisions. The original text is kept under the application data directory in `maintenance/notes/` as a Markdown or plain-text file. The turn records its name and content hash. Each theorem write includes the supplied proof, its conditions, exact premises and the assistant’s review of the decisive inference. A gap should be reported with the specific missing step. To verify the result, ask “Show the title, version, premises and attached proof of the node you just wrote.”
+The assistant has no shell, general file browser, or tool for opening, editing, exporting or deleting raw logs. For a startup failure, open `launcher-logs/` under the active **System logs and records** folder yourself. To ask about a particular line, attach a short text excerpt after removing private research content, local paths and credentials as appropriate. The selected provider receives content the assistant reads during its turn.
 
-## Install the core map in a project
+## Import a note into a project
 
-1. Start Carnot, create a V4 project, and keep the server running. Use the loopback URL printed at startup. In the same browser, open `/api/projects` on that origin to find the project ID. At `/api/research/knowledge-map?projectId=PROJECT_ID`, read `profile.version`.
-2. Place the complete **core map** folder anywhere convenient. Open a terminal inside it and run the commands below. Substitute the actual URL, project ID and profile version. The first command validates the package locally.
+1. Select the destination project. Choose **+** (**Attach note**) and select one UTF-8 text file. The picker accepts Markdown, plain text, LaTeX source, CSV and JSON. The limits are 200,000 characters and 800,000 bytes per attachment. Convert a scanned or binary document to text first.
+2. Ask “Compare this note with the existing map. List the missing definitions, the theorem's assumptions and the exact premises its proof uses.” For a long source, divide it into sections that include the assumptions needed for each result.
+3. Review the proposal. Enable **Allow changes** and ask the assistant to apply the specified additions using the previous note. Concepts begin as drafts. A new theorem or a change to its scientific content requires the supplied proof and a review of the decisive inference. Ask for the missing step if the evidence is insufficient.
+4. Verify the result with “Show the exact node version, statement, premises, proof and review.” For a title or metadata change, ask to preserve the theorem body, assumptions and proof support. Retirement preserves the node's history. Measurements, canonical theory projections and accepted foundations have separate controls. For example, a proposed foundation in a project's knowledge updates has its own acceptance button.
 
-```sh
+## Manage and transfer Skills and Strategies
+
+Select **Shared library**. Ask for matches by title, then ask to read the chosen card's ID, version, full Markdown body, applicability and tags. A change here affects the shared library across projects.
+
+| To do this | Ask the assistant |
+|---|---|
+| Create a method or failure Skill | “Turn the attached note into a Skill. Give it a searchable title, state when it applies, and put one reusable action on each bullet line.” |
+| Create a specific Strategy | “Create a Strategy for choosing this route. State the condition, the preferred route and why it applies in one short paragraph.” |
+| Edit a card | “Read the exact current version. Preserve the other steps and revise the second step using these conditions. Show the new version.” |
+| Retire a card | “Retire this exact version and report its ID and resulting status.” |
+
+Creation, revision and retirement require **Allow changes**. Created and revised cards start disabled with status `needs_review`. If another edit changed the target, read the new version before reapplying the change. For a manual edit of an available card, open the resource in **cages** and use **Edit resource** when enabled.
+
+For a portable text copy, ask for the card's complete body and metadata, then save the reply as Markdown yourself. In the destination workspace, select **Shared library**, attach the file, and ask for a new card of the same kind. Verify its stored body and status. This transfers the instructions as a new revision-one card. IDs, history, provenance and review decisions belong to the source workspace. The assistant has no bulk Skill/Strategy package importer or file-export tool.
+
+## Transfer a V4 knowledge map
+
+For a single readable record, ask the assistant to show the node and its attached proof, then save the text yourself. For a transferable project map folder, use the local command-line helper. The assistant can explain the procedure but cannot run the helper or select a destination folder.
+
+Keep Carnot running. In PowerShell, use the actual loopback origin of your running instance (`4327` is the default). The following commands list V4 project IDs and names and fetch the destination's current profile version. The bootstrap token stays in the PowerShell session.
+
+```powershell
+$origin = 'http://127.0.0.1:4327'
+$bootstrap = Invoke-RestMethod "$origin/api/bootstrap"
+$bootstrap.projects | Where-Object researchLoopVersion -eq '4.0' | Select-Object id,name
+$target = 'DESTINATION_PROJECT_ID'
+$headers = @{ 'X-Carnot-Token' = $bootstrap.requestToken }
+$profileVersion = (Invoke-RestMethod "$origin/api/research/knowledge-map?projectId=$target" -Headers $headers).profile.version
+```
+
+From the checkout's `app/` folder, or the desktop installation's `payload/app/` folder, use Node to run the following commands. Set `$mapFolder` to a new folder in a writable location. For a transfer between workspaces, export against the source instance, move the entire folder, and repeat the lookup above against the destination instance before importing.
+
+```powershell
+$source = 'SOURCE_PROJECT_ID'
+$mapFolder = 'D:\Maps\my-map'
+node scripts/project-map.mjs export $origin $source $mapFolder
+node scripts/project-map.mjs import $origin $target $mapFolder $profileVersion
+```
+
+The export contains `map.json`, `statements/` and `proofs/` with checksums for the text files. Import selects the latest eligible active project-local concepts, theorems and observations, and recreates eligible links between them. Historical versions and source decisions remain in the snapshot. The destination owns the new entries and reviews their evidence and foundation choices. Check imported and skipped counts and open representative proofs. For a retry of the same batch, use the original import arguments. To propose changes to an exported statement, attach its Markdown as a note. Editing the package files in place invalidates their checksums.
+
+If you separately have a **core map** package containing `core-map.mjs`, run the following from that package's directory, using the destination and profile version above.
+
+```powershell
 node core-map.mjs
-node core-map.mjs http://127.0.0.1:4327 PROJECT_ID PROFILE_VERSION
+node core-map.mjs $origin $target $profileVersion
 ```
 
-3. To accept every packaged foundation as a project premise, append `--accept-foundations` to the **first import** after examining the foundations. Otherwise the user can accept individual premises separately. Retry the same batch with the original arguments.
-4. Inspect the project map or ask Maintenance to list a title and show its supplied proof. The seed receipt records the imported versions. Source text and an attached proof are readable immediately. Scientific qualification and user acceptance are separate. Import records every node and its declared links immediately. To qualify a supplied proof, select the project, enable **Allow changes**, and ask Maintenance to inspect the existing argument and its premises. For a measurement, ask it to check the source excerpt, conditions, value, units and uncertainty. Attach the original source excerpt when needed. Inspect the recorded qualification before requesting another review.
+The first command validates the package and reports node and link counts. Append `--accept-foundations` to the first import only if you have examined and wish to accept all its packaged foundations. For an imported proof or measurement, select the destination in Maintenance, enable **Allow changes**, and ask for review of that exact item. The assistant reads its supplied evidence and records a verdict. For a measurement, provide the source excerpt and locator, conditions, value, units and uncertainty where applicable. Check the recorded outcome before relying on it.
 
-## Export and import a personal map
+## Find the files on disk
 
-Run these commands from the application repository. Use a new directory for the export and a V4 project as the destination. Replace the example origin and IDs with the values obtained above.
+Open **Settings → Research → Storage folders** to see **Knowledge and project files** and **System logs and records**. Changing a folder takes effect after exit and restart. Existing files stay in their previous location.
 
-```sh
-node scripts/project-map.mjs export http://127.0.0.1:4327 SOURCE_PROJECT ./my-map
-node scripts/project-map.mjs import http://127.0.0.1:4327 TARGET_PROJECT ./my-map PROFILE_VERSION
-```
+| Location | Contents |
+|---|---|
+| Active knowledge and project folder | Project records, the shared research library, `maintenance/session.json` for maintenance turns and receipts, and `maintenance/notes/` for attachments. Notes are saved even on read-only turns. The original filename and digest are recorded, and the saved text uses a hash-based filename. |
+| Active system folder | Launcher logs under `launcher-logs/` and runtime records under `pi/`. |
+| Workspace selected at launch | Storage-folder preferences and provider authentication data. The source launch defaults to `.carnot-data/` under the application directory. The desktop launcher uses its configured workspace. `CARNOT_DATA_DIR` selects a workspace at launch. |
 
-The output contains `map.json` (versions, provenance, links and checksums), `statements/*.md` and `proofs/*.md`. Transfer the whole folder. To revise a Markdown file, attach it to Maintenance as a new source. The package importer checks the original file hashes. The export records project-local entries, their versions and scientific links. The import selects current transferable statements and measurements and submits them as new seeds. The source project’s review decisions, historical versions and foundation selections stay in the snapshot. Canonical theory projections and references to materials owned by another project require their original sources. Retrying the same package with the initial profile version reuses its import receipt. The destination qualifies evidence and accepts foundations under its own authority. Inspect the reported counts of imported entries and skipped entries or links, then verify representative nodes and their proof text in the destination.
-
-Maintenance can explain these commands through the guide. Run folder transfers in the local terminal. To import an ordinary note conversationally, use **Attach a note**.
-
-## Manage Skills and Strategies
-
-Select **Shared Skill / Strategy library**. Ask for the node by title. Maintenance lists matches and opens the selected version before editing. Enable **Allow changes** for the following requests.
-
-| Request | Operation | Expected result |
-|---|---|---|
-| “Create a Skill for checking a boundary condition before choosing a solution route.” | Create a method Skill. Supply a short title, tags, applicability and one transferable action per Markdown bullet line. | A versioned card with its Markdown body. Maintenance-created cards start disabled pending scientific review. |
-| “Create a Strategy for selecting a symmetry reduction.” | Create a specific Strategy. State the route preference and why it applies in one short paragraph. | A versioned Strategy in the shared library. |
-| “Revise this card using these conditions.” | Read the exact version, preserve its applicable content, then submit the replacement. | A new revision awaiting review. If a concurrent change intervenes, read the latest version before reapplying the requested edit. |
-| “Retire this card.” | Identify the exact version and retire it. | The shared card is retired across projects and its history remains available. |
-
-In project scope the same operations target editable scientific nodes. For a metadata-only theorem edit, retain the body and assumptions to preserve existing support. Measurements, canonical theory projections and accepted premises have separate controls.
+Use the map package or a selected card's Markdown when sharing research. The workspace also contains private prompts, attachments, run records and provider authentication data. [Source architecture](https://github.com/yixicu/CAgE/blob/main/docs/AGENTS.md)

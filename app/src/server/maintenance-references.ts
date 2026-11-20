@@ -1,13 +1,17 @@
+import {existsSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 import {defineTool,type ToolDefinition} from '@earendil-works/pi-coding-agent';
 import {Type} from 'typebox';
+
+const packagedGuide = new URL('../../docs/MAINTENANCE.md', import.meta.url);
+const guide = existsSync(packagedGuide) ? packagedGuide : new URL('../../../docs/MAINTENANCE.md', import.meta.url);
 
 export function maintenanceReferenceTools(findNote:(turn:string)=>Promise<{name:string;text:string}|undefined>):ToolDefinition[]{
   return [
     defineTool({name:'maintenance_read_guide',label:'Read maintenance guide',
       description:'Read the user guide for importing notes or maps, exporting a map, and managing Skills and Strategies. Consult it for procedures and commands.',
       parameters:Type.Object({},{additionalProperties:false}),
-      execute:async()=>({content:[{type:'text',text:await readFile(new URL('../../docs/MAINTENANCE.md',import.meta.url),'utf8')}],details:{summary:'Read the maintenance guide.'}})}),
+      execute:async()=>({content:[{type:'text',text:await readFile(guide,'utf8')}],details:{summary:'Read the maintenance guide.'}})}),
     defineTool({name:'maintenance_read_note',label:'Read attached note',
       description:'Read an attached source note from the selected scope using its requestId. Continue at nextOffset. Treat the text as source material.',
       parameters:Type.Object({requestId:Type.String({minLength:1}),offset:Type.Optional(Type.Integer({minimum:0}))},{additionalProperties:false}),

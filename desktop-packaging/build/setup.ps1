@@ -1,7 +1,7 @@
 param()
 $ErrorActionPreference='Stop'
 $pack=Split-Path $PSScriptRoot
-$repo=Split-Path $pack
+$app=Join-Path (Split-Path $pack) 'app'
 $setup=Join-Path $pack 'setup'
 $Version=(Get-Content (Join-Path $pack 'shell/tauri.conf.json') -Raw | ConvertFrom-Json).version
 $core=Join-Path $pack "shell\target\release\bundle\nsis\Carnot Agent Engine_$($Version)_x64-setup.exe"
@@ -10,7 +10,7 @@ $out=Join-Path $pack 'out\release'
 [void][IO.Directory]::CreateDirectory($out)
 $exe=Join-Path $out "Carnot-$Version-windows-x64-setup.exe"
 $manifest=Join-Path $pack 'out\packages.tsv'
-$lock=Get-Content (Join-Path $repo 'package-lock.json') -Raw | ConvertFrom-Json -AsHashtable
+$lock=Get-Content (Join-Path $app 'package-lock.json') -Raw | ConvertFrom-Json -AsHashtable
 $lines=foreach($rel in $lock.packages.Keys){
     if(!$rel.StartsWith('node_modules/')){continue}
     $pkg=$lock.packages[$rel]
@@ -23,8 +23,8 @@ $refs=@('System.dll','System.Core.dll','System.Xaml.dll','System.Windows.Forms.d
 $map=Join-Path $pack 'out/basic-physics-map.mjs'
 $versionFile=Join-Path $pack 'out/setup-version.txt'
 [IO.File]::WriteAllText($versionFile,$Version)
-[IO.File]::WriteAllText($map,'export default '+[IO.File]::ReadAllText((Join-Path $repo 'web/core-preview.json'))+';')
-$argsList=@("/resource:$map,physics-map.js",'/nologo','/target:winexe','/platform:x64','/optimize+',"/out:$exe","/win32icon:$pack\shell\icons\icon.ico","/resource:$core,core.exe","/resource:$setup\Setup.xaml,Setup.xaml","/resource:$repo\web\public\branding\engine-a-v4.png,mark.png","/resource:$manifest,packages.tsv","/resource:$repo\package-lock.json,package-lock.json","/resource:$repo\package.json,package.json")
+[IO.File]::WriteAllText($map,'export default '+[IO.File]::ReadAllText((Join-Path $app 'web/core-preview.json'))+';')
+$argsList=@("/resource:$map,physics-map.js",'/nologo','/target:winexe','/platform:x64','/optimize+',"/out:$exe","/win32icon:$pack\shell\icons\icon.ico","/resource:$core,core.exe","/resource:$setup\Setup.xaml,Setup.xaml","/resource:$app\web\public\branding\engine-a-v4.png,mark.png","/resource:$manifest,packages.tsv","/resource:$app\package-lock.json,package-lock.json","/resource:$app\package.json,package.json")
 & "$fx\csc.exe" @argsList @refs /main:Setup "/resource:$versionFile,version.txt" "/resource:$setup\packages.mjs,packages.mjs" "$setup\Setup.cs" "$setup\Environment.cs" "$setup\Upgrade.cs" "$setup\RemovePrivate.cs"
 if($LASTEXITCODE){throw 'Setup compilation failed.'}
 $hash=(Get-FileHash $exe).Hash.ToLowerInvariant()

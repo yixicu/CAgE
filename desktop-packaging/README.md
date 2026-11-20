@@ -7,7 +7,7 @@ The desktop package uses a Tauri shell, the system WebView2 runtime, and the sam
 Use a Windows x64 Visual Studio developer shell with MSVC, Windows SDK, .NET Framework 4.x compiler and WPF assemblies available. Install Node.js 24.19 or later in the 24.x series, Rust with the MSVC target, and Tauri CLI 2. Use PowerShell 7 to run the build. The optional CARNOT_TAURI_CLI environment variable can point to the JavaScript entry point of an existing Tauri CLI installation.
 
 ~~~powershell
-npm ci --ignore-scripts
+npm --prefix app ci --ignore-scripts
 cargo install tauri-cli --version "^2" --locked
 .\desktop-packaging\build\windows.ps1
 ~~~
@@ -21,7 +21,7 @@ The installer offers separate choices for Node.js, production packages, the basi
 ## Publish a desktop update
 
 1. Make the changes in a clean checkout of yixicu/CAgE. Set the next numeric desktop version (for example, 0.2.7) in the version field of desktop-packaging/shell/tauri.conf.json.
-2. Check the changes with npm run check, then build the Windows installer using the instructions above. Validate both a fresh installation and an upgrade from the previous release with a disposable workspace.
+2. Check the changes with `npm --prefix app run check`, then build the Windows installer using the instructions above. Validate both a fresh installation and an upgrade from the previous release with a disposable workspace.
 3. Commit the source and public documentation to main. Tag that exact commit with the same version prefixed by v, for example v0.2.7, and push the commit and tag. Review the staged files before pushing.
 4. In GitHub Releases, create a draft for that tag. Attach both Carnot-0.2.7-windows-x64-setup.exe and Carnot-0.2.7-windows-x64-setup.exe.sha256 from desktop-packaging/out/release. Keep those filenames unchanged. Publish it as the latest full release after both uploads finish. Use a new, higher version for each update.
 5. On a machine running the previous update-capable version, open Settings → Plugins & general → Desktop updates and check for updates.

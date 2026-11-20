@@ -1,13 +1,16 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+const { createCanvas, loadImage } = createRequire(new URL('../../app/package.json', import.meta.url))('@napi-rs/canvas');
+
 // Match the default blue palette and source-channel normalization in web/branding/engine-mark.ts.
 function tintEnginePixels(bytes) {
   const low=[25,55,98], high=[141,195,245];
   for(let i=0;i<bytes.length;i+=4){const tone=Math.max(0,Math.min(1,(bytes[i+2]-80)/160));for(let c=0;c<3;c++) bytes[i+c]=low[c]+tone*(high[c]-low[c]);}
 }
 
-const source = await loadImage(fileURLToPath(new URL('../../web/public/branding/engine-a-v4.png',import.meta.url)));
+const source = await loadImage(fileURLToPath(new URL('../../app/web/public/branding/engine-a-v4.png',import.meta.url)));
 const sizes = [16,24,32,48,64,128,256];
 const header = Buffer.alloc(6+16*sizes.length);
 header.writeUInt16LE(1,2);

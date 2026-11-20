@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+const source = join(root, 'app');
 const output = join(root, 'desktop-packaging/out');
 const destination = join(output, 'payload');
 if (existsSync(destination) && (lstatSync(destination).isSymbolicLink() || !existsSync(join(destination,'app/package.json')))) throw Error('Unexpected contents in out/payload. Move the directory aside before building.');
@@ -12,11 +13,16 @@ if (major !== 24 || minor < 19 || process.arch !== 'x64' || process.platform !==
 mkdirSync(output, {recursive:true});
 const stage = mkdtempSync(join(output, 'stage-'));
 const app = join(stage, 'app');
-const copy = (file) => cpSync(join(root,file), join(app,file), {recursive:true});
-for (const file of ['package.json','LICENSE','scripts/launch.mjs','scripts/project-map.mjs','docs/MAINTENANCE.md','docs/THIRD_PARTY_NOTICES.md','plugins']) copy(file);
-const run = (file,args) => execFileSync(process.execPath,[join(root,file),...args],{cwd:root,stdio:'inherit'});
+for (const file of ['package.json','scripts/launch.mjs','scripts/project-map.mjs','plugins']) {
+  cpSync(join(source,file), join(app,file), {recursive:true});
+}
+for (const file of ['MAINTENANCE.md','THIRD_PARTY_NOTICES.md']) {
+  cpSync(join(root,'docs',file), join(app,'docs',file));
+}
+cpSync(join(root,'docs/LICENSE'), join(app,'LICENSE'));
+const run = (file,args) => execFileSync(process.execPath,[join(source,file),...args],{cwd:source,stdio:'inherit'});
 run('node_modules/typescript/bin/tsc',['-p','tsconfig.json','--outDir',join(app,'dist'),'--declaration','false']);
-run('node_modules/vite/bin/vite.js',['build','--config','desktop-packaging/build/vite.config.ts','--configLoader','runner','--outDir',join(app,'dist/web')]);
+run('node_modules/vite/bin/vite.js',['build','--config',join(root,'desktop-packaging/build/vite.config.ts'),'--configLoader','runner','--outDir',join(app,'dist/web')]);
 const previous = stage + '-previous';
 if (existsSync(destination)) renameSync(destination,previous);
 try {

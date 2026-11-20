@@ -14,7 +14,3 @@ playwright-report/
 coverage/
 .npm-cache/
 .DS_Store
-
-# Legacy local copies superseded by docs/modules/.
-/src/presentation/0001-README.md
-/web/styles/0001-README.md

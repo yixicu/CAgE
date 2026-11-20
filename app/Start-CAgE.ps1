@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $node = (Get-Command $NodePath -ErrorAction Stop).Source
 if ((& $node --version) -notmatch '^v24\.') { throw 'CAgE requires Node.js 24. Pass its executable with -NodePath.' }
-if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'node_modules'))) { throw 'Dependencies are missing. Restore your existing node_modules before starting CAgE.' }
+if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'node_modules'))) { throw 'Dependencies are missing. Run npm ci in the app directory before starting CAgE.' }
 if ($Build -or -not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'dist/server/index.js'))) {
     Push-Location $PSScriptRoot
     try {
