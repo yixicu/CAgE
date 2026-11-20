@@ -4,6 +4,8 @@ CAgE is a local-first workspace for theoretical research. Start with a hypothesi
 
 **Windows desktop:** download the x64 setup from [Releases](https://github.com/yixicu/CAgE/releases/latest). Connect a provider in **Settings → Models & connections**. From desktop version 0.2.6, check for new releases in **Settings → Plugins & general**.
 
+**Linux preview:** download the `linux-system-node.tar.gz` asset from the same release and extract it. With Node.js 24.19 or later in the 24.x series and npm 11.9, run `npm ci --omit=dev --ignore-scripts --no-audit --no-fund` inside the extracted folder, then `node start.mjs`. This starts CAgE in your system browser. The package includes the compiled application. Its first-time setup downloads production dependencies.
+
 **Browser edition:** with Node.js 24.19 or later in the 24.x series and npm 11.9, run:
 
 ~~~sh

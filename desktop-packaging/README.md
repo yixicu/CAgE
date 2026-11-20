@@ -32,6 +32,8 @@ Version 0.2.5 predates the update controls. To enable them, fully exit that vers
 
 ## Linux amd64 preview
 
+Release 0.2.7 ships the system-Node tarball described in the [project README](../README.md). The optional self-contained Debian build below requires a Linux Node distribution and Linux production packages.
+
 The Debian package runs the same backend on loopback and opens the system browser from the applications menu. It includes Linux Node.js and the locked production dependencies. The default workspace is `$XDG_DATA_HOME/cage` (normally `~/.local/share/cage`). Set `CARNOT_DATA_DIR` to use another workspace. Install a newer .deb to update. The command `carnot-agent-engine --no-browser` prints the address for headless use.
 
 To build, run `npm --prefix app run build` with the development dependencies installed. On Linux x86-64, put the official Node 24 distribution on PATH, set `NODE_LICENSE` to its LICENSE file and run `bash desktop-packaging/build/linux.sh`. The build uses npm, GNU tar, ar and dpkg-deb. It writes the package and checksum alongside Windows assets in desktop-packaging/out/release.
