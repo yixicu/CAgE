@@ -1,0 +1,69 @@
+/* Shared semantic surfaces; palette and geometry remain theme tokens. */
+@layer components {
+  .hypothesis-preview { @apply w-full min-w-0 justify-between items-start border-0 p-0 text-reading leading-relaxed font-paper; }
+  .hypothesis-preview:hover:not(:disabled) { @apply bg-transparent text-accent; }
+  .hypothesis-preview svg { @apply flex-none mt-1; }
+  .hypothesis-preview .markdown-view p { @apply m-0 text-reading leading-relaxed; }
+  .hypothesis-preview .markdown-view { @apply min-w-0; }
+  .hypothesis-full { @apply mt-3 max-h-[45vh] overflow-auto; }
+  .hypothesis-float .hypothesis-full { @apply max-h-[35vh]; }
+  .hypothesis-heading { @apply pb-4 mb-6; }
+  .hypothesis-heading .section-heading { @apply mb-2; }
+  .disclosure-list { @apply my-2 min-w-0; }
+  .disclosure-list > summary { @apply py-2 text-control text-ink font-medium wrap-anywhere; }
+  .disclosure-list > summary::marker { @apply text-muted; }
+  .disclosure-list > :not(summary) { @apply mt-2; }
+  .sidebar .disclosure-list { @apply border-0 px-2 pb-2 pt-0 min-h-0 max-h-none; }
+  .sidebar .disclosure-list > summary { @apply text-muted font-medium; }
+  .sidebar .disclosure-list .count { @apply float-right; }
+  .sidebar .document-nav .section-heading { @apply justify-end m-0; }
+  .sidebar .session-outline > .outline-children { @apply ml-3; }
+  .inspector-hypothesis { @apply mx-4.5 pb-3 border-b border-line; }
+  .logic-block { @apply my-3 min-w-0 text-xs; }
+  .logic-premises { @apply rounded-panel border-l-4 border-warning bg-warning-soft px-2.5 py-2; }
+  .logic-line { @apply flex items-start gap-2 py-1.5 min-w-0; }
+  .logic-key { @apply inline-block flex-none rounded-small bg-warning/15 text-warning px-1.5 py-0.5 text-xs font-semibold font-mono; }
+  .logic-action { @apply ml-3 mt-2 border-l-2 border-info rounded-control bg-info-soft p-2.5 min-w-0; }
+  .action-key { @apply text-info bg-info/10 mb-1; }
+  .logic-else { @apply mt-2 mb-0; }
+  .logic-else summary { @apply text-xs; }
+  .logic-block .markdown-view, .logic-steps .markdown-view { @apply min-w-0 text-xs leading-relaxed wrap-anywhere; }
+  .logic-block .markdown-view p, .logic-steps .markdown-view p { @apply text-xs my-0; }
+  .logic-block .katex-display, .logic-steps .katex-display { @apply max-w-full overflow-x-auto overflow-y-hidden; }
+  .logic-steps { @apply list-none border-l-2 border-info pl-3 space-y-2; }
+  .logic-steps li { @apply rounded-control bg-info-soft p-2; }
+  .state-tag { @apply inline-flex items-center rounded-control border-0 px-2 py-1 text-xs font-medium max-w-full wrap-anywhere; color:var(--node-color); background:var(--node-bg); }
+  .node-details h3 { @apply text-control leading-relaxed mb-2; }
+  .node-details .section-heading { @apply items-start; }
+  .node-details .section-heading button { @apply flex-none; }
+  .execution-overview, .execution-details, .right-pane > * { @apply min-w-0 max-w-full; }
+  .execution-overview { @apply overflow-hidden; }
+  .resource-name-list { @apply list-none m-0 pl-3 border-l border-line; }
+  .resource-name-list li { @apply text-xs py-1 wrap-anywhere; }
+  .outcome-progress { --outcome:var(--color-muted); --outcome-bg:var(--color-idle-soft); }
+  .outcome-partial { --outcome:var(--color-info); --outcome-bg:var(--color-info-soft); }
+  .outcome-refuted, .outcome-empirical-exclusion { --outcome:var(--color-danger); --outcome-bg:var(--color-danger-soft); }
+  .outcome-proved { --outcome:var(--color-success); --outcome-bg:var(--color-success-soft); }
+  .epoch-badge { @apply ml-auto inline-flex gap-2 items-center rounded-control px-2 py-1 text-xs; color:var(--outcome); background:var(--outcome-bg); }
+  .outcome-dot { @apply inline-block w-1.5 h-1.5 rounded-full flex-none; background:var(--outcome); }
+  .round-ribbon .round-tab, .round-ribbon .round-tab.current { color:var(--outcome); }
+  .round-ribbon .round-tab::before, .round-ribbon .round-tab.current::before { background:var(--outcome-bg); }
+  .round-ribbon .round-tab.current { box-shadow:inset 0 -3px var(--outcome); }
+  .round-ribbon .round-tab:hover::before { background:var(--outcome-bg); }
+  .checkpoint-feedback { @apply mt-2 mb-4; }
+  .feedback-toolbar { @apply flex items-center gap-1; }
+  .feedback-toolbar .chosen { @apply bg-selected text-ink; }
+  .feedback-options { @apply mt-2 rounded-panel bg-canvas border border-line p-3; }
+  .feedback-chip { @apply text-xs py-1.5 px-2.5 rounded-control bg-surface; }
+  .feedback-chip.chosen { @apply border-accent text-ink bg-selected; }
+}
+
+@layer components {
+  .session-title { @apply flex items-center min-w-0 gap-1; }
+  .inline-title-editor { @apply relative flex items-center min-w-0 gap-1; }
+  .inline-title-editor input { @apply w-60 max-w-full min-w-0 py-1.5 px-2 text-control; }
+  .rename-error { @apply absolute top-full left-0 z-20 mt-1 p-2 bg-danger-soft text-danger rounded-control text-xs w-64; }
+  .checkpoint-notice { @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-panel bg-warning-soft text-ink p-3 my-4 text-control; }
+  .checkpoint-notice.partial { @apply bg-info-soft text-ink; }
+  .checkpoint-notice span { @apply text-xs; }
+}

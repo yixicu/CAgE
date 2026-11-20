@@ -1,0 +1,72 @@
+/* Visual composition only. Existing Tailwind semantic roles remain the API. */
+@layer components {
+ :root { --font-paper: 'Times New Roman', 'Noto Serif CJK SC', 'Songti SC', SimSun, serif; --reading-width: 760px; }
+ .app-shell { @apply relative isolate bg-canvas overflow-hidden; font-family:var(--font-ui); contain:paint; }
+ .workspace-art { @apply absolute inset-0 -z-1 pointer-events-none; }
+ .main-pane { @apply bg-transparent; }
+ .sidebar,.right-pane { background:color-mix(in srgb,var(--color-surface) 78%,transparent); }
+ .topbar { background:color-mix(in srgb,var(--color-canvas) 90%,transparent); }
+ .sidebar { @apply border-0 rounded-panel; }
+ .right-pane { @apply border-0 rounded-panel; }
+ .topbar { @apply border-0; }
+ .chat-scroll { @apply px-7; scrollbar-gutter: auto; }
+ .conversation { max-width:var(--reading-width); @apply border-0 rounded-none shadow-none px-0 py-5 mt-4; background:color-mix(in srgb,var(--color-surface) 96%,transparent); box-shadow:0 0 44px 24px color-mix(in srgb,var(--color-surface) 90%,transparent); }
+ .research-paper { @apply max-w-none text-lg font-normal leading-[1.65]; }
+ .paper-section>h2 { @apply text-xl font-semibold mb-3; }
+ .paper-summary { @apply border-0 pb-1 mb-8; }
+ .research-paper .math-block { @apply rounded-small py-3 px-4 my-5; background:color-mix(in srgb,var(--color-tint) 32%,var(--color-surface)); }
+ .research-paper .markdown-view img, .research-paper .markdown-view figure { @apply max-w-full mx-0; }
+ .reader-dock { @apply px-7 border-0 pt-2; background:color-mix(in srgb,var(--color-surface) 94%,transparent); }
+ .reader-dock-inner { max-width:var(--reading-width); }
+ .hypothesis-heading { @apply pb-5 mb-6; }
+ .hypothesis-heading h1 { @apply font-paper text-2xl tracking-normal text-ink font-normal; }
+ .sidebar .disclosure-list { @apply rounded-control; }
+ .sidebar nav button,.nav-action,.sidebar summary { @apply text-sm; font-family:var(--font-ui); }
+ .sidebar h2,.sidebar summary { @apply font-medium; }
+ .graph-node { @apply bg-surface/80 border-line rounded-control min-h-11; }
+ .graph-node:hover:not(:disabled) { @apply bg-hover/40; }
+ .graph-node.chosen { @apply outline-accent; }
+ .node-caption { @apply font-ui text-control leading-relaxed; }
+ .node-state { @apply w-4 h-4; }
+ .node-state svg { @apply w-3.5 h-3.5; stroke-width:2; }
+ .sidebar nav .chosen { @apply shadow-none; box-shadow:inset 2px 0 var(--color-accent); }
+ .logic-premises { @apply border-l-2 rounded-control; background:color-mix(in srgb,var(--color-warning-soft) 22%,var(--color-surface)); }
+ .logic-action,.logic-steps li { background:color-mix(in srgb,var(--color-info-soft) 25%,var(--color-surface)); }
+ .logic-key { @apply bg-warning/10; }
+ .logic-key.action-key { @apply bg-info/10; }
+ .execution-details { @apply bg-surface/60 rounded-control; }
+ .send-button { @apply w-10 h-10 min-h-10 p-2; }
+ .send-button svg { @apply w-5 h-5; }
+ .theme-option { @apply border-line-strong; }
+ .theme-option.chosen { @apply outline-2 outline-offset-3 outline-accent; }
+ .theme-option:hover:not(:disabled) { @apply border-accent; }
+ .entry-scene { @apply relative isolate min-h-full overflow-hidden rounded-panel; }
+ .hypothesis-entry { min-height:calc(100dvh - 56px); @apply relative z-1; width:min(960px,100%); padding:24px 48px clamp(56px,12vh,130px); }
+ .hypothesis-entry .entry-identity { font-size:clamp(64px,10vw,148px); }
+ .hypothesis-entry .entry-identity>h1 { letter-spacing:.12em; margin-right:-.12em; }
+ .hypothesis-entry .entry-preview { @apply bg-surface/95 shadow-panel border-line-strong/60; }
+ .home-composer .composer { @apply bg-surface/95 border-line-strong shadow-panel; }
+ .main-scroll:has(.entry-scene) { @apply p-0; scrollbar-gutter:auto; }
+ @media(min-width:901px) {
+  .sidebar { margin:12px 0 12px 12px; width:calc(var(--nav-width) - 12px); }
+  .right-pane { margin:12px 12px 12px 0; width:calc(var(--inspector-width) - 12px); }
+  .main-pane { @apply mx-3; }
+ }
+ @media(max-width:900px) {
+  .sidebar,.right-pane { @apply rounded-none; background:color-mix(in srgb,var(--color-surface) 92%,transparent); }
+  .chat-scroll,.reader-dock { @apply px-5; }
+  .conversation { @apply py-4; }
+  .hypothesis-entry { @apply px-7; }
+ }
+ @media(max-width:600px) {
+  .chat-scroll,.reader-dock { @apply px-4; }
+  .research-paper { @apply text-base; }
+  .hypothesis-entry { @apply px-4 pb-7; }
+  .entry-scene { @apply rounded-none; }
+  .settings-tabs { @apply flex-wrap gap-x-4 gap-y-1; }
+ }
+ @media print {
+  .conversation,.research-paper { color:#000; background:#fff; }
+  .workspace-art { display:none; }
+ }
+}

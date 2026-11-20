@@ -1,0 +1,116 @@
+/* Presentation scoped to the CapabilitiesPage root. */
+@layer components {
+  .capability-page {
+    width: min(740px,100%);
+    @apply mt-2 mr-auto mb-11.25 ml-auto;
+  }
+  .capability-page>header {
+    @apply flex justify-between items-center gap-5;
+  }
+  .capability-page .capability-kicker {
+    @apply text-control text-muted;
+  }
+  .capability-page h1 {
+    @apply font-title font-medium text-4xl leading-[1.2];
+    letter-spacing: -.8px;
+    @apply mt-2 mr-0 mb-3.5 ml-0;
+  }
+  .capability-page .capability-intent {
+    @apply text-sm text-muted mt-0 mr-0 mb-7.5 ml-0;
+  }
+  .capability-page .group-heading {
+    @apply flex items-center justify-between gap-3 border-b border-b-line pt-0 pr-0 pb-3 pl-0;
+  }
+  .capability-page .group-heading h2 {
+    @apply text-reading m-0;
+  }
+  .capability-page .group-heading>span {
+    @apply text-xs text-muted;
+  }
+  .capability-page .capability-group {
+    @apply my-7 mx-0;
+  }
+  .capability-page .capability-row {
+    @apply py-5 px-0 border-b border-b-line;
+  }
+  .capability-page .resource-heading {
+    @apply flex justify-between items-center gap-3;
+  }
+  .capability-page .resource-heading h3 {
+    @apply text-reading mt-0 mr-0 mb-1.5 ml-0 font-semibold;
+  }
+  .capability-page .resource-origin {
+    @apply text-xs text-muted;
+  }
+  .capability-page .resource-version {
+    @apply pl-3.5;
+  }
+  .capability-page .capability-row>p {
+    @apply text-control leading-[1.6] mt-2.5 mr-13.75 mb-0 ml-0;
+  }
+  .capability-page .resource-switch {
+    @apply m-0;
+  }
+  .capability-page .resource-switch input {
+    @apply appearance-none w-8.5 h-5 rounded-full border border-line-strong bg-selected p-0 relative cursor-pointer transition-colors duration-(--motion-control);
+  }
+  .capability-page .resource-switch input::before {
+    @apply content-[''];
+    @apply absolute w-3.5 h-3.5 top-0.5 left-0.75 rounded-full bg-surface shadow-thumb transition-transform duration-(--motion-control);
+  }
+  .capability-page .resource-switch input:checked {
+    @apply bg-accent border-accent;
+  }
+  .capability-page .resource-switch input:checked::before {
+    transform: translateX(12px);
+  }
+  .capability-page .resource-switch input:disabled {
+    @apply opacity-45 cursor-not-allowed;
+  }
+  .capability-page details {
+    @apply mt-2.75 mr-0 mb-0 ml-0;
+  }
+  .capability-page summary {
+    @apply text-xs;
+  }
+  .capability-page dl {
+    @apply grid;
+    grid-template-columns: 70px minmax(0,1fr);
+    @apply gap-y-1.25 gap-x-3 text-xs text-muted;
+  }
+  .capability-page dd {
+    @apply m-0;
+    @apply wrap-anywhere;
+  }
+  .capability-page ul {
+    @apply text-muted text-xs leading-[1.6] pl-4.25;
+  }
+  .capability-page .notice {
+    @apply my-3.5 mx-0;
+  }
+  .capability-page .save-state,.capability-page .scope-note {
+    @apply text-xs text-accent my-3 mx-0;
+  }
+  .capability-page .empty-capability {
+    @apply text-control text-muted py-4.5 px-0;
+  }
+  .capability-page .resource-reason {
+    @apply text-code;
+  }
+  .capability-page .unavailable h3 {
+    @apply text-muted;
+  }
+  @media (max-width:600px) {
+    .capability-page h1 {
+      @apply text-3xl;
+    }
+    .capability-page .capability-row>p {
+      @apply mr-0;
+    }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .capability-page .resource-switch input,.capability-page .resource-switch input::before {
+      @apply transition-none;
+    }
+  }
+}

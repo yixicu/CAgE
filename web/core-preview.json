@@ -1,0 +1,2524 @@
+[
+ {
+  "key": "calculus",
+  "title": "Differentiation and integration",
+  "aliases": [
+   "calculus"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "For $C^1$ functions, $\\int_a^b f'(x)\\,dx=f(b)-f(a)$; derivatives obey the product and chain rules.",
+  "body": "For $C^1$ functions, $\\int_a^b f'(x)\\,dx=f(b)-f(a)$; derivatives obey the product and chain rules.\n\nUse integration by parts for absolutely continuous factors. Interchange a derivative and an integral when an integrable bound dominates the differentiated integrand locally; interchange mixed partial derivatives when they are continuous.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "delta",
+  "title": "Dirac delta",
+  "aliases": [
+   "delta"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "The point distribution at $\\mathbf a$ evaluates a smooth test function: $\\int\\delta^{(3)}(\\mathbf r-\\mathbf a)\\phi(\\mathbf r)\\,d^3r=\\phi(\\mathbf a)$.",
+  "body": "The point distribution at $\\mathbf a$ evaluates a smooth test function: $\\int\\delta^{(3)}(\\mathbf r-\\mathbf a)\\phi(\\mathbf r)\\,d^3r=\\phi(\\mathbf a)$.\n\nThe integral denotes distributional pairing with a compactly supported smooth function.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "local-inverse",
+  "title": "Local inverse theorem",
+  "aliases": [
+   "local-inverse"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "A $C^1$ map with $\\det DF(x_0)\\ne0$ has a differentiable inverse near $x_0$.",
+  "body": "A $C^1$ map with $\\det DF(x_0)\\ne0$ has a differentiable inverse near $x_0$.\n\nParameters held fixed during inversion can be restored as smooth arguments when the parameter-dependent map is smooth.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "bump",
+  "title": "Localized test functions",
+  "aliases": [
+   "bump"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "Every open interval contains a nonnegative $\\eta\\in C_c^\\infty$ with $\\int\\eta\\,dt>0$.",
+  "body": "Every open interval contains a nonnegative $\\eta\\in C_c^\\infty$ with $\\int\\eta\\,dt>0$.\n\nFor an interval containing $[a-r,a+r]$, take $\\eta(t)=\\exp[-1/(1-((t-a)/r)^2)]$ for $|t-a|<r$ and zero elsewhere.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "vector",
+  "title": "Gradient, divergence and curl",
+  "aliases": [
+   "vector"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "In Cartesian coordinates $(\\nabla f)_i=\\partial_i f$, $\\nabla\\cdot\\mathbf F=\\partial_i F_i$ and $(\\nabla\\times\\mathbf F)_i=\\epsilon_{ijk}\\partial_jF_k$.",
+  "body": "In Cartesian coordinates $(\\nabla f)_i=\\partial_i f$, $\\nabla\\cdot\\mathbf F=\\partial_i F_i$ and $(\\nabla\\times\\mathbf F)_i=\\epsilon_{ijk}\\partial_jF_k$.\n\nRepeated indices are summed. The scalar Laplacian is $\\nabla^2 f=\\partial_i\\partial_i f$. Flux integrates $\\mathbf F\\cdot d\\mathbf a$ over an oriented surface; circulation integrates $\\mathbf F\\cdot d\\boldsymbol\\ell$ along an oriented curve.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "flux",
+  "title": "Divergence and Stokes theorems",
+  "aliases": [
+   "flux"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For $C^1$ fields, $\\int_\\Omega\\nabla\\cdot\\mathbf F\\,dV=\\oint_{\\partial\\Omega}\\mathbf F\\cdot d\\mathbf a$ and $\\int_S(\\nabla\\times\\mathbf F)\\cdot d\\mathbf a=\\oint_{\\partial S}\\mathbf F\\cdot d\\boldsymbol\\ell$.",
+  "body": "For $C^1$ fields, $\\int_\\Omega\\nabla\\cdot\\mathbf F\\,dV=\\oint_{\\partial\\Omega}\\mathbf F\\cdot d\\mathbf a$ and $\\int_S(\\nabla\\times\\mathbf F)\\cdot d\\mathbf a=\\oint_{\\partial S}\\mathbf F\\cdot d\\boldsymbol\\ell$.\n\nUse the outward normal for a volume and the induced right-hand boundary orientation for a surface.",
+  "assumptions": [
+   "Piecewise smooth oriented regions, with the field continuously differentiable up to each patch boundary."
+  ],
+  "proof": "On a regular volume chart $\\mathbf r(u,v,w)$ with positive Jacobian $J$, write the cyclic flux densities on coordinate faces.\n$$G_u=\\mathbf F(\\mathbf r)\\cdot(\\mathbf r_v\\times\\mathbf r_w),\\qquad J=\\mathbf r_u\\cdot(\\mathbf r_v\\times\\mathbf r_w).$$\nIn the cyclic sum of derivatives the mixed derivatives of the chart cancel in pairs; the cofactor identity contracts the derivative of the field to its trace.\n$$\\partial_uG_u+\\partial_vG_v+\\partial_wG_w=J\\,\\partial_iF_i.$$\nIntegrating over a parameter box gives its six outward face fluxes by the fundamental theorem. Subdivide into oriented charts; internal fluxes cancel and the boundary faces give the volume formula. Piecewise smooth boundaries follow by subdivision and limits.\nOn a surface patch pull the line integral back to parameter space.\n$$P=\\mathbf F\\cdot\\mathbf r_u,\\qquad Q=\\mathbf F\\cdot\\mathbf r_v,\\qquad \\partial_uQ-\\partial_vP=(\\nabla\\times\\mathbf F)\\cdot(\\mathbf r_u\\times\\mathbf r_v).$$\nApply the fundamental theorem to the two parameter derivatives on a rectangle.\n$$\\int(\\partial_uQ-\\partial_vP)\\,du\\,dv=\\oint(P\\,du+Q\\,dv).$$\nAdjacent patches traverse shared edges in opposite directions, leaving the circulation along the external boundary.",
+  "relations": [
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "defines the differential operators",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "integrates the derivative in each coordinate",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "hilbert",
+  "title": "Complex Hilbert space",
+  "aliases": [
+   "hilbert"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "A Hilbert space is a complex inner-product space complete in $\\|\\psi\\|=\\sqrt{\\langle\\psi|\\psi\\rangle}$.",
+  "body": "A Hilbert space is a complex inner-product space complete in $\\|\\psi\\|=\\sqrt{\\langle\\psi|\\psi\\rangle}$.\n\nThe product is linear in the ket. In $L^2(I)$, $\\langle\\phi|\\psi\\rangle=\\int_I\\phi^*\\psi\\,dx$; functions equal almost everywhere represent the same vector.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "fourier-interval",
+  "title": "Sine and cosine bases",
+  "aliases": [
+   "fourier-interval"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "On $(0,L)$, $\\{\\sqrt{2/L}\\sin(n\\pi x/L)\\}_{n\\ge1}$ and $\\{1/\\sqrt L\\}\\cup\\{\\sqrt{2/L}\\cos(n\\pi x/L)\\}_{n\\ge1}$ are each complete orthonormal bases of $L^2(0,L)$.",
+  "body": "On $(0,L)$, $\\{\\sqrt{2/L}\\sin(n\\pi x/L)\\}_{n\\ge1}$ and $\\{1/\\sqrt L\\}\\cup\\{\\sqrt{2/L}\\cos(n\\pi x/L)\\}_{n\\ge1}$ are each complete orthonormal bases of $L^2(0,L)$.\n\nCompleteness means convergence in the $L^2$ norm. The cosine family includes the constant mode. Pointwise or endpoint convergence requires separate conditions.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "specifies the norm and inner product",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "parseval",
+  "title": "Parseval identity",
+  "aliases": [
+   "parseval"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For a complete orthonormal basis $(e_n)$ and $f$ in its Hilbert space, $\\sum_n|\\langle e_n|f\\rangle|^2=\\|f\\|^2$.",
+  "body": "For a complete orthonormal basis $(e_n)$ and $f$ in its Hilbert space, $\\sum_n|\\langle e_n|f\\rangle|^2=\\|f\\|^2$.\n\nThe basis may be real or complex; the expansion converges in norm.",
+  "assumptions": [],
+  "proof": "Project onto the span of the first basis vectors.\n$$c_n=\\langle e_n|f\\rangle,\\qquad P_Nf=\\sum_{n=1}^Nc_ne_n,\\qquad \\langle e_j|f-P_Nf\\rangle=0\\quad(j\\le N).$$\nOrthogonality removes the cross term in the squared norm.\n$$\\|f\\|^2=\\|f-P_Nf\\|^2+\\sum_{n=1}^N|c_n|^2.$$\nCompleteness gives convergence of these projections in norm, so the remainder tends to zero.",
+  "relations": [
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "defines the norm and orthogonality",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "interval-parseval",
+  "title": "Finite-interval Parseval identity",
+  "aliases": [
+   "interval-parseval"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For $f\\in L^2(0,L)$, its normalized sine coefficients $s_n$ and cosine coefficients $c_n$ obey $\\int_0^L |f|^2\\,dx=\\sum_{n\\ge1}|s_n|^2=\\sum_{n\\ge0}|c_n|^2$.",
+  "body": "For $f\\in L^2(0,L)$, its normalized sine coefficients $s_n$ and cosine coefficients $c_n$ obey $\\int_0^L |f|^2\\,dx=\\sum_{n\\ge1}|s_n|^2=\\sum_{n\\ge0}|c_n|^2$.\n\nTake coefficients against each normalized basis on an interval of length $L>0$.",
+  "assumptions": [],
+  "proof": "Use the real normalized modes in the Hilbert inner product to obtain the coefficients.\n$$s_n=\\sqrt{2/L}\\int_0^L f(x)\\sin(n\\pi x/L)\\,dx,\\qquad c_n=\\sqrt{2/L}\\int_0^L f(x)\\cos(n\\pi x/L)\\,dx\\quad(n\\ge1).$$\nThe constant cosine mode contributes the mean times the square root of the interval length.\n$$c_0=L^{-1/2}\\int_0^L f(x)\\,dx.$$\nEach family separately meets the orthonormality and completeness hypotheses of Parseval, so applying the identity once in each basis gives the two norm sums.",
+  "relations": [
+   {
+    "target": "parseval",
+    "kind": "prerequisite",
+    "basis": "equates each complete coefficient sum to the squared norm",
+    "direction": "forward"
+   },
+   {
+    "target": "fourier-interval",
+    "kind": "prerequisite",
+    "basis": "provides the two complete normalized bases, including the constant cosine mode",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "variation",
+  "title": "Fixed-endpoint variation",
+  "aliases": [
+   "variation"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "For $q_\\epsilon=q+\\epsilon\\eta$ with $\\eta(t_1)=\\eta(t_2)=0$, the first variation is $\\delta S=(d/d\\epsilon)S[q_\\epsilon]|_{\\epsilon=0}$.",
+  "body": "For $q_\\epsilon=q+\\epsilon\\eta$ with $\\eta(t_1)=\\eta(t_2)=0$, the first variation is $\\delta S=(d/d\\epsilon)S[q_\\epsilon]|_{\\epsilon=0}$.\n\nA stationary trajectory makes the first variation vanish for every admissible variation.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "lemma",
+  "title": "Fundamental lemma of variations",
+  "aliases": [
+   "lemma"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "If continuous $f$ satisfies $\\int_a^b f\\eta\\,dt=0$ for every $\\eta\\in C_c^\\infty(a,b)$, then $f=0$ on $(a,b)$.",
+  "body": "If continuous $f$ satisfies $\\int_a^b f\\eta\\,dt=0$ for every $\\eta\\in C_c^\\infty(a,b)$, then $f=0$ on $(a,b)$.\n\nThe same test applies separately to each real component.",
+  "assumptions": [],
+  "proof": "Suppose the function is positive at an interior point. Continuity gives an open interval on which it is bounded below by a positive constant.\n$$f(t)\\ge m>0\\qquad(t\\in I).$$\nChoose a nonnegative bump supported in that interval with positive integral.\n$$\\int_a^bf(t)\\eta(t)\\,dt\\ge m\\int_I\\eta(t)\\,dt>0.$$\nThis contradicts the hypothesis. Applying the argument to the negative of the function excludes negative values.",
+  "relations": [
+   {
+    "target": "bump",
+    "kind": "prerequisite",
+    "basis": "localizes a variation to a region of fixed sign",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "green",
+  "title": "Retarded spherical kernel",
+  "aliases": [
+   "green"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "In free space $(\\nabla^2-c^{-2}\\partial_t^2)[f(t-R/c)/R]=-4\\pi f(t)\\delta^{(3)}(\\mathbf R)$ for smooth $f$.",
+  "body": "In free space $(\\nabla^2-c^{-2}\\partial_t^2)[f(t-R/c)/R]=-4\\pi f(t)\\delta^{(3)}(\\mathbf R)$ for smooth $f$.\n\nRetarded time selects propagation outwards from the spatial origin.",
+  "assumptions": [],
+  "proof": "Away from the origin the radial Laplacian follows by dividing the radial flux derivative by the spherical area.\n$$u=\\frac{f(t-R/c)}{R},\\qquad \\nabla^2u=\\frac1R\\partial_R^2(Ru)=\\frac{f''(t-R/c)}{c^2R}=c^{-2}\\partial_t^2u.$$\nTo evaluate the singular part, pair with a smooth spatial test function and integrate by parts outside a ball of radius $a$. The inner boundary normal for the exterior points inward.\n$$\\int_{R>a}(u\\nabla^2\\phi-\\phi\\nabla^2u)\\,d^3R=\\int_{R=a}(\\phi\\,\\partial_Ru-u\\,\\partial_R\\phi)\\,da.$$\nThe second surface term is of order $a$; the first samples the central value.\n$$a^2\\partial_Ru=-f(t-a/c)-(a/c)f'(t-a/c)\\longrightarrow-f(t).$$\nThe omitted time derivative is locally integrable and contributes order $a^2$ inside the ball. Taking the limit gives the delta source.\n$$\\langle(\\nabla^2-c^{-2}\\partial_t^2)u,\\phi\\rangle=-4\\pi f(t)\\phi(\\mathbf 0).$$",
+  "relations": [
+   {
+    "target": "flux",
+    "kind": "prerequisite",
+    "basis": "evaluates radial flux through a sphere",
+    "direction": "forward"
+   },
+   {
+    "target": "delta",
+    "kind": "uses-definition",
+    "basis": "identifies the point distribution",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "force",
+  "title": "Lorentz force",
+  "aliases": [
+   "force"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "The fields $\\mathbf E$ and $\\mathbf B$ determine the force on a test charge through $\\mathbf F=q(\\mathbf E+\\mathbf v\\times\\mathbf B)$.",
+  "body": "The fields $\\mathbf E$ and $\\mathbf B$ determine the force on a test charge through $\\mathbf F=q(\\mathbf E+\\mathbf v\\times\\mathbf B)$.\n\nIn a specified inertial frame, measure force at fixed position and time in the limit of negligible disturbance by the test charge.\nThe force per unit charge at rest determines the electric field.\nMeasurements with several independent test velocities determine the magnetic field from the velocity-dependent force.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "em-fields",
+  "title": "Electric and magnetic fields",
+  "aliases": [
+   "em-fields"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "In an inertial frame, test charges measure $\\mathbf E=\\mathbf F(\\mathbf 0)/q$ and $\\mathbf v\\times\\mathbf B=[\\mathbf F(\\mathbf v)-\\mathbf F(\\mathbf 0)]/q$.",
+  "body": "In an inertial frame, test charges measure $\\mathbf E=\\mathbf F(\\mathbf 0)/q$ and $\\mathbf v\\times\\mathbf B=[\\mathbf F(\\mathbf v)-\\mathbf F(\\mathbf 0)]/q$.\n\nMeasure the electromagnetic force on a weak test charge at a fixed event for several velocities. Compare the results in the limit of negligible disturbance.\n$$\\mathbf E=\\lim_{q\\to0}\\mathbf F(\\mathbf0)/q,\\qquad \\mathbf v\\times\\mathbf B=\\lim_{q\\to0}[\\mathbf F(\\mathbf v)-\\mathbf F(\\mathbf0)]/q.$$\nTwo nonparallel velocity directions determine all components of the magnetic field.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "force",
+    "kind": "prerequisite",
+    "basis": "gives the velocity dependence of the test force",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "em-sources",
+  "title": "Charge and current density",
+  "aliases": [
+   "em-sources"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "The charge in a volume is $\\int_\\Omega\\rho\\,d^3r$, and the current through an oriented surface is $\\int_\\Sigma\\mathbf J\\cdot d\\mathbf a$.",
+  "body": "The charge in a volume is $\\int_\\Omega\\rho\\,d^3r$, and the current through an oriented surface is $\\int_\\Sigma\\mathbf J\\cdot d\\mathbf a$.\n\nFor species of number density $n_s$, charge $q_s$ and mean velocity $\\mathbf v_s$, the densities add.\n$$\\rho=\\sum_s q_s n_s,\\qquad \\mathbf J=\\sum_s q_s n_s\\mathbf v_s.$$\nThe continuum formulas include point sources through the Dirac delta.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "defines oriented flux",
+    "direction": "forward"
+   },
+   {
+    "target": "delta",
+    "kind": "uses-definition",
+    "basis": "represents localized charge",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "maxwell",
+  "title": "Maxwell equations",
+  "aliases": [
+   "maxwell"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "In microscopic SI electrodynamics, $\\nabla\\!\\cdot\\!\\mathbf E=\\rho/\\epsilon_0$, $\\nabla\\!\\cdot\\!\\mathbf B=0$, $\\nabla\\!\\times\\!\\mathbf E=-\\partial_t\\mathbf B$ and $\\nabla\\!\\times\\!\\mathbf B=\\mu_0(\\mathbf J+\\epsilon_0\\partial_t\\mathbf E)$.",
+  "body": "In microscopic SI electrodynamics, $\\nabla\\!\\cdot\\!\\mathbf E=\\rho/\\epsilon_0$, $\\nabla\\!\\cdot\\!\\mathbf B=0$, $\\nabla\\!\\times\\!\\mathbf E=-\\partial_t\\mathbf B$ and $\\nabla\\!\\times\\!\\mathbf B=\\mu_0(\\mathbf J+\\epsilon_0\\partial_t\\mathbf E)$.\n\n$$\\nabla\\cdot\\mathbf E=\\rho/\\epsilon_0,\\qquad \\nabla\\cdot\\mathbf B=0.$$\n$$\\nabla\\times\\mathbf E=-\\partial_t\\mathbf B,\\qquad \\nabla\\times\\mathbf B=\\mu_0\\mathbf J+\\mu_0\\epsilon_0\\partial_t\\mathbf E.$$\nThe constants $\\epsilon_0$ and $\\mu_0$ are the vacuum permittivity and permeability.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "em-fields",
+    "kind": "uses-definition",
+    "basis": "identifies the fields through their forces",
+    "direction": "forward"
+   },
+   {
+    "target": "em-sources",
+    "kind": "uses-definition",
+    "basis": "specifies the total sources",
+    "direction": "forward"
+   },
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "defines divergence and curl",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "maxwell-integral",
+  "title": "Electric and magnetic flux and circulation",
+  "aliases": [
+   "maxwell-integral"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For stationary surfaces, $\\Phi_E=Q_{\\rm enc}/\\epsilon_0$ and $\\Phi_B=0$ on closed surfaces, while $\\oint\\mathbf E\\cdot d\\boldsymbol\\ell=-\\dot\\Phi_B$ and $\\oint\\mathbf B\\cdot d\\boldsymbol\\ell=\\mu_0(I+\\epsilon_0\\dot\\Phi_E)$ on boundary loops.",
+  "body": "For stationary surfaces, $\\Phi_E=Q_{\\rm enc}/\\epsilon_0$ and $\\Phi_B=0$ on closed surfaces, while $\\oint\\mathbf E\\cdot d\\boldsymbol\\ell=-\\dot\\Phi_B$ and $\\oint\\mathbf B\\cdot d\\boldsymbol\\ell=\\mu_0(I+\\epsilon_0\\dot\\Phi_E)$ on boundary loops.\n\nFor an oriented surface $S$ with boundary $C$, write $\\Phi_F(S)=\\int_S\\mathbf F\\cdot d\\mathbf a$ and $I(S)=\\int_S\\mathbf J\\cdot d\\mathbf a$. For a closed surface use the outward normal and take $Q_{\\rm enc}$ inside it. For a loop use the positively oriented boundary and the flux through its spanning surface.",
+  "assumptions": [
+   "Piecewise smooth stationary regions and fields regular enough for the stated integrations."
+  ],
+  "proof": "Integrate the two divergence equations over a volume and apply the divergence theorem with outward normals.\n$$\\oint_{\\partial\\Omega}\\mathbf E\\cdot d\\mathbf a=\\frac{1}{\\epsilon_0}\\int_\\Omega\\rho\\,d^3r,\\qquad \\oint_{\\partial\\Omega}\\mathbf B\\cdot d\\mathbf a=0.$$\nIntegrate each curl equation over a surface and apply Stokes’ theorem with its induced boundary orientation.\n$$\\oint_{\\partial\\Sigma}\\mathbf E\\cdot d\\boldsymbol\\ell=-\\frac{d}{dt}\\int_\\Sigma\\mathbf B\\cdot d\\mathbf a.$$\n$$\\oint_{\\partial\\Sigma}\\mathbf B\\cdot d\\boldsymbol\\ell=\\mu_0\\int_\\Sigma\\mathbf J\\cdot d\\mathbf a+\\mu_0\\epsilon_0\\frac{d}{dt}\\int_\\Sigma\\mathbf E\\cdot d\\mathbf a.$$\nThe surfaces are fixed in the chosen frame, so the time derivative passes through their integrals.",
+  "relations": [
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "supplies the four local laws",
+    "direction": "forward"
+   },
+   {
+    "target": "flux",
+    "kind": "prerequisite",
+    "basis": "converts volume and surface derivatives into boundary integrals",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "permits differentiation through a stationary integral",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "charge-continuity",
+  "title": "Local charge conservation",
+  "aliases": [
+   "charge-continuity"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Maxwell’s equations require $\\partial_t\\rho+\\nabla\\cdot\\mathbf J=0$.",
+  "body": "Maxwell’s equations require $\\partial_t\\rho+\\nabla\\cdot\\mathbf J=0$.",
+  "assumptions": [
+   "Derivatives commute, classically for smooth fields or in the distributional sense."
+  ],
+  "proof": "Take the divergence of the Ampère–Maxwell equation.\n$$\\nabla\\cdot(\\nabla\\times\\mathbf B)=\\mu_0\\nabla\\cdot\\mathbf J+\\mu_0\\epsilon_0\\partial_t(\\nabla\\cdot\\mathbf E).$$\nThe contracted second derivatives vanish because interchanging the derivative indices reverses the alternating tensor.\n$$\\epsilon_{ijk}\\partial_i\\partial_j B_k=0.$$\nInsert Gauss’s law and divide by the permeability to obtain local conservation.\n$$\\partial_t\\rho+\\nabla\\cdot\\mathbf J=0.$$\nThe divergence theorem therefore equates loss of enclosed charge to outward current.\n$$\\frac{d}{dt}\\int_\\Omega\\rho\\,d^3r=-\\oint_{\\partial\\Omega}\\mathbf J\\cdot d\\mathbf a.$$",
+  "relations": [
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "supplies the displacement current and charge divergence",
+    "direction": "forward"
+   },
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "expresses the curl in components",
+    "direction": "forward"
+   },
+   {
+    "target": "flux",
+    "kind": "prerequisite",
+    "basis": "converts the local law to total current",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "potential",
+  "title": "Scalar and vector potentials",
+  "aliases": [
+   "potential"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "Potentials represent the fields by $\\mathbf B=\\nabla\\times\\mathbf A$ and $\\mathbf E=-\\nabla V-\\partial_t\\mathbf A$.",
+  "body": "Potentials represent the fields by $\\mathbf B=\\nabla\\times\\mathbf A$ and $\\mathbf E=-\\nabla V-\\partial_t\\mathbf A$.\n\nA gauge transformation generated by a smooth scalar $\\chi$ leaves the represented fields invariant.\n$$\\mathbf A'=\\mathbf A+\\nabla\\chi,\\qquad V'=V-\\partial_t\\chi.$$\nThe curl of a gradient vanishes by equality of mixed derivatives and the two new time derivatives cancel in the electric field.\nFor electrostatic fields choose a time-independent vector potential and use the voltage difference along any path in the patch.\n$$V(b)-V(a)=-\\int_a^b\\mathbf E\\cdot d\\boldsymbol\\ell.$$",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "defines the gradient and curl",
+    "direction": "forward"
+   },
+   {
+    "target": "em-fields",
+    "kind": "uses-definition",
+    "basis": "defines the fields represented by the potentials",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "local-potentials",
+  "title": "Local existence of electromagnetic potentials",
+  "aliases": [
+   "local-potentials"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "On a smooth star-shaped spatial patch, the homogeneous Maxwell equations admit $\\mathbf B=\\nabla\\times\\mathbf A$ and $\\mathbf E=-\\nabla V-\\partial_t\\mathbf A$.",
+  "body": "On a smooth star-shaped spatial patch, the homogeneous Maxwell equations admit $\\mathbf B=\\nabla\\times\\mathbf A$ and $\\mathbf E=-\\nabla V-\\partial_t\\mathbf A$.",
+  "assumptions": [
+   "Smooth fields on a star-shaped patch at each time."
+  ],
+  "proof": "Choose the origin at a star centre and integrate the magnetic field along each radial segment at fixed time.\n$$\\mathbf A(\\mathbf r,t)=-\\int_0^1 s\\,\\mathbf r\\times\\mathbf B(s\\mathbf r,t)\\,ds.$$\nExpanding the curl in components and using the zero magnetic divergence makes the integrand a radial derivative.\n$$\\nabla\\times[-s\\,\\mathbf r\\times\\mathbf B(s\\mathbf r,t)]=2s\\mathbf B(s\\mathbf r,t)+s^2(\\mathbf r\\cdot\\nabla_{\\!s\\mathbf r})\\mathbf B(s\\mathbf r,t)=\\frac{d}{ds}[s^2\\mathbf B(s\\mathbf r,t)].$$\nIntegration gives the prescribed magnetic field.\n$$\\nabla\\times\\mathbf A=\\mathbf B.$$\nFaraday’s law makes the corrected electric field curl-free.\n$$\\mathbf C=\\mathbf E+\\partial_t\\mathbf A,\\qquad \\nabla\\times\\mathbf C=0.$$\nSet the potential to the negative radial line integral.\n$$V(\\mathbf r,t)=-\\int_0^1 r_j C_j(s\\mathbf r,t)\\,ds.$$\nSymmetry of its mixed field derivatives gives the required gradient component by component.\n$$-\\partial_i V=\\int_0^1[C_i+s r_j\\partial_j C_i]\\,ds=\\int_0^1\\frac{d}{ds}[s C_i(s\\mathbf r,t)]\\,ds=C_i(\\mathbf r,t).$$",
+  "relations": [
+   {
+    "target": "potential",
+    "kind": "uses-definition",
+    "basis": "specifies the required representation",
+    "direction": "forward"
+   },
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "supplies the two homogeneous field equations",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "integrates the radial derivatives",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "dipole",
+  "title": "Electric and magnetic dipole moments",
+  "aliases": [
+   "dipole"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "For localized charge and steady current distributions, $\\mathbf p=\\int\\mathbf r'\\rho\\,d^3r'$ and $\\mathbf m=\\tfrac12\\int\\mathbf r'\\times\\mathbf J\\,d^3r'$.",
+  "body": "For localized charge and steady current distributions, $\\mathbf p=\\int\\mathbf r'\\rho\\,d^3r'$ and $\\mathbf m=\\tfrac12\\int\\mathbf r'\\times\\mathbf J\\,d^3r'$.\n\nFor a pair of opposite charges let $\\mathbf d$ point from the negative charge to the positive charge.\n$$\\mathbf p=q\\mathbf d.$$\nShifting the coordinate origin by $\\mathbf a$ changes the electric moment by the net charge times that shift.\n$$\\mathbf p'=\\int(\\mathbf r'-\\mathbf a)\\rho\\,d^3r'=\\mathbf p-Q\\mathbf a,\\qquad Q=\\int\\rho\\,d^3r'.$$\nFor a thin planar loop carrying steady current $I$, the magnetic moment equals current times oriented area.\n$$\\mathbf m=\\frac I2\\oint\\mathbf r'\\times d\\boldsymbol\\ell'=I\\mathbf a_{\\rm loop}.$$\nEach directed boundary segment contributes its signed triangular area with respect to the chosen origin.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "em-sources",
+    "kind": "uses-definition",
+    "basis": "supplies the charge and current distributions",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "matter",
+  "title": "Polarization, magnetization and auxiliary fields",
+  "aliases": [
+   "matter"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "The dipole moment densities $\\mathbf P$ and $\\mathbf M$ define $\\mathbf D=\\epsilon_0\\mathbf E+\\mathbf P$ and $\\mathbf H=\\mathbf B/\\mu_0-\\mathbf M$.",
+  "body": "The dipole moment densities $\\mathbf P$ and $\\mathbf M$ define $\\mathbf D=\\epsilon_0\\mathbf E+\\mathbf P$ and $\\mathbf H=\\mathbf B/\\mu_0-\\mathbf M$.\n\nPolarization is electric dipole moment per unit volume and magnetization is magnetic dipole moment per unit volume after averaging over many microscopic constituents.\nTreat the dipole densities as zero outside a finite body when derivatives include surface distributions.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "dipole",
+    "kind": "uses-definition",
+    "basis": "identifies the microscopic moments being averaged",
+    "direction": "forward"
+   },
+   {
+    "target": "em-fields",
+    "kind": "uses-definition",
+    "basis": "identifies the electric and magnetic fields",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "bound-sources",
+  "title": "Sources of a continuous distribution of dipoles",
+  "aliases": [
+   "bound-sources"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Electric and magnetic dipole densities give $\\rho_b=-\\nabla\\cdot\\mathbf P$ and $\\mathbf J_b=\\partial_t\\mathbf P+\\nabla\\times\\mathbf M$ in the dipole model.",
+  "body": "Electric and magnetic dipole densities give $\\rho_b=-\\nabla\\cdot\\mathbf P$ and $\\mathbf J_b=\\partial_t\\mathbf P+\\nabla\\times\\mathbf M$ in the dipole model.",
+  "assumptions": [
+   "Matter is at rest and represented by point electric dipoles at fixed centres and localized current loops in the magnetic dipole approximation."
+  ],
+  "proof": "Pair a small electric dipole with a smooth test function and expand about its centre.\n$$q[f(\\mathbf r_+)-f(\\mathbf r_-)]=\\mathbf p\\cdot\\nabla f(\\mathbf r_c)+O(q|\\mathbf d|^2).$$\nSumming the leading moments and integrating by parts identifies the charge distribution.\n$$\\int\\rho_b f\\,d^3r=\\int\\mathbf P\\cdot\\nabla f\\,d^3r=-\\int f\\nabla\\cdot\\mathbf P\\,d^3r.$$\nFor fixed dipole centres the signed charge velocities add to the rate of change of electric dipole moment, which gives the polarization current to leading order in the electric dipole expansion.\n$$q(\\dot{\\mathbf r}_+-\\dot{\\mathbf r}_-)=\\dot{\\mathbf p},\\qquad \\mathbf J_P=\\partial_t\\mathbf P.$$\nPair each elementary steady current loop with a smooth vector test field and apply Stokes’ theorem.\n$$I\\oint\\mathbf f\\cdot d\\boldsymbol\\ell=I\\int_{\\Sigma}(\\nabla\\times\\mathbf f)\\cdot d\\mathbf a\\simeq\\mathbf m\\cdot(\\nabla\\times\\mathbf f)(\\mathbf r_c).$$\nSum the point-dipole contributions and integrate by parts componentwise.\n$$\\int\\mathbf J_M\\cdot\\mathbf f\\,d^3r=\\int\\mathbf M\\cdot(\\nabla\\times\\mathbf f)\\,d^3r=\\int(\\nabla\\times\\mathbf M)\\cdot\\mathbf f\\,d^3r.$$\nAdding the two currents gives the bound current in this model.\n$$\\mathbf J_b=\\partial_t\\mathbf P+\\nabla\\times\\mathbf M.$$",
+  "relations": [
+   {
+    "target": "matter",
+    "kind": "uses-definition",
+    "basis": "defines the averaged dipole densities",
+    "direction": "forward"
+   },
+   {
+    "target": "dipole",
+    "kind": "uses-definition",
+    "basis": "sets charge orientation and oriented loop area",
+    "direction": "forward"
+   },
+   {
+    "target": "flux",
+    "kind": "prerequisite",
+    "basis": "converts loop circulation to a curl and permits integration by parts",
+    "direction": "forward"
+   },
+   {
+    "target": "delta",
+    "kind": "uses-definition",
+    "basis": "interprets the point-dipole sources through test functions",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "macro-maxwell",
+  "title": "Macroscopic Maxwell equations",
+  "aliases": [
+   "macro-maxwell"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "The auxiliary fields satisfy $\\nabla\\cdot\\mathbf D=\\rho_f$ and $\\nabla\\times\\mathbf H=\\mathbf J_f+\\partial_t\\mathbf D$.",
+  "body": "The auxiliary fields satisfy $\\nabla\\cdot\\mathbf D=\\rho_f$ and $\\nabla\\times\\mathbf H=\\mathbf J_f+\\partial_t\\mathbf D$.",
+  "assumptions": [
+   "A macroscopic average commutes with differentiation in the dipole model."
+  ],
+  "proof": "Separate the total averaged charge and current into free and bound contributions.\n$$\\rho=\\rho_f-\\nabla\\cdot\\mathbf P,\\qquad \\mathbf J=\\mathbf J_f+\\partial_t\\mathbf P+\\nabla\\times\\mathbf M.$$\nGauss’s law groups the polarization with the vacuum electric term.\n$$\\nabla\\cdot(\\epsilon_0\\mathbf E+\\mathbf P)=\\rho_f.$$\nThe Ampère–Maxwell equation groups the magnetization with the magnetic field and the polarization with the displacement current.\n$$\\nabla\\times(\\mathbf B/\\mu_0-\\mathbf M)=\\mathbf J_f+\\partial_t(\\epsilon_0\\mathbf E+\\mathbf P).$$\nSubstituting the definitions of the auxiliary fields yields both equations.",
+  "relations": [
+   {
+    "target": "bound-sources",
+    "kind": "prerequisite",
+    "basis": "identifies charge and current carried by bound dipoles",
+    "direction": "forward"
+   },
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "supplies Gauss and Ampère–Maxwell equations",
+    "direction": "forward"
+   },
+   {
+    "target": "matter",
+    "kind": "uses-definition",
+    "basis": "names the two auxiliary fields",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "medium",
+  "title": "Permittivity and permeability",
+  "aliases": [
+   "medium"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "For linear, isotropic, local, instantaneous response without permanent polarization or magnetization, $\\mathbf D=\\epsilon\\mathbf E$ and $\\mathbf B=\\mu\\mathbf H$.",
+  "body": "For linear, isotropic, local, instantaneous response without permanent polarization or magnetization, $\\mathbf D=\\epsilon\\mathbf E$ and $\\mathbf B=\\mu\\mathbf H$.\n\nThe response coefficients follow by substituting the susceptibilities into the auxiliary-field definitions.\n$$\\mathbf P=\\epsilon_0\\chi_e\\mathbf E,\\qquad\\mathbf M=\\chi_m\\mathbf H,\\qquad \\epsilon=\\epsilon_0(1+\\chi_e),\\qquad \\mu=\\mu_0(1+\\chi_m).$$\nAnisotropy can require tensors and dispersion makes the coefficients frequency-dependent.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "matter",
+    "kind": "uses-definition",
+    "basis": "provides the fields in the constitutive relations",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "si-metre",
+  "title": "SI metre",
+  "aliases": [
+   "si-metre"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "The SI defines the metre by fixing the vacuum speed of light to $c=299\\,792\\,458\\ \\mathrm{m\\,s^{-1}}$ exactly.",
+  "body": "The SI defines the metre by fixing the vacuum speed of light to $c=299\\,792\\,458\\ \\mathrm{m\\,s^{-1}}$ exactly.\n\nWith the SI second established by the caesium frequency, one metre equals the path traversed in vacuum by light during $1/299\\,792\\,458$ of a second.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "speed",
+  "title": "Vacuum electromagnetic wave speed",
+  "aliases": [
+   "speed"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Electromagnetic waves in empty space travel at $c=(\\mu_0\\epsilon_0)^{-1/2}$, whose exact SI value is $299\\,792\\,458\\ \\mathrm{m\\,s^{-1}}$.",
+  "body": "Electromagnetic waves in empty space travel at $c=(\\mu_0\\epsilon_0)^{-1/2}$, whose exact SI value is $299\\,792\\,458\\ \\mathrm{m\\,s^{-1}}$.",
+  "assumptions": [
+   "Source-free vacuum with constant positive $\\epsilon_0,\\mu_0$ and nonzero wave curvature."
+  ],
+  "proof": "Curl Faraday’s law and use the source-free Ampère–Maxwell law to eliminate the magnetic field.\n$$\\nabla\\times(\\nabla\\times\\mathbf E)=-\\partial_t(\\nabla\\times\\mathbf B)=-\\mu_0\\epsilon_0\\partial_t^2\\mathbf E.$$\nContracting two alternating tensors and commuting partial derivatives gives the double-curl identity.\n$$[\\nabla\\times(\\nabla\\times\\mathbf E)]_i=(\\delta_{il}\\delta_{jm}-\\delta_{im}\\delta_{jl})\\partial_j\\partial_l E_m=\\partial_i\\partial_j E_j-\\nabla^2 E_i.$$\nThe electric divergence vanishes by the vacuum Gauss law.\n$$\\nabla^2\\mathbf E=\\mu_0\\epsilon_0\\partial_t^2\\mathbf E.$$\nA transverse profile propagating along a unit direction solves this equation if its spatial and temporal curvature terms agree.\n$$\\mathbf E=\\mathbf e f(\\mathbf n\\cdot\\mathbf r-vt),\\qquad |\\mathbf n|=1,\\quad\\mathbf n\\cdot\\mathbf e=0.$$\n$$(1-\\mu_0\\epsilon_0 v^2)\\mathbf e f''=0,\\qquad c=|v|=\\frac1{\\sqrt{\\mu_0\\epsilon_0}}.$$\nThe companion magnetic field follows from the two curl equations for propagation in the positive direction.\n$$\\mathbf B=\\frac1c\\,\\mathbf n\\times\\mathbf E.$$\nThe SI fixes the numerical value of the speed through the definition of the metre.",
+  "relations": [
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "supplies the vacuum field equations",
+    "direction": "forward"
+   },
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "expands the two curls",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "differentiates a translating profile",
+    "direction": "forward"
+   },
+   {
+    "target": "si-metre",
+    "kind": "uses-definition",
+    "basis": "sets the numerical value in SI after the wave speed has been derived",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "retarded",
+  "title": "Retarded potentials",
+  "aliases": [
+   "retarded"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "An isolated source in vacuum gives $V=(4\\pi\\epsilon_0)^{-1}\\int [\\rho]/R\\,d^3r'$ and $\\mathbf A=(\\mu_0/4\\pi)\\int [\\mathbf J]/R\\,d^3r'$ in the retarded Lorenz gauge.",
+  "body": "An isolated source in vacuum gives $V=(4\\pi\\epsilon_0)^{-1}\\int [\\rho]/R\\,d^3r'$ and $\\mathbf A=(\\mu_0/4\\pi)\\int [\\mathbf J]/R\\,d^3r'$ in the retarded Lorenz gauge.",
+  "assumptions": [
+   "Localized conserved sources in unbounded vacuum with convergent integrals and retarded data excluding free fields."
+  ],
+  "proof": "Write brackets for evaluation at the time when a signal must leave the source point to reach the observation event.\n$$R=|\\mathbf r-\\mathbf r'|,\\qquad [f]=f(\\mathbf r',t-R/c),\\qquad \\Box=\\nabla^2-c^{-2}\\partial_t^2.$$\nChoose the Lorenz gauge, insert the potentials into Gauss’s law and collect scalar derivatives.\n$$\\nabla\\cdot\\mathbf A=-c^{-2}\\partial_t V,\\qquad -\\nabla^2V-\\partial_t\\nabla\\cdot\\mathbf A=\\rho/\\epsilon_0,\\qquad \\Box V=-\\rho/\\epsilon_0.$$\nThe Ampère–Maxwell law and double-curl identity group its mixed terms into the same gauge combination.\n$$\\nabla(\\nabla\\cdot\\mathbf A+c^{-2}\\partial_t V)-\\Box\\mathbf A=\\mu_0\\mathbf J,\\qquad \\Box\\mathbf A=-\\mu_0\\mathbf J.$$\nThe retarded spherical kernel generates a point source for each fixed integration point.\n$$\\Box\\frac{[f]}{R}=-4\\pi f(\\mathbf r',t)\\delta^{(3)}(\\mathbf r-\\mathbf r').$$\nSuperpose these sources with the required coefficients to get the scalar and vector potentials.\n$$V(\\mathbf r,t)=\\frac{1}{4\\pi\\epsilon_0}\\int\\frac{[\\rho]}{R}\\,d^3r',\\qquad \\mathbf A(\\mathbf r,t)=\\frac{\\mu_0}{4\\pi}\\int\\frac{[\\mathbf J]}{R}\\,d^3r'.$$\nTo verify the gauge, transfer the spatial derivative of the translation-invariant retarded convolution kernel to the source by integration by parts.\n$$\\nabla\\cdot\\mathbf A+c^{-2}\\partial_t V=\\frac{\\mu_0}{4\\pi}\\int\\frac{[\\nabla'\\cdot\\mathbf J+\\partial_t\\rho]}{R}\\,d^3r'=0.$$\nCharge conservation makes this last integrand vanish and the retarded initial or boundary data exclude an added homogeneous wave.",
+  "relations": [
+   {
+    "target": "potential",
+    "kind": "uses-definition",
+    "basis": "expresses the fields in terms of potentials",
+    "direction": "forward"
+   },
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "gives the sourced field equations",
+    "direction": "forward"
+   },
+   {
+    "target": "speed",
+    "kind": "prerequisite",
+    "basis": "sets the propagation speed and supplies the double-curl identity used in its derivation",
+    "direction": "forward"
+   },
+   {
+    "target": "green",
+    "kind": "prerequisite",
+    "basis": "supplies the outgoing spherical kernel",
+    "direction": "forward"
+   },
+   {
+    "target": "charge-continuity",
+    "kind": "prerequisite",
+    "basis": "ensures the potentials obey the Lorenz gauge",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "dipole-current",
+  "title": "Current and the changing electric dipole",
+  "aliases": [
+   "dipole-current"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For localized conserved charge, $\\dot{\\mathbf p}=\\int\\mathbf J\\,d^3r'$.",
+  "body": "For localized conserved charge, $\\dot{\\mathbf p}=\\int\\mathbf J\\,d^3r'$.",
+  "assumptions": [
+   "Localization makes the boundary term vanish and permits differentiation of the dipole integral."
+  ],
+  "proof": "Differentiate one Cartesian component of the electric dipole and insert charge continuity.\n$$\\dot p_i=\\int r'_i\\partial_t\\rho\\,d^3r'=-\\int r'_i\\partial'_j J_j\\,d^3r'.$$\nIntegrate by parts and drop the boundary integral where the current vanishes.\n$$\\dot p_i=-\\lim_{a\\to\\infty}\\oint_{|\\mathbf r'|=a}r'_i\\mathbf J\\cdot d\\mathbf a'+\\int(\\partial'_j r'_i)J_j\\,d^3r'=\\int J_i\\,d^3r'.$$",
+  "relations": [
+   {
+    "target": "dipole",
+    "kind": "uses-definition",
+    "basis": "defines the electric moment",
+    "direction": "forward"
+   },
+   {
+    "target": "charge-continuity",
+    "kind": "prerequisite",
+    "basis": "replaces the time derivative of charge density",
+    "direction": "forward"
+   },
+   {
+    "target": "flux",
+    "kind": "prerequisite",
+    "basis": "integrates the divergence by parts",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "radiation",
+  "title": "Far-zone electric dipole radiation",
+  "aliases": [
+   "radiation"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "At retarded time $t_r=t-r/c$ the leading electric dipole terms are $\\mathbf E_{\\rm rad}=\\mathbf n\\times(\\mathbf n\\times\\ddot{\\mathbf p})/(4\\pi\\epsilon_0c^2r)$ and $\\mathbf B_{\\rm rad}=\\mathbf n\\times\\mathbf E_{\\rm rad}/c$.",
+  "body": "At retarded time $t_r=t-r/c$ the leading electric dipole terms are $\\mathbf E_{\\rm rad}=\\mathbf n\\times(\\mathbf n\\times\\ddot{\\mathbf p})/(4\\pi\\epsilon_0c^2r)$ and $\\mathbf B_{\\rm rad}=\\mathbf n\\times\\mathbf E_{\\rm rad}/c$.",
+  "assumptions": [
+   "Localized neutral source in vacuum with $a\\ll c\\tau\\ll r$, smooth time dependence and retarded fields."
+  ],
+  "proof": "Let the source have size $a$ and characteristic time $\\tau$ and place the origin inside it.\n$$r=|\\mathbf r|,\\qquad\\mathbf n=\\mathbf r/r,\\qquad a\\ll c\\tau\\ll r,\\qquad t_r=t-r/c.$$\nThe far-zone expansion separates the common propagation delay from the direction-dependent delay across the source.\n$$R=r-\\mathbf n\\cdot\\mathbf r'+O(a^2/r),\\qquad R^{-1}=r^{-1}+O(a/r^2).$$\nKeep first order in the delay for the charge density and zeroth order for the current density in the leading electric dipole approximation.\n$$[\\rho]\\simeq\\rho(\\mathbf r',t_r)+(\\mathbf n\\cdot\\mathbf r'/c)\\partial_t\\rho(\\mathbf r',t_r),\\qquad [\\mathbf J]\\simeq\\mathbf J(\\mathbf r',t_r).$$\nThe net charge vanishes and the current integral equals the first time derivative of the dipole.\n$$V_{\\rm dip}^{(1/r)}=\\frac{\\mathbf n\\cdot\\dot{\\mathbf p}(t_r)}{4\\pi\\epsilon_0cr},\\qquad \\mathbf A_{\\rm dip}^{(1/r)}=\\frac{\\mu_0\\dot{\\mathbf p}(t_r)}{4\\pi r}.$$\nSpatial differentiation of the retarded argument contributes at order $1/r$, while differentiating the direction or radial prefactor contributes at order $1/r^2$.\n$$\\nabla t_r=-\\frac{\\mathbf n}{c},\\qquad \\mathbf E_{\\rm rad}=\\left[-\\nabla V-\\partial_t\\mathbf A\\right]_{\\rm rad}=\\frac{\\mathbf n(\\mathbf n\\cdot\\ddot{\\mathbf p})-\\ddot{\\mathbf p}}{4\\pi\\epsilon_0c^2r}.$$\nCurling the vector potential gives the transverse magnetic field at the same order.\n$$\\mathbf B_{\\rm rad}=-\\frac{\\mu_0}{4\\pi cr}\\mathbf n\\times\\ddot{\\mathbf p}=\\frac{\\mathbf n\\times\\mathbf E_{\\rm rad}}{c}.$$\nThe expression gives the electric dipole contribution, which can vanish even when higher multipoles radiate.",
+  "relations": [
+   {
+    "target": "retarded",
+    "kind": "prerequisite",
+    "basis": "supplies the source integrals",
+    "direction": "forward"
+   },
+   {
+    "target": "dipole-current",
+    "kind": "prerequisite",
+    "basis": "expresses the integrated current as a time derivative",
+    "direction": "forward"
+   },
+   {
+    "target": "dipole",
+    "kind": "uses-definition",
+    "basis": "identifies the first charge moment",
+    "direction": "forward"
+   },
+   {
+    "target": "potential",
+    "kind": "uses-definition",
+    "basis": "converts potentials back to fields",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "expands the separation and source-time dependence",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "poynting",
+  "title": "Poynting’s theorem",
+  "aliases": [
+   "poynting"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Microscopic fields obey $\\partial_t u+\\nabla\\cdot\\mathbf S=-\\mathbf J\\cdot\\mathbf E$, with $u=\\epsilon_0|\\mathbf E|^2/2+|\\mathbf B|^2/(2\\mu_0)$ and $\\mathbf S=\\mathbf E\\times\\mathbf B/\\mu_0$.",
+  "body": "Microscopic fields obey $\\partial_t u+\\nabla\\cdot\\mathbf S=-\\mathbf J\\cdot\\mathbf E$, with $u=\\epsilon_0|\\mathbf E|^2/2+|\\mathbf B|^2/(2\\mu_0)$ and $\\mathbf S=\\mathbf E\\times\\mathbf B/\\mu_0$.",
+  "assumptions": [
+   "Microscopic total sources in SI and regular fields for the stated products and integrals."
+  ],
+  "proof": "Taking the scalar product of the Lorentz force with charge velocity eliminates the magnetic force, which is perpendicular to that velocity.\n$$\\mathbf F\\cdot\\mathbf v=q\\mathbf E\\cdot\\mathbf v,\\qquad \\sum_s n_s q_s\\mathbf v_s\\cdot\\mathbf E=\\mathbf J\\cdot\\mathbf E.$$\nThe product rule for the divergence of a cross product follows by grouping the derivative of each factor in components.\n$$\\partial_i(\\epsilon_{ijk}E_j B_k)=\\mathbf B\\cdot(\\nabla\\times\\mathbf E)-\\mathbf E\\cdot(\\nabla\\times\\mathbf B).$$\nSubstitute both Maxwell curl equations and divide by the vacuum permeability.\n$$\\nabla\\cdot\\left(\\frac{\\mathbf E\\times\\mathbf B}{\\mu_0}\\right)=-\\frac{\\mathbf B\\cdot\\partial_t\\mathbf B}{\\mu_0}-\\mathbf J\\cdot\\mathbf E-\\epsilon_0\\mathbf E\\cdot\\partial_t\\mathbf E.$$\nGroup the derivatives of the squared fields to identify energy stored per unit volume and power transported per unit area.\n$$\\partial_t\\left(\\frac{\\epsilon_0|\\mathbf E|^2}{2}+\\frac{|\\mathbf B|^2}{2\\mu_0}\\right)+\\nabla\\cdot\\mathbf S=-\\mathbf J\\cdot\\mathbf E.$$\nThe divergence theorem gives the balance for a fixed volume with an outward-oriented boundary.\n$$\\frac{d}{dt}\\int_\\Omega u\\,d^3r=-\\oint_{\\partial\\Omega}\\mathbf S\\cdot d\\mathbf a-\\int_\\Omega\\mathbf J\\cdot\\mathbf E\\,d^3r.$$",
+  "relations": [
+   {
+    "target": "maxwell",
+    "kind": "prerequisite",
+    "basis": "supplies the two curl equations",
+    "direction": "forward"
+   },
+   {
+    "target": "force",
+    "kind": "prerequisite",
+    "basis": "identifies the power delivered to moving charges",
+    "direction": "forward"
+   },
+   {
+    "target": "em-sources",
+    "kind": "uses-definition",
+    "basis": "sums charge velocities into the current density",
+    "direction": "forward"
+   },
+   {
+    "target": "vector",
+    "kind": "uses-definition",
+    "basis": "expands the divergence of a cross product",
+    "direction": "forward"
+   },
+   {
+    "target": "flux",
+    "kind": "prerequisite",
+    "basis": "relates local energy flow to outward power",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "power",
+  "title": "Electric dipole radiation power",
+  "aliases": [
+   "power"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "The instantaneous outward electric dipole power is $P(t)=|\\ddot{\\mathbf p}(t-r/c)|^2/(6\\pi\\epsilon_0 c^3)$ on a far-zone sphere.",
+  "body": "The instantaneous outward electric dipole power is $P(t)=|\\ddot{\\mathbf p}(t-r/c)|^2/(6\\pi\\epsilon_0 c^3)$ on a far-zone sphere.",
+  "assumptions": [
+   "Leading electric dipole radiation in vacuum on a sphere in the radiation zone."
+  ],
+  "proof": "For transverse radiation fields the vector triple product makes the Poynting vector radial.\n$$\\mathbf S_{\\rm rad}=\\frac{\\mathbf E_{\\rm rad}\\times(\\mathbf n\\times\\mathbf E_{\\rm rad})}{\\mu_0c}=\\epsilon_0c|\\mathbf E_{\\rm rad}|^2\\mathbf n.$$\nTake the polar axis along the dipole acceleration at the retarded time, so the transverse projection has magnitude $|\\ddot{\\mathbf p}|\\sin\\theta$.\n$$\\frac{dP}{d\\Omega}=r^2\\mathbf n\\cdot\\mathbf S_{\\rm rad}=\\frac{|\\ddot{\\mathbf p}(t-r/c)|^2\\sin^2\\theta}{16\\pi^2\\epsilon_0c^3}.$$\nIntegrate over the sphere using the cosine of polar angle as variable.\n$$\\int\\sin^2\\theta\\,d\\Omega=2\\pi\\int_{-1}^{1}(1-u^2)\\,du=\\frac{8\\pi}{3}.$$\nThis gives the instantaneous dipole power, with zero flux when the dipole acceleration vanishes.\n$$P(t)=\\int\\frac{dP}{d\\Omega}\\,d\\Omega=\\frac{|\\ddot{\\mathbf p}(t-r/c)|^2}{6\\pi\\epsilon_0 c^3}.$$",
+  "relations": [
+   {
+    "target": "poynting",
+    "kind": "prerequisite",
+    "basis": "identifies outward flux as power per area",
+    "direction": "forward"
+   },
+   {
+    "target": "radiation",
+    "kind": "prerequisite",
+    "basis": "provides the transverse fields and their angular dependence",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "integrates the angular distribution",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "pure-state",
+  "title": "State ray and wave function",
+  "aliases": [
+   "pure-state"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "A pure-state ray has normalized representatives $e^{i\\alpha}|\\psi\\rangle$ and position amplitude $\\psi(x)=\\langle x|\\psi\\rangle$.",
+  "body": "A pure-state ray has normalized representatives $e^{i\\alpha}|\\psi\\rangle$ and position amplitude $\\psi(x)=\\langle x|\\psi\\rangle$.\n\nFor a spinless particle on a line the position representation identifies normalized state vectors with square-integrable amplitudes modulo equality almost everywhere.\n$$\\int_{\\mathbb R}|\\psi(x)|^2\\,dx=1,\\qquad \\psi\\sim e^{i\\alpha}\\psi,\\quad \\alpha\\in\\mathbb R.$$",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "defines the norm and the vector space of state representatives",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "state",
+  "title": "Pure states and the Born rule",
+  "aliases": [
+   "state"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "A normalized ray represents a pure state, and the probability for a projector $P$ is $\\langle\\psi|P|\\psi\\rangle$.",
+  "body": "A normalized ray represents a pure state, and the probability for a projector $P$ is $\\langle\\psi|P|\\psi\\rangle$.\n\nUnit vectors differing by a global phase represent the same preparation.\n$$\\langle\\psi|\\psi\\rangle=1,\\qquad |\\psi\\rangle\\sim e^{i\\alpha}|\\psi\\rangle,\\qquad\\alpha\\in\\mathbb R.$$\nIn the position representation the projector onto a region multiplies by its indicator, so the Born rule assigns the integrated squared amplitude to that region.\n$$\\psi(x)=\\langle x|\\psi\\rangle,\\qquad \\Pr(x\\in I)=\\int_I|\\psi(x)|^2\\,dx.$$",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "supplies the inner product, norm and projections",
+    "direction": "forward"
+   },
+   {
+    "target": "pure-state",
+    "kind": "uses-definition",
+    "basis": "identifies the state representative in the probability rule",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "operator",
+  "title": "Linear, symmetric and self-adjoint operators",
+  "aliases": [
+   "operator"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "A quantum observable is a linear operator equal to its adjoint, $A=A^\\dagger$ with $D(A)=D(A^\\dagger)$.",
+  "body": "A quantum observable is a linear operator equal to its adjoint, $A=A^\\dagger$ with $D(A)=D(A^\\dagger)$.\n\nLinearity holds for vectors in the domain and complex scalars.\n$$A(a\\psi+b\\phi)=aA\\psi+bA\\phi.$$\nFor a densely defined operator the adjoint domain consists of vectors $\\phi$ for which there is a vector $\\eta$ giving the following pairing for every $\\psi\\in D(A)$.\n$$\\langle\\phi|A\\psi\\rangle=\\langle\\eta|\\psi\\rangle,\\qquad A^\\dagger\\phi=\\eta.$$\nSymmetry means the operator agrees with its adjoint on its own domain, while self-adjointness requires equality of domains as well.\n$$A\\subseteq A^\\dagger\\quad\\text{(symmetric)},\\qquad A=A^\\dagger\\quad\\text{(self-adjoint)}.$$\nA finite matrix on the whole space is self-adjoint exactly when it equals its conjugate transpose.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "defines the inner product on the domain",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "dynamics",
+  "title": "Schrödinger time evolution",
+  "aliases": [
+   "dynamics"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "An isolated nonrelativistic state evolves by $i\\hbar\\,d|\\psi\\rangle/dt=H(t)|\\psi\\rangle$.",
+  "body": "An isolated nonrelativistic state evolves by $i\\hbar\\,d|\\psi\\rangle/dt=H(t)|\\psi\\rangle$.\n\nThe Hamiltonian is the energy observable and the generator of time evolution.\nUse states in the operator domain for the differential equation and assume the Hamiltonian generates unitary evolution on the time interval considered.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "pure-state",
+    "kind": "uses-definition",
+    "basis": "identifies the ray and normalized representatives",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "defines the self-adjoint generator",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "translations",
+  "title": "Spatial translations and their generator",
+  "aliases": [
+   "translations"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "A rightward translation by $a$ acts as $(T(a)\\psi)(x)=\\psi(x-a)$, and its generator is the canonical momentum $p$.",
+  "body": "A rightward translation by $a$ acts as $(T(a)\\psi)(x)=\\psi(x-a)$, and its generator is the canonical momentum $p$.\n\nFor states differentiable under translations, define the generator by its strong derivative.\n$$p\\psi=i\\hbar\\lim_{a\\to0}\\frac{T(a)\\psi-\\psi}{a}.$$\nThe translated probability density therefore takes its old value at the point displaced to the left by the same amount.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "pure-state",
+    "kind": "uses-definition",
+    "basis": "defines the position wave function",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "supplies the operator-domain convention",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "momentum",
+  "title": "Position-space momentum",
+  "aliases": [
+   "momentum"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For canonical translations on the real line the momentum acts as $p=-i\\hbar\\,\\partial_x$.",
+  "body": "For canonical translations on the real line the momentum acts as $p=-i\\hbar\\,\\partial_x$.",
+  "assumptions": [
+   "Full real line and the usual translation representation on $L^2(\\mathbb R)$ with momentum domain $H^1(\\mathbb R)$."
+  ],
+  "proof": "Translate a smooth compactly supported state and form its first-order difference quotient.\n$$\\frac{(T(a)\\psi)(x)-\\psi(x)}{a}=\\frac{\\psi(x-a)-\\psi(x)}{a}=-\\int_0^1\\psi'(x-sa)\\,ds.$$\nThe translated derivative converges in the square-integrable norm to the original derivative, so the defining generator acts as stated.\n$$p\\psi=-i\\hbar\\,\\psi'.$$\nThe same integral argument extends to absolutely continuous representatives with square-integrable weak derivative, using continuity of translations in the square-integrable norm.",
+  "relations": [
+   {
+    "target": "translations",
+    "kind": "uses-definition",
+    "basis": "defines the direction and sign of the generator",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "expresses a difference quotient through the derivative",
+    "direction": "forward"
+   },
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "specifies convergence in norm",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "scalar-hamiltonian",
+  "title": "Scalar-potential particle Hamiltonian",
+  "aliases": [
+   "scalar-hamiltonian"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "A spinless nonrelativistic particle of constant mass in a local potential has $H=p^2/(2m)+V(X,t)$ in one Cartesian coordinate.",
+  "body": "A spinless nonrelativistic particle of constant mass in a local potential has $H=p^2/(2m)+V(X,t)$ in one Cartesian coordinate.\n\nIn the position representation the position operator $X$ and functions of it multiply the wave function.\n$$(X\\psi)(x)=x\\psi(x),\\qquad (V(X,t)\\psi)(x)=V(x,t)\\psi(x).$$\nIn three Cartesian coordinates the kinetic term sums the squared canonical momenta and the potential multiplies at the observation point.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "gives the meaning of an operator and its domain",
+    "direction": "forward"
+   },
+   {
+    "target": "dynamics",
+    "kind": "prerequisite",
+    "basis": "identifies the generator being specified",
+    "direction": "forward"
+   },
+   {
+    "target": "momentum",
+    "kind": "prerequisite",
+    "basis": "identifies the canonical momentum in position space",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "wave",
+  "title": "Position-space Schrödinger equation",
+  "aliases": [
+   "wave"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For a scalar local potential $i\\hbar\\partial_t\\psi=-(\\hbar^2/2m)\\partial_x^2\\psi+V\\psi$.",
+  "body": "For a scalar local potential $i\\hbar\\partial_t\\psi=-(\\hbar^2/2m)\\partial_x^2\\psi+V\\psi$.",
+  "assumptions": [
+   "Constant positive mass, a time-independent Cartesian basis, a scalar local potential and sufficient regularity for the derivatives."
+  ],
+  "proof": "Project the state equation onto the time-independent position basis.\n$$i\\hbar\\partial_t\\psi(x,t)=\\langle x|H|\\psi(t)\\rangle.$$\nInsert the scalar-potential Hamiltonian and apply the momentum operator twice.\n$$(p^2\\psi)(x)=(-i\\hbar)^2\\partial_x^2\\psi(x)=-\\hbar^2\\partial_x^2\\psi(x).$$\nCombining kinetic and potential terms gives the coordinate equation.\n$$i\\hbar\\partial_t\\psi(x,t)=-\\frac{\\hbar^2}{2m}\\partial_x^2\\psi(x,t)+V(x,t)\\psi(x,t).$$\nSumming the three Cartesian kinetic terms replaces the one-dimensional second derivative by $\\nabla^2$.",
+  "relations": [
+   {
+    "target": "scalar-hamiltonian",
+    "kind": "prerequisite",
+    "basis": "specifies kinetic energy and potential multiplication",
+    "direction": "forward"
+   },
+   {
+    "target": "momentum",
+    "kind": "prerequisite",
+    "basis": "represents the spatial generator",
+    "direction": "forward"
+   },
+   {
+    "target": "dynamics",
+    "kind": "prerequisite",
+    "basis": "provides the time evolution equation",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "stationary-state",
+  "title": "Stationary energy eigenstates",
+  "aliases": [
+   "stationary-state"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For a time-independent Hamiltonian a state of definite energy evolves as $|\\psi(t)\\rangle=e^{-iE(t-t_0)/\\hbar}|u_E\\rangle$.",
+  "body": "For a time-independent Hamiltonian a state of definite energy evolves as $|\\psi(t)\\rangle=e^{-iE(t-t_0)/\\hbar}|u_E\\rangle$.",
+  "assumptions": [
+   "Time-independent self-adjoint Hamiltonian and an energy eigenvector in its domain."
+  ],
+  "proof": "Insert a fixed eigenvector times a scalar time factor into the state equation.\n$$H|u_E\\rangle=E|u_E\\rangle,\\qquad |\\psi(t)\\rangle=f(t)|u_E\\rangle,\\qquad i\\hbar\\dot f=Ef.$$\nIntegrate the scalar equation with a unit initial factor.\n$$f(t)=\\exp[-iE(t-t_0)/\\hbar].$$\nSelf-adjointness makes the eigenvalue real, so this phase leaves the probability of every fixed measurement outcome unchanged.\n$$\\langle u_E|Hu_E\\rangle=E\\langle u_E|u_E\\rangle=E^*\\langle u_E|u_E\\rangle.$$",
+  "relations": [
+   {
+    "target": "dynamics",
+    "kind": "prerequisite",
+    "basis": "supplies the time equation",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "makes the eigenvalue real",
+    "direction": "forward"
+   },
+   {
+    "target": "state",
+    "kind": "prerequisite",
+    "basis": "identifies measurement probabilities",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "plane",
+  "title": "Free plane waves",
+  "aliases": [
+   "plane"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "In a constant potential a generalized plane wave $\\psi=Ae^{i(kx-\\omega t)}$ has $\\hbar\\omega=\\hbar^2 k^2/(2m)+V_0$.",
+  "body": "In a constant potential a generalized plane wave $\\psi=Ae^{i(kx-\\omega t)}$ has $\\hbar\\omega=\\hbar^2 k^2/(2m)+V_0$.",
+  "assumptions": [
+   "Real constant potential on the line and real wave number."
+  ],
+  "proof": "Act with time and space derivatives on the travelling phase.\n$$\\partial_t\\psi=-i\\omega\\psi,\\qquad \\partial_x^2\\psi=-k^2\\psi.$$\nSubstitute these derivatives into the wave equation and divide out the nonzero amplitude.\n$$\\hbar\\omega=\\frac{\\hbar^2k^2}{2m}+V_0.$$\nThe momentum derivative and the time phase identify the momentum and energy of the mode.\n$$p\\psi=\\hbar k\\psi,\\qquad E=\\hbar\\omega.$$\nThese modes have constant density on the whole line and represent generalized eigenfunctions used to form wave packets.",
+  "relations": [
+   {
+    "target": "wave",
+    "kind": "prerequisite",
+    "basis": "gives the dispersion relation",
+    "direction": "forward"
+   },
+   {
+    "target": "momentum",
+    "kind": "prerequisite",
+    "basis": "identifies the momentum eigenvalue",
+    "direction": "forward"
+   },
+   {
+    "target": "stationary-state",
+    "kind": "upper-structure",
+    "basis": "is a generalized energy mode of a time-independent Hamiltonian",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "well",
+  "title": "Infinite square well",
+  "aliases": [
+   "well"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For zero potential on $(0,L)$ with hard walls, $u_n=\\sqrt{2/L}\\sin(n\\pi x/L)$ and $E_n=\\hbar^2\\pi^2 n^2/(2mL^2)$ for $n=1,2,\\ldots$.",
+  "body": "For zero potential on $(0,L)$ with hard walls, $u_n=\\sqrt{2/L}\\sin(n\\pi x/L)$ and $E_n=\\hbar^2\\pi^2 n^2/(2mL^2)$ for $n=1,2,\\ldots$.",
+  "assumptions": [
+   "Positive mass, $L>0$ and the Dirichlet kinetic Hamiltonian on a finite interval."
+  ],
+  "proof": "The infinite walls impose Dirichlet endpoints, and separation of the time phase gives the interior eigenproblem.\n$$-\\frac{\\hbar^2}{2m}u''=Eu,\\qquad u(0)=u(L)=0.$$\nMultiply by the conjugate, integrate by parts and use both endpoint values to determine the sign of the energy.\n$$E\\int_0^L |u|^2dx=\\frac{\\hbar^2}{2m}\\int_0^L |u'|^2dx>0.$$\nEquality would require a constant function with both endpoint values zero, so every eigenstate has a positive wave number.\n$$k=\\sqrt{2mE}/\\hbar,\\qquad u=A\\sin(kx)+B\\cos(kx).$$\nThe first wall eliminates the cosine and the second quantizes the sine.\n$$B=0,\\qquad \\sin(kL)=0,\\qquad k_n=n\\pi/L,\\qquad n=1,2,\\ldots.$$\nNormalize using the integral of the squared sine and restore the separated time factor.\n$$\\int_0^L\\sin^2(k_nx)\\,dx=L/2,\\qquad \\psi_n(x,t)=\\sqrt{2/L}\\sin(k_nx)e^{-iE_nt/\\hbar}.$$\nThe Fourier sine basis spans square-integrable states inside the well, and the idealized spatial wave functions vanish outside.",
+  "relations": [
+   {
+    "target": "wave",
+    "kind": "prerequisite",
+    "basis": "supplies the interior equation",
+    "direction": "forward"
+   },
+   {
+    "target": "stationary-state",
+    "kind": "prerequisite",
+    "basis": "separates the time dependence",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "integrates by parts and normalizes the sine",
+    "direction": "forward"
+   },
+   {
+    "target": "fourier-interval",
+    "kind": "prerequisite",
+    "basis": "ensures completeness of the sine eigenfunctions",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "current",
+  "title": "Probability current",
+  "aliases": [
+   "current"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For real local potentials $\\partial_t|\\psi|^2+\\partial_x j=0$, with $j=(\\hbar/m)\\operatorname{Im}(\\psi^*\\partial_x\\psi)$.",
+  "body": "For real local potentials $\\partial_t|\\psi|^2+\\partial_x j=0$, with $j=(\\hbar/m)\\operatorname{Im}(\\psi^*\\partial_x\\psi)$.",
+  "assumptions": [
+   "Real local potential, constant mass, no vector potential and sufficient wave-function regularity."
+  ],
+  "proof": "Multiply the wave equation by the conjugate amplitude and its complex conjugate by the original amplitude.\n$$i\\hbar\\psi^*\\partial_t\\psi=-\\frac{\\hbar^2}{2m}\\psi^*\\psi''+V|\\psi|^2,\\qquad -i\\hbar\\psi\\partial_t\\psi^*=-\\frac{\\hbar^2}{2m}\\psi\\psi^{*\\,\\prime\\prime}+V|\\psi|^2.$$\nSubtract the conjugated equation to cancel the real potential and use the product rule on each side.\n$$i\\hbar\\partial_t|\\psi|^2=-\\frac{\\hbar^2}{2m}\\partial_x(\\psi^*\\psi'-\\psi\\psi^{*\\,\\prime}).$$\nDividing by the imaginary coefficient yields the continuity equation for the Born density.\n$$j=\\frac{\\hbar}{2mi}(\\psi^*\\psi'-\\psi\\psi^{*\\,\\prime}),\\qquad \\partial_t|\\psi|^2=-\\partial_x j.$$\nAn interval gains probability through its left endpoint and loses it through its right endpoint.\n$$\\frac{d}{dt}\\int_a^b|\\psi|^2dx=j(a,t)-j(b,t).$$",
+  "relations": [
+   {
+    "target": "wave",
+    "kind": "prerequisite",
+    "basis": "provides the time derivatives",
+    "direction": "forward"
+   },
+   {
+    "target": "state",
+    "kind": "prerequisite",
+    "basis": "identifies the squared amplitude as probability density",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "rewrites second derivatives as a flux divergence",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "step-matching",
+  "title": "Matching at a finite potential step",
+  "aliases": [
+   "step-matching"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "At an ordinary finite jump of the potential, both $u$ and $u'$ are continuous for a constant-mass stationary particle.",
+  "body": "At an ordinary finite jump of the potential, both $u$ and $u'$ are continuous for a constant-mass stationary particle.",
+  "assumptions": [
+   "Constant mass, finite piecewise continuous scalar potential and a locally bounded piecewise smooth wave function."
+  ],
+  "proof": "Near a step at the origin the spatial equation has a locally integrable right-hand side.\n$$u''=\\frac{2m}{\\hbar^2}(V-E)u.$$\nFor a piecewise smooth wave function a jump would add singular terms to its distributional second derivative.\n$$u''_{\\rm dist}=u''_{\\rm pieces}+[u']_0\\,\\delta(x)+[u]_0\\,\\delta'(x),\\qquad [g]_0=g(0^+)-g(0^-).$$\nThe jump terms follow by integrating against a test function by parts twice on the two half intervals.\nThe finite potential times a locally bounded wave function carries neither singular term, so both jump coefficients vanish.\n$$[u]_0=[u']_0=0.$$",
+  "relations": [
+   {
+    "target": "wave",
+    "kind": "prerequisite",
+    "basis": "specifies the kinetic derivative",
+    "direction": "forward"
+   },
+   {
+    "target": "stationary-state",
+    "kind": "prerequisite",
+    "basis": "separates the spatial equation",
+    "direction": "forward"
+   },
+   {
+    "target": "delta",
+    "kind": "uses-definition",
+    "basis": "identifies delta and derivative distributions",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "scatter",
+  "title": "Step reflection and transmission",
+  "aliases": [
+   "scatter"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For a real step with both channels open, $R=|r|^2$ and $T=(k_2/k_1)|t|^2$ with $R+T=1$.",
+  "body": "For a real step with both channels open, $R=|r|^2$ and $T=(k_2/k_1)|t|^2$ with $R+T=1$.",
+  "assumptions": [
+   "Real finite step, equal positive mass on both sides, a single incident channel and $E>\\max(V_1,V_2)$ for the propagating formulas."
+  ],
+  "proof": "Take a stationary wave incident from the left with unit amplitude and choose an outgoing transmitted wave on the right.\n$$u_1=e^{ik_1x}+r e^{-ik_1x},\\qquad u_2=t e^{ik_2x},\\qquad k_j=\\sqrt{2m(E-V_j)}/\\hbar.$$\nMatch the wave and its derivative at the step and solve the two linear equations.\n$$1+r=t,\\qquad k_1(1-r)=k_2t.$$\n$$r=\\frac{k_1-k_2}{k_1+k_2},\\qquad t=\\frac{2k_1}{k_1+k_2}.$$\nIn the current of the incident and reflected superposition the two interference terms in $u^*u'$ combine to a real number.\n$$j_{\\rm in}=\\hbar k_1/m,\\qquad j_{\\rm ref}=-(\\hbar k_1/m)|r|^2,\\qquad j_{\\rm tr}=(\\hbar k_2/m)|t|^2.$$\nThe outward flux magnitudes relative to incident flux give the fractions and their sum.\n$$R=-j_{\\rm ref}/j_{\\rm in}=|r|^2,\\qquad T=j_{\\rm tr}/j_{\\rm in}=(k_2/k_1)|t|^2.$$\n$$R+T=\\frac{(k_1-k_2)^2+4k_1k_2}{(k_1+k_2)^2}=1.$$\nIf the right half-line is evanescent, its bounded solution is a decaying real exponential times a complex constant and therefore carries zero current.",
+  "relations": [
+   {
+    "target": "current",
+    "kind": "prerequisite",
+    "basis": "turns channel currents into probabilities",
+    "direction": "forward"
+   },
+   {
+    "target": "plane",
+    "kind": "prerequisite",
+    "basis": "gives the channel wave numbers and phases",
+    "direction": "forward"
+   },
+   {
+    "target": "step-matching",
+    "kind": "prerequisite",
+    "basis": "relates amplitudes at the step",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "canonical-pair",
+  "title": "Canonical position–momentum commutator",
+  "aliases": [
+   "canonical-pair"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Cartesian position and canonical momentum satisfy $[X_i,p_j]=i\\hbar\\delta_{ij}$ on a common invariant test domain.",
+  "body": "Cartesian position and canonical momentum satisfy $[X_i,p_j]=i\\hbar\\delta_{ij}$ on a common invariant test domain.",
+  "assumptions": [
+   "A common test domain such as smooth rapidly decaying functions in Cartesian space."
+  ],
+  "proof": "Apply both operator products to a smooth test wave function.\n$$(X_i p_j)\\psi=-i\\hbar x_i\\partial_j\\psi,\\qquad (p_jX_i)\\psi=-i\\hbar(\\delta_{ij}\\psi+x_i\\partial_j\\psi).$$\nSubtract these expressions and use commuting coordinate multipliers and commuting partial derivatives for the other pairs.\n$$[X_i,p_j]\\psi=i\\hbar\\delta_{ij}\\psi,\\qquad [X_i,X_j]\\psi=[p_i,p_j]\\psi=0.$$",
+  "relations": [
+   {
+    "target": "momentum",
+    "kind": "prerequisite",
+    "basis": "represents momentum by a partial derivative",
+    "direction": "forward"
+   },
+   {
+    "target": "scalar-hamiltonian",
+    "kind": "prerequisite",
+    "basis": "defines the position multiplier",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "differentiates a product",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "oscillator-algebra",
+  "title": "Oscillator ladder operators",
+  "aliases": [
+   "oscillator-algebra"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "The oscillator factors as $H=\\hbar\\omega(a^\\dagger a+\\tfrac12)$ and its ladder operators obey $[a,a^\\dagger]=1$.",
+  "body": "The oscillator factors as $H=\\hbar\\omega(a^\\dagger a+\\tfrac12)$ and its ladder operators obey $[a,a^\\dagger]=1$.",
+  "assumptions": [
+   "Positive mass and frequency and a common invariant domain for the oscillator products."
+  ],
+  "proof": "Define dimensionless lowering and raising operators for the oscillator with positive mass and frequency.\n$$a=\\frac{m\\omega X+ip}{\\sqrt{2m\\hbar\\omega}},\\qquad a^\\dagger=\\frac{m\\omega X-ip}{\\sqrt{2m\\hbar\\omega}},\\qquad H=\\frac{p^2}{2m}+\\frac{m\\omega^2X^2}{2}.$$\nMultiplying in each order reduces the mixed terms to the canonical commutator.\n$$a^\\dagger a=\\frac{m^2\\omega^2X^2+p^2+i m\\omega[X,p]}{2m\\hbar\\omega}=\\frac H{\\hbar\\omega}-\\tfrac12,\\qquad aa^\\dagger=\\frac H{\\hbar\\omega}+\\tfrac12.$$\nSubtract the products and commute each ladder operator through the factorized Hamiltonian.\n$$[a,a^\\dagger]=1,\\qquad [H,a]=-\\hbar\\omega a,\\qquad [H,a^\\dagger]=\\hbar\\omega a^\\dagger.$$\nAdjointness and factorization give the norms after lowering and raising a normalized energy eigenvector.\n$$\\|a u\\|^2=\\frac E{\\hbar\\omega}-\\tfrac12,\\qquad\\|a^\\dagger u\\|^2=\\frac E{\\hbar\\omega}+\\tfrac12.$$",
+  "relations": [
+   {
+    "target": "canonical-pair",
+    "kind": "prerequisite",
+    "basis": "sets the commutator in the mixed terms",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "supplies the adjoint pairing",
+    "direction": "forward"
+   },
+   {
+    "target": "scalar-hamiltonian",
+    "kind": "prerequisite",
+    "basis": "specializes the scalar potential to a quadratic function",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "gaussian-basis",
+  "title": "Completeness of Gaussian-weighted polynomials",
+  "aliases": [
+   "gaussian-basis"
+  ],
+  "domain": [
+   "subject:mathematics",
+   "specialization:analysis"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For $\\alpha>0$, the span of $x^n e^{-\\alpha x^2/2}$ for $n\\ge0$ is dense in $L^2(\\mathbb R)$.",
+  "body": "For $\\alpha>0$, the span of $x^n e^{-\\alpha x^2/2}$ for $n\\ge0$ is dense in $L^2(\\mathbb R)$.",
+  "assumptions": [
+   "Positive Gaussian width parameter and Lebesgue square-integrability on the whole real line."
+  ],
+  "proof": "Take a square-integrable function orthogonal to each Gaussian-weighted power and multiply its complex conjugate by the Gaussian.\n$$g(x)=f(x)^* e^{-\\alpha x^2/2},\\qquad \\int_{\\mathbb R}x^n g(x)\\,dx=0\\quad(n=0,1,\\ldots).$$\nCauchy–Schwarz bounds every exponential moment in absolute value by a finite Gaussian integral.\n$$\\int |g(x)| e^{M|x|}\\,dx\\le\\|f\\|_2\\left(\\int e^{-\\alpha x^2+2M|x|}\\,dx\\right)^{1/2}<\\infty\\qquad(M>0).$$\nThis bound permits integration of the series for an oscillatory exponential term by term, so the Fourier integral of the weighted function vanishes for every real wave number.\n$$\\hat g(k)=\\int g(x)e^{-ikx}\\,dx=\\sum_{n=0}^\\infty\\frac{(-ik)^n}{n!}\\int x^n g(x)\\,dx=0.$$\nTo see uniqueness directly, smooth the weighted function with a normalized Gaussian of width tending to zero.\n$$K_s(y)=\\frac{e^{-y^2/(4s)}}{\\sqrt{4\\pi s}}=\\frac{1}{2\\pi}\\int_{\\mathbb R}e^{-s k^2}e^{iky}\\,dk,\\qquad s>0.$$\nThe Gaussian integral on the right satisfies the same first-order equation and value at the origin as the expression on the left, by differentiating in $y$ and integrating by parts in $k$.\n$$K_s'(y)=-\\frac{y}{2s}K_s(y),\\qquad K_s(0)=(4\\pi s)^{-1/2}.$$\nAbsolute integrability permits exchanging the integrations, giving zero after Gaussian smoothing.\n$$(g*K_s)(y)=\\frac1{2\\pi}\\int e^{-sk^2}e^{iky}\\hat g(k)\\,dk=0.$$\nFor a smooth compactly supported test function $\\phi$, uniform continuity makes $K_s*\\phi$ converge uniformly to $\\phi$ as the Gaussian mass outside every fixed neighborhood tends to zero.\n$$\\int g(x)\\phi(x)\\,dx=\\lim_{s\\downarrow0}\\int (g*K_s)(y)\\phi(y)\\,dy=0.$$\nApproximating a finite interval indicator by bounded smooth cutoffs and using dominated convergence shows that the integral of $g$ on every such interval is zero.\nThe absolutely continuous primitive of $g$ is constant, so $g$ vanishes almost everywhere, and the Gaussian factor is everywhere positive.\nThus the orthogonal complement of the stated span is zero, proving density in the Hilbert space.",
+  "relations": [
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "uses orthogonality and the criterion for a dense span",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "evaluates Gaussian integrals and exchanges controlled limits",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "sho",
+  "title": "Harmonic oscillator spectrum",
+  "aliases": [
+   "sho"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For the harmonic oscillator on the real line, $E_n=\\hbar\\omega(n+\\tfrac12)$ for $n=0,1,2,\\ldots$.",
+  "body": "For the harmonic oscillator on the real line, $E_n=\\hbar\\omega(n+\\tfrac12)$ for $n=0,1,2,\\ldots$.",
+  "assumptions": [
+   "The usual self-adjoint oscillator on $L^2(\\mathbb R)$ with $m,\\omega>0$; the ladder construction is on rapidly decaying smooth eigenfunctions."
+  ],
+  "proof": "The squared lowering norm bounds each energy eigenvalue below, while the commutator lowers the energy by one quantum whenever the result is nonzero.\n$$E\\ge\\tfrac12\\hbar\\omega,\\qquad H(au)=(E-\\hbar\\omega)au.$$\nRepeated lowering must therefore terminate and its final nonzero state has zero lowering norm and the ground energy.\n$$au_0=0,\\qquad E_0=\\tfrac12\\hbar\\omega.$$\nIn coordinate space the ground-state equation integrates to a Gaussian whose squared integral fixes its normalization.\n$$\\alpha=m\\omega/\\hbar,\\qquad u_0'=-\\alpha x u_0,\\qquad u_0(x)=(\\alpha/\\pi)^{1/4}e^{-\\alpha x^2/2}.$$\nRepeated raising gives nonzero normalized eigenfunctions since the squared raising norm of level $n$ equals $n+1$.\n$$u_n=\\frac{(a^\\dagger)^n}{\\sqrt{n!}}u_0,\\qquad Hu_n=\\hbar\\omega(n+\\tfrac12)u_n.$$\nActing on a polynomial times the ground Gaussian raises the polynomial degree by exactly one and keeps its leading coefficient nonzero.\n$$a^\\dagger(Pu_0)=\\frac{2\\alpha xP-P'}{\\sqrt{2\\alpha}}u_0.$$\nThe resulting polynomials span all polynomial degrees successively, and Gaussian-weighted polynomials are dense on the real line.\nThe complete energy eigenbasis and divergence of its eigenvalues to infinity exhaust the spectrum of the self-adjoint oscillator.",
+  "relations": [
+   {
+    "target": "oscillator-algebra",
+    "kind": "prerequisite",
+    "basis": "supplies energy shifts and ladder norms",
+    "direction": "forward"
+   },
+   {
+    "target": "momentum",
+    "kind": "prerequisite",
+    "basis": "gives the coordinate form of the ladder equation",
+    "direction": "forward"
+   },
+   {
+    "target": "gaussian-basis",
+    "kind": "prerequisite",
+    "basis": "proves completeness of the constructed eigenstates",
+    "direction": "forward"
+   },
+   {
+    "target": "stationary-state",
+    "kind": "upper-structure",
+    "basis": "describes stationary eigenmodes of a time-independent Hamiltonian",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "angular",
+  "title": "Orbital angular momentum and spin",
+  "aliases": [
+   "angular"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "Orbital angular momentum is $\\mathbf L=\\mathbf X\\times\\mathbf p$, spin $\\mathbf S$ acts on internal states and total angular momentum is $\\mathbf J=\\mathbf L+\\mathbf S$.",
+  "body": "Orbital angular momentum is $\\mathbf L=\\mathbf X\\times\\mathbf p$, spin $\\mathbf S$ acts on internal states and total angular momentum is $\\mathbf J=\\mathbf L+\\mathbf S$.\n\nThe components of angular momentum are defined as generators of rotations with the right-handed infinitesimal rotation convention.\n$$U_i(\\theta)=\\exp(-i\\theta J_i/\\hbar),\\qquad [J_i,J_j]=i\\hbar\\sum_k\\epsilon_{ijk}J_k.$$\nSpin is an internal representation of this rotation algebra and commutes with the orbital operators on the product space.\n$$[L_i,S_j]=0,\\qquad \\mathbf J^2=J_x^2+J_y^2+J_z^2.$$",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "momentum",
+    "kind": "prerequisite",
+    "basis": "represents the orbital generator in position space",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "defines the observable components",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "electron-spin-moment",
+  "title": "Electron spin g factor",
+  "aliases": [
+   "electron-spin-moment"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "For a free electron, $\\boldsymbol\\mu=-g\\mu_B\\mathbf S/\\hbar$ defines the spin factor $g$, with $\\mu_B=e\\hbar/(2m_e)$ and $e>0$.",
+  "body": "For a free electron, $\\boldsymbol\\mu=-g\\mu_B\\mathbf S/\\hbar$ defines the spin factor $g$, with $\\mu_B=e\\hbar/(2m_e)$ and $e>0$.\n\nFor the state polarized along the measurement axis, the signed moment relative to the Bohr magneton determines the reported factor.\n$$S_z=\\hbar/2,\\qquad -\\mu_z/\\mu_B=g/2.$$",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "angular",
+    "kind": "uses-definition",
+    "basis": "identifies the internal spin operator in the magnetic moment",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "orbital-algebra",
+  "title": "Orbital rotation algebra",
+  "aliases": [
+   "orbital-algebra"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Cartesian orbital generators obey $[L_i,L_j]=i\\hbar\\epsilon_{ijk}L_k$ and $L_z=-i\\hbar\\partial_\\varphi$.",
+  "body": "Cartesian orbital generators obey $[L_i,L_j]=i\\hbar\\epsilon_{ijk}L_k$ and $L_z=-i\\hbar\\partial_\\varphi$.",
+  "assumptions": [
+   "Smooth orbital wave functions in three-dimensional Cartesian space."
+  ],
+  "proof": "Use the canonical commutator to move each momentum past the other product’s coordinate.\n$$[X_a p_b,X_c p_d]=-i\\hbar\\delta_{bc}X_a p_d+i\\hbar\\delta_{ad}X_c p_b.$$\nFor the first two Cartesian angular momenta only two product commutators survive, and cycling axes gives the remaining components.\n$$[Yp_z-Zp_y,Zp_x-Xp_z]=i\\hbar(Xp_y-Yp_x)=i\\hbar L_z.$$\nIn cylindrical or spherical coordinates the derivative of a scalar wave function with respect to azimuth follows by the chain rule at fixed radius and polar angle.\n$$\\partial_\\varphi=-y\\partial_x+x\\partial_y,\\qquad L_z=Xp_y-Yp_x=-i\\hbar\\partial_\\varphi.$$",
+  "relations": [
+   {
+    "target": "angular",
+    "kind": "uses-definition",
+    "basis": "defines the orbital cross product",
+    "direction": "forward"
+   },
+   {
+    "target": "canonical-pair",
+    "kind": "prerequisite",
+    "basis": "evaluates the coordinate–momentum products",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "changes the derivative to the azimuthal coordinate",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "angular-spectrum",
+  "title": "Angular momentum quantum numbers",
+  "aliases": [
+   "angular-spectrum"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "In an irreducible rotation multiplet $\\mathbf J^2=\\hbar^2 j(j+1)$ and $J_z=\\hbar m$ on joint eigenstates, with $m=-j,-j+1,\\ldots,j$ and $2j\\in\\mathbb Z_{\\ge0}$.",
+  "body": "In an irreducible rotation multiplet $\\mathbf J^2=\\hbar^2 j(j+1)$ and $J_z=\\hbar m$ on joint eigenstates, with $m=-j,-j+1,\\ldots,j$ and $2j\\in\\mathbb Z_{\\ge0}$.",
+  "assumptions": [
+   "An irreducible unitary angular momentum multiplet generated from a joint weight vector, with adjoint ladder components on the common domain."
+  ],
+  "proof": "The rotation commutators give ladder operators that preserve the squared angular momentum and shift the axial component by one quantum.\n$$J_\\pm=J_x\\pm iJ_y,\\qquad[J_z,J_\\pm]=\\pm\\hbar J_\\pm,\\qquad [\\mathbf J^2,J_i]=i\\hbar\\sum_{k,l}\\epsilon_{kil}(J_kJ_l+J_lJ_k)=0.$$\nTake a normalized joint eigenstate with squared angular momentum eigenvalue $\\hbar^2\\lambda$ and axial eigenvalue $\\hbar m$.\n$$J_\\mp J_\\pm=\\mathbf J^2-J_z^2\\mp\\hbar J_z,\\qquad \\|J_\\pm u\\|^2=\\hbar^2[\\lambda-m(m\\pm1)].$$\nPositivity bounds the allowed axial eigenvalues in either direction, so each unit-step ladder has a highest and lowest weight.\n$$\\lambda=m_{\\rm high}(m_{\\rm high}+1)=m_{\\rm low}(m_{\\rm low}-1).$$\nFactoring the difference and using the ordering of the two endpoints selects opposite endpoints.\n$$(m_{\\rm high}+m_{\\rm low})(m_{\\rm high}-m_{\\rm low}+1)=0,\\qquad m_{\\rm high}=-m_{\\rm low}=j.$$\nThe endpoint separation counts an integer number of lowering steps, which yields the allowed integer and half-integer labels.\n$$2j\\in\\mathbb Z_{\\ge0},\\qquad \\lambda=j(j+1).$$\nFor scalar orbital states single-valuedness under a full azimuthal turn restricts the orbital labels to integers.\n$$-i\\partial_\\varphi u=mu,\\qquad u(\\varphi+2\\pi)=e^{2\\pi i m}u(\\varphi)=u(\\varphi),\\qquad m\\in\\mathbb Z.$$",
+  "relations": [
+   {
+    "target": "angular",
+    "kind": "uses-definition",
+    "basis": "gives the rotation commutation relations",
+    "direction": "forward"
+   },
+   {
+    "target": "orbital-algebra",
+    "kind": "prerequisite",
+    "basis": "identifies the axial derivative for the scalar orbital restriction",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "expresses squared norms through adjoints",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "spin-half",
+  "title": "Spin one-half and the Pauli matrices",
+  "aliases": [
+   "spin-half"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "In the ordered $S_z$ basis the spin one-half components take the form $S_i=\\hbar\\sigma_i/2$.",
+  "body": "In the ordered $S_z$ basis the spin one-half components take the form $S_i=\\hbar\\sigma_i/2$.",
+  "assumptions": [
+   "Spin one-half representation and the stated ordered phase convention."
+  ],
+  "proof": "Order the two states from highest to lowest axial weight and choose their relative phase so the nonzero raising coefficient is positive.\n$$S_z|+\\rangle=\\frac{\\hbar}{2}|+\\rangle,\\qquad S_z|-\\rangle=-\\frac{\\hbar}{2}|-\\rangle.$$\nThe ladder norm with $j=1/2$ fixes the single nonzero raising matrix element and adjointness fixes its lowering counterpart.\n$$S_+|-\\rangle=\\hbar|+\\rangle,\\qquad S_-|+\\rangle=\\hbar|-\\rangle,\\qquad S_+|+\\rangle=S_-|-\\rangle=0.$$\nTake the half-sum and the difference divided by $2i$ to recover the two transverse components.\n$$\\sigma_x=\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix},\\qquad\\sigma_y=\\begin{pmatrix}0&-i\\\\i&0\\end{pmatrix},\\qquad\\sigma_z=\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}.$$",
+  "relations": [
+   {
+    "target": "angular-spectrum",
+    "kind": "prerequisite",
+    "basis": "fixes the weights and ladder norms",
+    "direction": "forward"
+   },
+   {
+    "target": "angular",
+    "kind": "uses-definition",
+    "basis": "identifies spin as internal angular momentum",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "exchange",
+  "title": "Exchange of identical particles",
+  "aliases": [
+   "exchange"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "Exchanging two identical particles in three dimensions gives $P_{ij}\\Psi=+\\Psi$ for bosons and $P_{ij}\\Psi=-\\Psi$ for fermions.",
+  "body": "Exchanging two identical particles in three dimensions gives $P_{ij}\\Psi=+\\Psi$ for bosons and $P_{ij}\\Psi=-\\Psi$ for fermions.\n\nIn three spatial dimensions the exchange postulate selects one symmetry sector of the tensor product of labelled one-particle Hilbert spaces, including every internal degree of freedom.\n$$P_{ij}\\Psi=+\\Psi\\quad\\text{(bosons)},\\qquad P_{ij}\\Psi=-\\Psi\\quad\\text{(fermions)}.$$\nAntisymmetrizing a product with two identical one-particle factors gives zero, since the two exchanged terms have equal magnitudes and opposite signs.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "pure-state",
+    "kind": "uses-definition",
+    "basis": "supplies the one-particle states",
+    "direction": "forward"
+   },
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "provides the one-particle inner product",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "fock",
+  "title": "Fock space and mode occupations",
+  "aliases": [
+   "fock"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "For one-particle space $h$, the bosonic and fermionic Fock spaces are $\\mathcal F_B=\\bigoplus_{N\\ge0}\\operatorname{Sym}^N h$ and $\\mathcal F_F=\\bigoplus_{N\\ge0}\\bigwedge^N h$.",
+  "body": "For one-particle space $h$, the bosonic and fermionic Fock spaces are $\\mathcal F_B=\\bigoplus_{N\\ge0}\\operatorname{Sym}^N h$ and $\\mathcal F_F=\\bigoplus_{N\\ge0}\\bigwedge^N h$.\n\n$$\\mathcal F_B(h)=\\bigoplus_{N=0}^\\infty\\operatorname{Sym}^N h,\\qquad \\mathcal F_F(h)=\\bigoplus_{N=0}^\\infty\\bigwedge^N h.$$\nEach sector carries the inherited inner product and the zero-particle sector is one-dimensional with normalized vacuum $|0\\rangle$.\nChoose an ordered orthonormal basis of one-particle modes and specify a normalized occupation basis by $\\mathbf n=(n_1,n_2,\\ldots)$.\n$$\\sum_i n_i=N,\\qquad n_i\\in\\{0,1,2,\\ldots\\}\\ \\text{for bosons},\\qquad n_i\\in\\{0,1\\}\\ \\text{for fermions}.$$\nCreation inserts the chosen mode as the first tensor factor and projects to the appropriate symmetry, while annihilation is the Hilbert-space adjoint.\n$$a_i^\\dagger\\Psi_N=\\sqrt{N+1}\\,P_{\\pm,N+1}(|i\\rangle\\otimes\\Psi_N),\\qquad a_i=(a_i^\\dagger)^\\dagger.$$\nHere $P_{\\pm,N}$ averages all permutations, weighted by their sign for fermions and by unity for bosons.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "exchange",
+    "kind": "prerequisite",
+    "basis": "fixes the symmetry of each particle sector",
+    "direction": "forward"
+   },
+   {
+    "target": "hilbert",
+    "kind": "uses-definition",
+    "basis": "supplies the norm and mode basis",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "defines annihilation as an adjoint",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "occupation-action",
+  "title": "Action of creation and annihilation",
+  "aliases": [
+   "occupation-action"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Bosonic mode operators carry square-root occupation factors, and fermionic mode operators carry the sign $(-1)^{\\sum_{j<i}n_j}$ fixed by mode order.",
+  "body": "Bosonic mode operators carry square-root occupation factors, and fermionic mode operators carry the sign $(-1)^{\\sum_{j<i}n_j}$ fixed by mode order.",
+  "assumptions": [
+   "Ordered orthonormal modes with finite particle occupation and the normalized Fock creation convention."
+  ],
+  "proof": "Apply the symmetry projector to an ordered bosonic product $w_{\\mathbf n}$ and count its distinct permutations.\n$$\\|P_{+,N}w_{\\mathbf n}\\|^2=\\langle w_{\\mathbf n}|P_{+,N} w_{\\mathbf n}\\rangle=\\frac{\\prod_j n_j!}{N!},\\qquad |\\mathbf n\\rangle=\\sqrt{\\frac{N!}{\\prod_j n_j!}}P_{+,N}w_{\\mathbf n}.$$\nFull symmetrization after inserting a mode erases the preliminary symmetrization, so the ratio of the two normalization factors fixes the creation amplitude.\n$$a_i^\\dagger|\\mathbf n\\rangle=\\sqrt{N+1}\\sqrt{\\frac{N!}{\\prod_j n_j!}}\\sqrt{\\frac{(n_i+1)!\\prod_{j\\ne i}n_j!}{(N+1)!}}\\,|\\mathbf n+\\mathbf e_i\\rangle=\\sqrt{n_i+1}\\,|\\mathbf n+\\mathbf e_i\\rangle.$$\nTaking adjoint matrix elements in this orthonormal basis lowers an occupied bosonic mode, and an empty mode is annihilated.\n$$a_i|\\mathbf n\\rangle=\\sqrt{n_i}\\,|\\mathbf n-\\mathbf e_i\\rangle\\quad(n_i>0),\\qquad a_i|\\mathbf n\\rangle=0\\quad(n_i=0).$$\nFor fermions the distinct-mode permutations are orthogonal, and the normalization factor for an antisymmetrized ordered product is $\\sqrt{N!}$.\nWhen an empty mode is inserted at the front, moving it to its increasing mode position crosses every occupied lower-index mode once.\n$$s_i(\\mathbf n)=(-1)^{\\sum_{j<i}n_j},\\qquad a_i^\\dagger|\\mathbf n\\rangle=s_i(\\mathbf n)|\\mathbf n+\\mathbf e_i\\rangle\\quad(n_i=0).$$\nA repeated mode has zero antisymmetrization, and removing an occupied mode by the adjoint crosses the same lower modes.\n$$a_i^\\dagger|\\mathbf n\\rangle=0\\quad(n_i=1),\\qquad a_i|\\mathbf n\\rangle=s_i(\\mathbf n)|\\mathbf n-\\mathbf e_i\\rangle\\quad(n_i=1),\\qquad a_i|\\mathbf n\\rangle=0\\quad(n_i=0).$$",
+  "relations": [
+   {
+    "target": "fock",
+    "kind": "uses-definition",
+    "basis": "gives the projected insertion and its adjoint",
+    "direction": "forward"
+   },
+   {
+    "target": "exchange",
+    "kind": "prerequisite",
+    "basis": "sets permutation signs",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "mode-algebra",
+  "title": "Bosonic and fermionic mode algebra",
+  "aliases": [
+   "mode-algebra"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Bosons satisfy $[a_i,a_j^\\dagger]=\\delta_{ij}$ and fermions satisfy $\\{a_i,a_j^\\dagger\\}=\\delta_{ij}$ on finite-particle states.",
+  "body": "Bosons satisfy $[a_i,a_j^\\dagger]=\\delta_{ij}$ and fermions satisfy $\\{a_i,a_j^\\dagger\\}=\\delta_{ij}$ on finite-particle states.",
+  "assumptions": [
+   "Finite occupation vectors and their linear span, which give a common core for bosonic mode products."
+  ],
+  "proof": "For one bosonic mode the two orderings have squared amplitudes differing by one.\n$$a_i a_i^\\dagger|\\mathbf n\\rangle=(n_i+1)|\\mathbf n\\rangle,\\qquad a_i^\\dagger a_i|\\mathbf n\\rangle=n_i|\\mathbf n\\rangle.$$\nDistinct bosonic mode operations change independent occupation entries with identical factors in either order.\n$$[a_i,a_j^\\dagger]=\\delta_{ij}\\mathbf 1,\\qquad [a_i,a_j]=[a_i^\\dagger,a_j^\\dagger]=0.$$\nFor one fermionic mode insertion followed by removal projects onto the empty state and removal followed by insertion projects onto the occupied state.\n$$a_i a_i^\\dagger|\\mathbf n\\rangle=(1-n_i)|\\mathbf n\\rangle,\\qquad a_i^\\dagger a_i|\\mathbf n\\rangle=n_i|\\mathbf n\\rangle,\\qquad a_i^2=(a_i^\\dagger)^2=0.$$\nFor distinct fermionic modes, changing the lower index flips the sign factor of the higher index while changing the higher index leaves the lower sign factor fixed.\nIf a change is forbidden both orderings vanish, and otherwise their amplitudes are opposites.\n$$\\{a_i,a_j^\\dagger\\}=\\delta_{ij}\\mathbf 1,\\qquad\\{a_i,a_j\\}=\\{a_i^\\dagger,a_j^\\dagger\\}=0.$$\nLinearity extends the identities from basis vectors to their finite span.",
+  "relations": [
+   {
+    "target": "occupation-action",
+    "kind": "prerequisite",
+    "basis": "determines both ordered products on the same basis",
+    "direction": "forward"
+   },
+   {
+    "target": "operator",
+    "kind": "uses-definition",
+    "basis": "extends identities on a linear domain",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "newton",
+  "title": "Newton’s laws",
+  "aliases": [
+   "newton"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "In an inertial frame $\\dot{\\mathbf p}_i=\\mathbf F_i$; an isolated particle moves uniformly and reciprocal particle forces obey $\\mathbf F_{ij}=-\\mathbf F_{ji}$.",
+  "body": "In an inertial frame $\\dot{\\mathbf p}_i=\\mathbf F_i$; an isolated particle moves uniformly and reciprocal particle forces obey $\\mathbf F_{ij}=-\\mathbf F_{ji}$.\n\nFor constant mass $\\mathbf p_i=m_i\\mathbf v_i$. Pairwise cancellation applies to mechanical interactions satisfying the third law; field momentum enters the balance of particles coupled to fields.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "conserve",
+  "title": "Momentum and energy balance",
+  "aliases": [
+   "conserve"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For constant masses and reciprocal internal forces $\\dot{\\mathbf P}=\\mathbf F_{\\rm ext}$; for conservative total forces $d(T+U)/dt=\\partial_tU$.",
+  "body": "For constant masses and reciprocal internal forces $\\dot{\\mathbf P}=\\mathbf F_{\\rm ext}$; for conservative total forces $d(T+U)/dt=\\partial_tU$.\n\nHere $\\mathbf P=\\sum_i\\mathbf p_i$ and $T=\\tfrac12\\sum_i m_i|\\mathbf v_i|^2$.",
+  "assumptions": [],
+  "proof": "Sum the particle equations, pairing the two internal forces for each pair of particles.\n$$\\dot{\\mathbf P}=\\sum_i\\mathbf F_i^{\\rm ext}+\\sum_{i<j}(\\mathbf F_{ij}+\\mathbf F_{ji})=\\mathbf F_{\\rm ext}.$$\nFor the energy identity, take the scalar product of each equation with its velocity and sum.\n$$\\dot T=\\sum_i m_i\\mathbf a_i\\cdot\\mathbf v_i=\\sum_i\\mathbf F_i\\cdot\\mathbf v_i=-\\sum_i\\nabla_iU\\cdot\\mathbf v_i.$$\nThe total derivative of the potential converts the last sum into the energy balance.\n$$\\frac{dU}{dt}=\\partial_tU+\\sum_i\\nabla_iU\\cdot\\mathbf v_i,\\qquad\\frac{d}{dt}(T+U)=\\partial_tU.$$\nZero total external force conserves momentum. A time-independent potential conserves mechanical energy.",
+  "relations": [
+   {
+    "target": "newton",
+    "kind": "prerequisite",
+    "basis": "supplies force balance and cancels reciprocal pairs",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "differentiates the potential along a trajectory",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "virtual",
+  "title": "Virtual work",
+  "aliases": [
+   "virtual"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For ideal constraints $\\sum_i(\\mathbf F_i-m_i\\mathbf a_i)\\cdot\\delta\\mathbf r_i=0$ for every admissible instantaneous displacement.",
+  "body": "For ideal constraints $\\sum_i(\\mathbf F_i-m_i\\mathbf a_i)\\cdot\\delta\\mathbf r_i=0$ for every admissible instantaneous displacement.\n\nThe applied forces exclude the constraint reactions. Ideality means the reactions do zero total work on each displacement tangent to the constraint surface at fixed time.",
+  "assumptions": [],
+  "proof": "Split the total force into applied force and reaction.\n$$m_i\\mathbf a_i=\\mathbf F_i+\\mathbf R_i.$$\nContract each equation with its admissible virtual displacement. Ideality removes the sum of reaction terms.\n$$\\sum_i(\\mathbf F_i-m_i\\mathbf a_i)\\cdot\\delta\\mathbf r_i=-\\sum_i\\mathbf R_i\\cdot\\delta\\mathbf r_i=0.$$\nAt equilibrium all accelerations vanish and the applied virtual work is zero.",
+  "relations": [
+   {
+    "target": "newton",
+    "kind": "prerequisite",
+    "basis": "includes the reactions in the equation of motion",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "lag",
+  "title": "Mechanical Lagrangian",
+  "aliases": [
+   "lag"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "For a natural mechanical system with a velocity-independent potential, $L(q,\\dot q,t)=T-U$.",
+  "body": "For a natural mechanical system with a velocity-independent potential, $L(q,\\dot q,t)=T-U$.\n\nIn holonomic coordinates $\\mathbf r_i(q,t)$, $\\mathbf v_i=\\sum_a\\partial_a\\mathbf r_i\\,\\dot q_a+\\partial_t\\mathbf r_i$ and $T=\\tfrac12\\sum_i m_i|\\mathbf v_i|^2$.",
+  "assumptions": [],
+  "relations": [],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "el",
+  "title": "Euler–Lagrange equations",
+  "aliases": [
+   "el"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For ideal holonomic constraints and potential forces, $\\frac{d}{dt}\\frac{\\partial L}{\\partial\\dot q_a}=\\frac{\\partial L}{\\partial q_a}$ in each independent coordinate.",
+  "body": "For ideal holonomic constraints and potential forces, $\\frac{d}{dt}\\frac{\\partial L}{\\partial\\dot q_a}=\\frac{\\partial L}{\\partial q_a}$ in each independent coordinate.\n\nUse regular, independent generalized coordinates and constant masses. All derivatives of the position charts below are evaluated on the trajectory.",
+  "assumptions": [],
+  "proof": "At a fixed time the coordinate variations span the admissible displacements. Substitute them into virtual work.\n$$\\delta\\mathbf r_i=\\sum_a\\partial_a\\mathbf r_i\\,\\delta q_a,\\qquad 0=\\sum_a\\left[\\sum_i(\\mathbf F_i-m_i\\mathbf a_i)\\cdot\\partial_a\\mathbf r_i\\right]\\delta q_a.$$\nIndependent variations force each coefficient to vanish. The potential gives the generalized force by the chain rule.\n$$\\sum_i m_i\\mathbf a_i\\cdot\\partial_a\\mathbf r_i=\\sum_i\\mathbf F_i\\cdot\\partial_a\\mathbf r_i=-\\partial_aU.$$\nDifferentiate the velocity formula with velocities and coordinates treated as independent arguments.\n$$\\partial_{\\dot q_a}\\mathbf v_i=\\partial_a\\mathbf r_i,\\qquad \\partial_a\\mathbf v_i=\\sum_b\\partial_a\\partial_b\\mathbf r_i\\,\\dot q_b+\\partial_a\\partial_t\\mathbf r_i=\\frac{d}{dt}\\partial_a\\mathbf r_i.$$\nDifferentiate the generalized kinetic momentum in time. Its second term equals the coordinate derivative of kinetic energy.\n$$\\frac{d}{dt}\\partial_{\\dot q_a}T=\\sum_i m_i\\mathbf a_i\\cdot\\partial_a\\mathbf r_i+\\sum_i m_i\\mathbf v_i\\cdot\\partial_a\\mathbf v_i=-\\partial_aU+\\partial_a T.$$\nThe potential is independent of velocity. Substituting the Lagrangian yields the equation.\n$$\\frac{d}{dt}\\partial_{\\dot q_a}L-\\partial_a L=0.$$",
+  "relations": [
+   {
+    "target": "virtual",
+    "kind": "prerequisite",
+    "basis": "eliminates the constraint work",
+    "direction": "forward"
+   },
+   {
+    "target": "lag",
+    "kind": "uses-definition",
+    "basis": "defines the kinetic term and potential",
+    "direction": "forward"
+   },
+   {
+    "target": "calculus",
+    "kind": "prerequisite",
+    "basis": "commutes the smooth chart derivatives",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "action",
+  "title": "Action",
+  "aliases": [
+   "action"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "The action of an admissible path is $S[q]=\\int_{t_1}^{t_2}L(q,\\dot q,t)\\,dt$.",
+  "body": "The action of an admissible path is $S[q]=\\int_{t_1}^{t_2}L(q,\\dot q,t)\\,dt$.\n\nCompare paths on the same time interval with the prescribed endpoint data.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "lag",
+    "kind": "uses-definition",
+    "basis": "supplies the integrand for a natural system",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "stationary",
+  "title": "Stationary action",
+  "aliases": [
+   "stationary"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For fixed endpoints and independent smooth variations, $\\delta S=0$ for all variations iff $d(\\partial_{\\dot q_a}L)/dt=\\partial_a L$.",
+  "body": "For fixed endpoints and independent smooth variations, $\\delta S=0$ for all variations iff $d(\\partial_{\\dot q_a}L)/dt=\\partial_a L$.\n\nA stationary trajectory is a path whose first variation vanishes. Stationarity alone does not imply a minimum.",
+  "assumptions": [
+   "Sufficient regularity for differentiating the integrand and integrating the momentum derivative by parts; independent variations with fixed endpoints."
+  ],
+  "proof": "Vary the path with a fixed test displacement and differentiate under the integral.\n$$\\delta S=\\left.\\frac{d}{d\\epsilon}S[q+\\epsilon\\eta]\\right|_{0}=\\int_{t_1}^{t_2}\\sum_a(\\partial_aL\\,\\eta_a+\\partial_{\\dot q_a}L\\,\\dot\\eta_a)\\,dt.$$\nIntegrate the derivative of the variation by parts; both endpoint variations vanish.\n$$\\delta S=\\left[\\sum_a\\partial_{\\dot q_a}L\\,\\eta_a\\right]_{t_1}^{t_2}+\\int_{t_1}^{t_2}\\sum_a\\left(\\partial_aL-\\frac{d}{dt}\\partial_{\\dot q_a}L\\right)\\eta_a\\,dt.$$\nVary one coordinate at a time using compactly supported test functions. The fundamental lemma sets each continuous coefficient to zero.\n$$\\partial_a L-\\frac{d}{dt}\\partial_{\\dot q_a}L=0.$$\nConversely these equations annul the bulk integrand, and the endpoint conditions annul the boundary term.",
+  "relations": [
+   {
+    "target": "action",
+    "kind": "uses-definition",
+    "basis": "defines the functional",
+    "direction": "forward"
+   },
+   {
+    "target": "variation",
+    "kind": "uses-definition",
+    "basis": "defines the admissible endpoint variations",
+    "direction": "forward"
+   },
+   {
+    "target": "lemma",
+    "kind": "prerequisite",
+    "basis": "turns arbitrary local variations into pointwise equations",
+    "direction": "forward"
+   },
+   {
+    "target": "el",
+    "kind": "prerequisite",
+    "basis": "identifies these equations with mechanical motion under ideal constraints",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "ham",
+  "title": "Hamilton’s equations",
+  "aliases": [
+   "ham"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:mechanics"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For a regular Lagrangian, $H=\\sum_a p_a\\dot q_a-L$, $\\dot q_a=\\partial_{p_a}H$ and $\\dot p_a=-\\partial_{q_a}H$.",
+  "body": "For a regular Lagrangian, $H=\\sum_a p_a\\dot q_a-L$, $\\dot q_a=\\partial_{p_a}H$ and $\\dot p_a=-\\partial_{q_a}H$.\n\nDefine $p_a=\\partial_{\\dot q_a}L$ and solve locally for $\\dot q(q,p,t)$.",
+  "assumptions": [],
+  "proof": "The nonsingular velocity Hessian is the Jacobian of the momentum map at fixed position and time.\n$$\\det(\\partial_{\\dot q_b}p_a)=\\det(\\partial_{\\dot q_b}\\partial_{\\dot q_a}L)\\ne0.$$\nUse the inverse velocities in the differential of the Legendre transform.\n$$dH=\\sum_a(\\dot q_a\\,dp_a+p_a\\,d\\dot q_a)-\\sum_a(\\partial_aL\\,dq_a+\\partial_{\\dot q_a}L\\,d\\dot q_a)-\\partial_tL\\,dt.$$\nThe coefficients of the velocity differentials cancel. Along a solution substitute the Euler–Lagrange equations.\n$$dH=\\sum_a(\\dot q_a\\,dp_a-\\dot p_a\\,dq_a)-\\partial_t L\\,dt.$$\nComparison in the independent coordinates gives both canonical equations and the explicit time derivative.\n$$\\partial_{p_a}H=\\dot q_a,\\qquad\\partial_{q_a}H=-\\dot p_a,\\qquad\\partial_t H=-\\partial_tL.$$",
+  "relations": [
+   {
+    "target": "el",
+    "kind": "prerequisite",
+    "basis": "identifies the generalized force with the momentum derivative",
+    "direction": "forward"
+   },
+   {
+    "target": "lag",
+    "kind": "uses-definition",
+    "basis": "supplies the function to transform",
+    "direction": "forward"
+   },
+   {
+    "target": "local-inverse",
+    "kind": "prerequisite",
+    "basis": "justifies the local velocity inversion",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "sr",
+  "title": "Invariant spacetime interval",
+  "aliases": [
+   "sr"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "basic-knowledge",
+  "kind": "theorem",
+  "summary": "In flat spacetime inertial frames preserve $\\Delta s^2=c^2\\Delta t^2-|\\Delta\\mathbf r|^2$.",
+  "body": "In flat spacetime inertial frames preserve $\\Delta s^2=c^2\\Delta t^2-|\\Delta\\mathbf r|^2$.\n\nUse Einstein-synchronized clocks, Cartesian axes and future-oriented time. Homogeneity makes the transformation between coincident inertial origins linear.",
+  "assumptions": [],
+  "relations": [
+   {
+    "target": "si-metre",
+    "kind": "uses-definition",
+    "basis": "fixes the numerical value of the invariant speed in SI units",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "group",
+  "title": "Lorentz group",
+  "aliases": [
+   "group"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "definition",
+  "kind": "concept",
+  "summary": "The Lorentz group is $O(1,3)=\\{\\Lambda\\in\\mathbb R^{4\\times4}:\\Lambda^{\\mathsf T}\\eta\\Lambda=\\eta\\}$ with $\\eta=\\operatorname{diag}(1,-1,-1,-1)$.",
+  "body": "The Lorentz group is $O(1,3)=\\{\\Lambda\\in\\mathbb R^{4\\times4}:\\Lambda^{\\mathsf T}\\eta\\Lambda=\\eta\\}$ with $\\eta=\\operatorname{diag}(1,-1,-1,-1)$.\n\nIt acts on $X=(ct,x,y,z)^{\\mathsf T}$. The proper orthochronous component has $\\det\\Lambda=1$ and $\\Lambda^0{}_0\\ge1$.",
+  "assumptions": [],
+  "proof": "Preservation of the interval for every displacement is preservation of its symmetric quadratic form.\n$$X^{\\mathsf T}\\Lambda^{\\mathsf T}\\eta\\Lambda X=X^{\\mathsf T}\\eta X\\quad(\\forall X)\\quad\\Longrightarrow\\quad\\Lambda^{\\mathsf T}\\eta\\Lambda=\\eta.$$\nThe identity preserves the form; products preserve it by substitution. Rearranging the same equation gives the inverse.\n$$(AB)^{\\mathsf T}\\eta(AB)=B^{\\mathsf T}\\eta B=\\eta,\\qquad\\Lambda^{-1}=\\eta\\Lambda^{\\mathsf T}\\eta.$$",
+  "relations": [
+   {
+    "target": "sr",
+    "kind": "prerequisite",
+    "basis": "specifies the form preserved by the group",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "boost",
+  "title": "Lorentz boost",
+  "aliases": [
+   "boost"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For a standard boost along $x$, $x'=\\gamma(x-vt)$ and $t'=\\gamma(t-vx/c^2)$ with $\\gamma=(1-v^2/c^2)^{-1/2}$.",
+  "body": "For a standard boost along $x$, $x'=\\gamma(x-vt)$ and $t'=\\gamma(t-vx/c^2)$ with $\\gamma=(1-v^2/c^2)^{-1/2}$.\n\nTake coincident origins, aligned axes, positive spatial orientation and $|v|<c$. The transverse coordinates are unchanged.",
+  "assumptions": [],
+  "proof": "The moving origin and linearity fix the spatial row. Write the time row with unknown coefficients.\n$$\\beta=v/c,\\qquad x'=a(x-\\beta ct),\\qquad ct'=bct+dx.$$\nInsert the two light rays. Their directions are preserved in a standard boost.\n$$x=ct:\\ b+d=a(1-\\beta),\\qquad x=-ct:\\ b-d=a(1+\\beta).$$\nAdding and subtracting gives the time row. Invariance of the interval then determines its scale.\n$$b=a,\\qquad d=-a\\beta,\\qquad (ct')^2-(x')^2=a^2(1-\\beta^2)[(ct)^2-x^2].$$\nFuture orientation selects the positive square root.\n$$a=(1-\\beta^2)^{-1/2},\\qquad ct'=\\gamma(ct-\\beta x),\\qquad x'=\\gamma(x-vt).$$",
+  "relations": [
+   {
+    "target": "sr",
+    "kind": "prerequisite",
+    "basis": "fixes the light cone, normalization and linearity",
+    "direction": "forward"
+   },
+   {
+    "target": "group",
+    "kind": "upper-structure",
+    "basis": "places the transformation in the Lorentz group",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "dilation",
+  "title": "Time dilation",
+  "aliases": [
+   "dilation"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "Two ticks of one inertial clock satisfy $\\Delta t=\\gamma\\Delta\\tau$ in a frame where the clock moves at speed $v$.",
+  "body": "Two ticks of one inertial clock satisfy $\\Delta t=\\gamma\\Delta\\tau$ in a frame where the clock moves at speed $v$.\n\nProper time is the time interval in the rest frame of the clock.",
+  "assumptions": [],
+  "proof": "The clock has one rest-frame position at the two ticks. The separation in the laboratory therefore follows the clock worldline.\n$$\\Delta x'=0,\\qquad\\Delta x=v\\Delta t.$$\nInsert this displacement into the time transformation.\n$$\\Delta\\tau=\\Delta t'=\\gamma(\\Delta t-v\\Delta x/c^2)=\\gamma(1-v^2/c^2)\\Delta t=\\Delta t/\\gamma.$$",
+  "relations": [
+   {
+    "target": "boost",
+    "kind": "prerequisite",
+    "basis": "transforms the same two clock events",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "length",
+  "title": "Length contraction",
+  "aliases": [
+   "length"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "A rod of rest length $L_0$ moving longitudinally at constant speed has simultaneous laboratory length $L=L_0/\\gamma$.",
+  "body": "A rod of rest length $L_0$ moving longitudinally at constant speed has simultaneous laboratory length $L=L_0/\\gamma$.\n\nThe rod is at rest in its own inertial frame; both laboratory endpoints are sampled at one laboratory time.",
+  "assumptions": [],
+  "proof": "Choose simultaneous laboratory events at the two endpoints and transform their separation.\n$$\\Delta t=0,\\qquad L=\\Delta x,\\qquad \\Delta x'=\\gamma(\\Delta x-v\\Delta t)=\\gamma L.$$\nThe transformed events need not be simultaneous, but the endpoints have fixed positions in the rest frame. Their spatial separation is therefore the rest length.\n$$\\Delta x'=L_0,\\qquad L=L_0/\\gamma.$$",
+  "relations": [
+   {
+    "target": "boost",
+    "kind": "prerequisite",
+    "basis": "transforms the two endpoint measurements",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "doppler",
+  "title": "Longitudinal Doppler shift",
+  "aliases": [
+   "doppler"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "theorem",
+  "kind": "theorem",
+  "summary": "For collinear propagation, a clock moving at $v$ samples $\\nu'=\\gamma(1\\mp\\beta)\\nu$ for light traveling along or against its velocity.",
+  "body": "For collinear propagation, a clock moving at $v$ samples $\\nu'=\\gamma(1\\mp\\beta)\\nu$ for light traveling along or against its velocity.\n\nA clock samples the phase of a monochromatic plane wave on its worldline; one cycle corresponds to a $2\\pi$ phase change.",
+  "assumptions": [],
+  "proof": "Write the phase along the worldline of a clock moving parallel to the laboratory axis.\n$$\\phi_\\pm(t)=2\\pi\\nu_\\pm(t\\mp x(t)/c),\\qquad x(t)=vt.$$\nDifferentiate along that worldline with respect to the proper time of the clock.\n$$\\nu'_\\pm=\\frac{1}{2\\pi}\\frac{d\\phi_\\pm}{dt}\\frac{dt}{d\\tau}=\\gamma(1\\mp\\beta)\\nu_\\pm.$$\nFor two beams tuned to two rest-frame resonances, multiply the corresponding shifts.\n$$\\frac{\\nu_+\\nu_-}{\\nu'_+\\nu'_-}=\\frac1{\\gamma^2(1-\\beta^2)}=1.$$",
+  "relations": [
+   {
+    "target": "dilation",
+    "kind": "prerequisite",
+    "basis": "converts laboratory time to clock time",
+    "direction": "forward"
+   },
+   {
+    "target": "speed",
+    "kind": "prerequisite",
+    "basis": "fixes vacuum phase propagation",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "laser",
+  "title": "Vacuum light speed (1972)",
+  "aliases": [
+   "laser"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:electromagnetism",
+   "specialization:optics"
+  ],
+  "nodeType": "observation",
+  "kind": "observation",
+  "summary": "Methane-stabilized laser measurements gave $c=(299\\,792\\,456.2\\pm1.1)\\,\\mathrm{m\\,s^{-1}}$ under the pre-1983 metre.",
+  "body": "Methane-stabilized laser measurements gave $c=(299\\,792\\,456.2\\pm1.1)\\,\\mathrm{m\\,s^{-1}}$ under the pre-1983 metre.\n\nFrequency and vacuum wavelength compared to separate primary standards before the SI metre redefinition.",
+  "assumptions": [],
+  "observation": {
+   "system": "Methane-stabilized $3.39\\,\\mu\\mathrm m$ laser",
+   "observable": "Vacuum phase speed",
+   "value": "299792456.2",
+   "units": "m/s",
+   "conditions": "Frequency and vacuum wavelength compared to separate primary standards before the SI metre redefinition.",
+   "uncertainty": "1.1 m/s as reported",
+   "sourceLocator": "Evenson et al. (1972), abstract, https://tf.nist.gov/general/pdf/310.pdf",
+   "reduction": "Combine independently calibrated frequency and wavelength using $c=\\nu\\lambda$."
+  },
+  "relations": [
+   {
+    "target": "speed",
+    "kind": "tests",
+    "basis": "tests wave propagation under historical length calibration",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "electron",
+  "title": "Trapped electron magnetic moment",
+  "aliases": [
+   "electron"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:quantum"
+  ],
+  "nodeType": "observation",
+  "kind": "observation",
+  "summary": "For one trapped electron, $-\\mu/\\mu_B=g/2=1.001\\,159\\,652\\,180\\,59(13)$.",
+  "body": "For one trapped electron, $-\\mu/\\mu_B=g/2=1.001\\,159\\,652\\,180\\,59(13)$.\n\nElectron in a magnetic field in a Penning trap; compare the electron, not a bound atomic moment.",
+  "assumptions": [],
+  "observation": {
+   "system": "Single trapped electron",
+   "observable": "Magnitude of electron spin magnetic moment in Bohr magnetons",
+   "value": "1.00115965218059",
+   "units": "1",
+   "conditions": "Electron in a magnetic field in a Penning trap; compare the electron, not a bound atomic moment.",
+   "uncertainty": "0.00000000000013",
+   "sourceLocator": "Fan et al. (2023), abstract, https://doi.org/10.1103/PhysRevLett.130.071801",
+   "reduction": "Extract moment ratio from anomaly and cyclotron frequency measurements with trap corrections."
+  },
+  "relations": [
+   {
+    "target": "electron-spin-moment",
+    "kind": "measures",
+    "basis": "measures the spin magnetic moment in Bohr magnetons to determine half the free-electron g factor",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ },
+ {
+  "key": "ions",
+  "title": "Relativistic lithium ion clock",
+  "aliases": [
+   "ions"
+  ],
+  "domain": [
+   "subject:physics",
+   "specialization:relativity"
+  ],
+  "nodeType": "observation",
+  "kind": "observation",
+  "summary": "At $\\beta=0.338$, the lithium ion frequency combination was $\\epsilon=(1.5\\pm2.3)\\times10^{-9}$.",
+  "body": "At $\\beta=0.338$, the lithium ion frequency combination was $\\epsilon=(1.5\\pm2.3)\\times10^{-9}$.\n\nCo- and counter-propagating lasers address two transitions of stored lithium ions at $v/c=0.338$.",
+  "assumptions": [],
+  "observation": {
+   "system": "Stored lithium-7 ions",
+   "observable": "$\\epsilon=\\sqrt{\\nu_a\\nu_p/(\\nu_1\\nu_2)}-1$",
+   "value": "1.5e-9",
+   "units": "1",
+   "conditions": "Co- and counter-propagating lasers address two transitions of stored lithium ions at $v/c=0.338$.",
+   "uncertainty": "2.3e-9",
+   "sourceLocator": "Botermann et al. (2014), Eq. (4), https://arxiv.org/pdf/1409.7951",
+   "reduction": "Normalize the product of laboratory resonance frequencies by the product of rest frequencies. The special-relativistic longitudinal Doppler factors cancel in this product."
+  },
+  "relations": [
+   {
+    "target": "dilation",
+    "kind": "tests",
+    "basis": "tests relativistic clock rate together with longitudinal Doppler kinematics",
+    "direction": "forward"
+   },
+   {
+    "target": "doppler",
+    "kind": "tests",
+    "basis": "predicts the measured product of the two resonance frequencies",
+    "direction": "forward"
+   }
+  ],
+  "acceptAsFoundation": false
+ }
+]

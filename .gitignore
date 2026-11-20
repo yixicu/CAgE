@@ -1,0 +1,20 @@
+node_modules/
+/.carnot-data/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+/app-data/
+/test scripts/
+tests/
+test-results/
+playwright-report/
+coverage/
+.npm-cache/
+.DS_Store
+
+# Legacy local copies superseded by docs/modules/.
+/src/presentation/0001-README.md
+/web/styles/0001-README.md

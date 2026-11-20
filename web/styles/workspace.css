@@ -1,0 +1,164 @@
+@layer components {
+  .app-shell {
+    --nav-width: 244px;
+    --inspector-width: 340px;
+    --left: 0px;
+    --right: 0px;
+    @apply grid;
+    grid-template-columns: var(--left) minmax(0,1fr) var(--right);
+    @apply h-dvh overflow-clip;
+    transition: grid-template-columns var(--motion-panel) var(--ease-panel);
+  }
+  .app-shell.left-open {
+    --left: var(--nav-width);
+  }
+  .app-shell.right-open {
+    --right: var(--inspector-width);
+  }
+  .sidebar {
+    width: var(--nav-width);
+    @apply bg-rail border-r border-r-line flex flex-col min-h-0 pt-4.5 pr-3 pb-2.5 pl-3 gap-1 z-4;
+    transition: opacity var(--motion-control),transform var(--motion-panel);
+  }
+  .app-shell:not(.left-open)>.sidebar {
+    @apply opacity-0 invisible;
+    transform: translateX(-12px);
+    @apply pointer-events-none;
+    transition: opacity var(--motion-control),transform var(--motion-panel),visibility 0s var(--motion-panel);
+  }
+  .brand {
+    @apply flex items-center justify-between pt-0 pr-2 pb-5.25 pl-2;
+  }
+  .brand-home {
+    @apply border-0 p-0 gap-2.75 text-title;
+    letter-spacing: -.5px;
+  }
+  .brand-home strong {
+    @apply font-brand;
+    font-weight: var(--brand-weight);
+    @apply text-3xl;
+    letter-spacing: var(--brand-tracking);
+    @apply leading-none;
+  }
+  .brand-mark {
+    @apply flex-none;
+  }
+  .nav-action {
+    @apply justify-start w-full border-0 py-2.5 px-2.75;
+  }
+  .new-project {
+    @apply mt-0 mr-0 mb-3.5 ml-0 bg-surface border border-line shadow-panel;
+  }
+  .search-field {
+    @apply flex items-center gap-2.25 mt-0 mr-2.75 mb-5 ml-2.75 text-muted;
+  }
+  .search-field input {
+    @apply py-1 px-0 border-0 bg-transparent text-xs min-w-0 outline-none;
+  }
+  .search-field:focus-within {
+    @apply outline-2 outline-accent outline-offset-4 rounded-small;
+  }
+  .sidebar h2 {
+    @apply text-control font-semibold text-muted;
+  }
+  .sidebar .section-heading {
+    @apply py-0 px-2.75 mb-2.25 min-h-6.5;
+  }
+  .sidebar-sections {
+    @apply overflow-auto flex-1 min-h-0;
+    scrollbar-width: thin;
+  }
+  .sidebar-projects {
+    max-height: 36%;
+    @apply min-h-22.5 overflow-auto pb-4;
+  }
+  .sidebar nav {
+    @apply flex flex-col gap-0.5;
+  }
+  .sidebar nav button {
+    @apply border-0 w-full py-2.25 px-2.75 justify-start text-left gap-2.25 text-control min-w-0;
+  }
+  .sidebar nav button svg {
+    @apply flex-none text-muted;
+  }
+  .sidebar nav .chosen,.sidebar-footer .chosen {
+    @apply bg-selected text-ink;
+  }
+  .project-button .running-dot {
+    @apply ml-auto;
+  }
+  .contents-nav,.document-nav {
+    @apply border-t border-t-line pt-3.5 mb-4.5;
+  }
+  .sidebar-empty {
+    @apply text-xs text-muted py-0.5 px-2.75 mt-0 mr-0 mb-2.25 ml-0;
+  }
+  .document-nav .section-heading {
+    @apply pr-0.25 mb-1.25;
+  }
+  .document-nav .inline-actions {
+    @apply gap-0;
+  }
+  .file-kind {
+    @apply text-tiny text-muted ml-auto;
+  }
+  .sidebar-footer {
+    @apply border-t border-t-line pt-2 mt-2;
+  }
+  .backend-state {
+    @apply flex items-center gap-2 text-muted text-xs pt-1.5 pr-2.75 pb-0 pl-2.75;
+  }
+  .backend-state button {
+    @apply ml-auto;
+  }
+  .connection-dot,.running-dot {
+    @apply inline-block w-1.5 h-1.5 bg-idle rounded-full flex-none;
+  }
+  .connection-dot.connected {
+    @apply bg-success;
+  }
+  .running-dot {
+    @apply bg-accent;
+  }
+  .connection-dot.disconnected {
+    @apply bg-danger;
+  }
+  .compact-form {
+    @apply py-2 px-2.75;
+  }
+  .session-outline ul {
+    @apply p-0 m-0 list-none min-w-0;
+  }
+  .session-outline .outline-children {
+    @apply mt-0.75 mr-2.75 mb-0 ml-4.5 pl-2.5 border-l border-l-line;
+  }
+  .session-outline li {
+    @apply m-0 min-w-0;
+  }
+  .session-outline details {
+    @apply m-0;
+  }
+  .session-outline details>:not(summary) {
+    @apply mt-0;
+  }
+  .session-outline details ul {
+    @apply ml-2.25 pl-1.75 border-l border-l-line;
+  }
+  .session-outline summary {
+    @apply text-control text-muted py-2 px-1.25;
+    @apply wrap-anywhere;
+  }
+  .session-outline summary::marker {
+    @apply text-tiny text-muted;
+  }
+  .session-outline .count {
+    @apply float-right pr-1.25;
+  }
+  .session-outline .outline-children button.chosen {
+    box-shadow: inset 2px 0 var(--color-accent);
+    @apply font-semibold;
+  }
+  .session-outline .outline-children button {
+    @apply py-1.75 px-1.5 min-h-7.5 text-xs;
+  }
+}

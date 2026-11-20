@@ -1,0 +1,72 @@
+/* The only application palette and type scale. Tailwind emits these variables
+   even when a role is consumed by CodeMirror or a dynamically rendered node.
+   A host theme may override the same variables on :root; no screen edits needed. */
+@theme static {
+  --font-ui: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-brand: 'Bauhaus 93', 'STHupo', '华文琥珀', sans-serif;
+  --font-title: Cambria, Georgia, serif;
+  --font-paper: Georgia, 'Noto Serif CJK SC', 'Songti SC', SimSun, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  --color-canvas: #faf9f6;
+  --color-surface: #ffffff;
+  --color-rail: #f0efeb;
+  --color-ink: #252b32;
+  --color-muted: #69736f;
+  --color-placeholder: #7d8790;
+  --color-line: #daddd7;
+  --color-line-strong: #aab6bc;
+  --color-hover: #e5e9e7;
+  --color-selected: #e0e7e7;
+  --color-accent: #536b7b;
+  --color-action: #303e48;
+  --color-action-hover: #455b6b;
+  --color-on-action: #ffffff;
+  --color-brand: #242622;
+  --color-signal: #b44432;
+  --color-idle: #89988e;
+  --color-idle-soft: #f5f7f5;
+  --color-info: #387eb9;
+  --color-info-soft: #eef6ff;
+  --color-success: #418663;
+  --color-success-soft: #edf7ef;
+  --color-danger: #a23d34;
+  --color-danger-soft: #fff0ee;
+  --color-danger-line: #ebd2c8;
+  --color-warning: #ac7d28;
+  --color-warning-soft: #fff8e8;
+  --color-code: #695443;
+  --color-code-soft: #f1ece5;
+  --color-link: #8e5536;
+  --color-pdf-stage: #e5eaf0;
+  --color-scrim: #26394840;
+
+  --text-tiny: 0.5625rem;
+  --text-micro: 0.625rem;
+  --text-eyebrow: 0.6875rem;
+  --text-control: 0.8125rem;
+  --text-reading: 0.9375rem;
+  --text-prose: 1.0625rem;
+  --text-title: 1.1875rem;
+
+  --radius-small: 0.25rem;
+  --radius-control: 0.4375rem;
+  --radius-panel: 0.625rem;
+  --radius-dialog: 0.875rem;
+  --shadow-panel: 0 2px 5px rgb(37 43 50 / 3%);
+  --shadow-float: 0 6px 22px rgb(35 55 74 / 9%);
+  --shadow-menu: 0 8px 28px rgb(24 35 48 / 10%);
+  --shadow-thumb: 0 1px 2px rgb(19 37 54 / 17%);
+  --shadow-drawer: 0 0 35px rgb(35 55 74 / 12%);
+  --ease-panel: cubic-bezier(.2, .7, .2, 1);
+  --ease-entry: cubic-bezier(.2, .75, .25, 1);
+}
+
+:root {
+  color-scheme: light;
+  --motion-control: 150ms;
+  --motion-panel: 220ms;
+  --motion-entry: 500ms;
+  --brand-weight: 400;
+  --brand-tracking: .085em;
+}

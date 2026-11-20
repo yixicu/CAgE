@@ -1,0 +1,111 @@
+@layer components {
+  .tree-panel {
+    @apply relative;
+  }
+  .tree-scroll {
+    @apply overflow-auto pt-3.5 pr-0.75 pb-6 pl-0.75;
+  }
+  .branch-map, .branch-map ul {
+    @apply list-none p-0 m-0;
+  }
+  .branch-map li {
+    @apply relative block m-0 pt-0 pr-0 pb-3 pl-0 min-w-0;
+  }
+  .branch-map ul {
+    @apply pt-3 pr-0 pb-0 pl-4 relative;
+  }
+  .branch-map ul > li::before {
+    @apply content-[''];
+    @apply absolute -left-2.5 -top-3;
+    height: calc(100% + 12px);
+    @apply border-l border-l-line;
+  }
+  .branch-map ul > li:last-child::before {
+    @apply h-9.25;
+  }
+  .tree-junction {
+    @apply flex items-center relative min-w-0;
+  }
+  .branch-map ul > li > .tree-junction::before {
+    @apply content-[''];
+    @apply absolute -left-2.5 top-6.25 w-2.5 border-t border-t-line;
+  }
+  .graph-node {
+    @apply w-full min-w-0 min-h-12.5 py-2.5 px-3 justify-start text-left text-xs rounded-control;
+    @apply border-(--node-color);
+    @apply bg-(--node-bg);
+    @apply flex-1;
+  }
+  .graph-node.chosen {
+    @apply outline-2 outline-(--node-color);
+    @apply outline-offset-2;
+  }
+  .tone-idle {
+    --node-color: var(--color-idle);
+    --node-bg: var(--color-idle-soft);
+  }
+  .tone-running {
+    --node-color: var(--color-info);
+    --node-bg: var(--color-info-soft);
+  }
+  .tone-success {
+    --node-color: var(--color-success);
+    --node-bg: var(--color-success-soft);
+  }
+  .tone-failed {
+    --node-color: var(--color-danger);
+    --node-bg: var(--color-danger-soft);
+  }
+  .tone-review {
+    --node-color: var(--color-warning);
+    --node-bg: var(--color-warning-soft);
+  }
+  .node-dot {
+    @apply w-1.75 h-1.75 rounded-full;
+    @apply bg-(--node-color);
+    @apply flex-none;
+  }
+  .node-state {
+    @apply inline-flex items-center justify-center w-3 h-3;
+    @apply text-(--node-color);
+    @apply flex-none;
+  }
+  .node-caption {
+    @apply line-clamp-2;
+    @apply wrap-anywhere;
+    @apply font-paper leading-[1.45];
+  }
+  .tree-toggle {
+    @apply min-w-4.5 min-h-6 p-0 border-0 bg-transparent text-micro;
+  }
+  .node-preview {
+    @apply sticky bottom-2 z-2 border border-line bg-surface p-3 rounded-panel shadow-float;
+    @apply wrap-anywhere;
+    @apply pointer-events-none;
+  }
+  .node-preview strong, .node-preview p, .node-preview small {
+    @apply text-xs;
+  }
+  .node-preview p {
+    @apply my-1.5 mx-0;
+  }
+  .node-details {
+    @apply border-t border-t-line pt-3.5;
+    @apply wrap-anywhere;
+  }
+  .node-details dt {
+    @apply text-micro font-semibold text-muted mt-3;
+  }
+  .node-details dd {
+    @apply text-xs mt-1 mr-0 mb-0 ml-0 whitespace-pre-wrap;
+  }
+  .node-details .revision-detail {
+    @apply m-0;
+  }
+  .revision-detail summary {
+    @apply font-mono text-eyebrow;
+  }
+  .revision-detail code {
+    @apply block text-micro mt-1.25;
+  }
+}

@@ -1,0 +1,137 @@
+@layer components {
+  .system-settings {
+    width: min(740px,100%);
+    @apply mt-1.25 mr-auto mb-12.5 ml-auto;
+  }
+  .settings-title h1 {
+    @apply text-3xl mt-0 mr-0 mb-2 ml-0;
+  }
+  .settings-title p {
+    @apply text-xs mb-6.75;
+  }
+  .settings-tabs {
+    @apply flex border-b border-b-line gap-5.75 mb-8;
+  }
+  .settings-tabs button {
+    @apply border-0 rounded-none pt-0 pr-0 pb-3 pl-0 text-muted text-xs;
+  }
+  .settings-tabs .chosen {
+    @apply text-action;
+    box-shadow: 0 2px var(--color-accent);
+  }
+  .settings-panel h2 {
+    @apply text-reading mt-6.25 mr-0 mb-5 ml-0;
+  }
+  .settings-panel>h2:first-child {
+    @apply mt-0;
+  }
+  .settings-panel>label {
+    @apply mt-6;
+  }
+  .settings-panel .notice {
+    @apply my-4 mx-0;
+  }
+  .provider-list {
+    @apply grid gap-2 mb-6;
+  }
+  .provider-list>button {
+    @apply justify-start w-full py-3.25 px-4 bg-surface;
+  }
+  .provider-avatar {
+    @apply grid place-items-center w-7.5 h-7.5 rounded-panel bg-hover text-muted text-base font-paper;
+  }
+  .provider-list strong {
+    @apply text-xs font-medium;
+  }
+  .connected-label {
+    @apply text-micro text-success ml-auto;
+  }
+  .connected-label:before {
+    content: '•';
+    @apply mr-1.75;
+  }
+  .provider-form {
+    @apply mt-5 mr-0 mb-7.5 ml-0;
+  }
+  .default-model-form {
+    @apply border-t border-t-line mt-8.5 pt-2.5;
+  }
+  .default-model-form .primary {
+    @apply mt-1.5;
+  }
+  .model-picker {
+    @apply grid;
+    grid-template-columns: minmax(0,1fr) 135px;
+    @apply gap-3.75 items-start;
+  }
+  .model-picker>label {
+    @apply min-w-0;
+  }
+  .settings-grid {
+    @apply grid grid-cols-2 gap-y-2 gap-x-5 my-6 mx-0;
+  }
+  .switches {
+    @apply flex gap-5 my-6 mx-0 flex-wrap;
+  }
+  .switches label,.plugin-grants label {
+    @apply flex items-center gap-2;
+  }
+  .budget-fields {
+    @apply grid grid-cols-2 gap-3;
+  }
+  .budget-fields label {
+    @apply m-0 text-eyebrow;
+  }
+  .research-version {
+    @apply flex items-center gap-6.25 mb-6;
+  }
+  .research-version label {
+    @apply w-37.5 m-0;
+  }
+  .research-version p {
+    @apply m-0;
+  }
+  .settings-panel details {
+    @apply my-6 mx-0;
+  }
+  .settings-panel fieldset>button.primary {
+    @apply mt-5;
+  }
+  .oauth-box,.plugin-card {
+    @apply border border-line p-5 rounded-panel bg-surface my-5 mx-0;
+  }
+  .plugin-grants {
+    @apply grid grid-cols-2;
+  }
+  .settings-panel>.section-heading>button {
+    @apply hidden;
+  }
+  .settings-panel>.section-heading .eyebrow {
+    @apply hidden;
+  }
+  .exit-dialog {
+    @apply m-auto border border-line rounded-dialog p-7.5;
+    width: min(520px,95%);
+    @apply text-ink bg-surface;
+  }
+  .exit-dialog::backdrop {
+    @apply bg-scrim;
+    backdrop-filter: blur(5px);
+  }
+  .exit-options {
+    @apply flex gap-2.5 flex-wrap mt-6.25;
+  }
+  .exit-dialog p {
+    @apply text-control;
+  }
+  .exit-screen {
+    width: min(650px,90%);
+    margin: 20vh auto;
+  }
+  .wordmark {
+    @apply font-brand text-5xl;
+    letter-spacing: var(--brand-tracking);
+    font-weight: var(--brand-weight);
+    @apply text-accent;
+  }
+}

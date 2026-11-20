@@ -1,0 +1,46 @@
+{
+  "productName": "Carnot Agent Engine",
+  "version": "0.2.5",
+  "identifier": "org.carnot.agentengine",
+  "build": {
+    "frontendDist": "assets"
+  },
+  "app": {
+    "windows": [],
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "useLocalToolsDir": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../out/payload/app/dist/": "payload/app/dist/",
+      "../out/payload/app/scripts/": "payload/app/scripts/",
+      "../out/payload/app/plugins/": "payload/app/plugins/",
+      "../out/payload/app/docs/": "payload/app/docs/",
+      "../out/payload/app/package.json": "payload/app/package.json",
+      "../out/payload/app/LICENSE": "payload/app/LICENSE",
+      "icons/icon.ico": "carnot-0.2.5.ico",
+      "../out/remove-carnot-environment.exe": "remove-carnot-environment.exe"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "skip"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "installerHooks": "installer.nsh",
+        "languages": [
+          "English"
+        ]
+      }
+    }
+  }
+}

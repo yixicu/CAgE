@@ -1,0 +1,38 @@
+import {guidanceHashV3} from '../research/versions/v3/guidance-budget.js';
+import {networkReviewInstructionsV1} from '../learning/network-review-v1.js';
+import type {LearningCall} from './learning-task.js';
+import {prepareLearningGuidanceV13} from './learning-prompts-v13.js';
+/** Frozen guidance versions; prior strings remain unchanged for recovery. */
+export const methodNetworkLearningGuidanceV2='Normally propose a compact networkProposal when the published method/Strategy has a meaningful goal transformation, intermediate obligation or composition structure; an empty network is not a reason to omit it, and a standalone route with links:[] is valid. For a truly atomic/unstructured method, omission is valid; do not wrap a flat card just to populate the network. Preserve source conditions, checks, failure exits and unknown applicability; one case is not universal validation. Link only distinct exact routes shown in frozen methodNetwork; do not link to the same resource\'s prior route (the host supersedes it). Structural similarity is not topic similarity; complementarity needs bridge conditions; navigation is not proof. Host binds resource identity, versions and sources; use only granted alternatives and never expand source/read scope. Optional rejection does not discard the primary resource.';
+export const methodNetworkLearningGuidanceV3=methodNetworkLearningGuidanceV2+' When frozen routes are supplied, compare plausible candidates by goal transformation, intermediate obligations and checks, not merely topic. If the supplied information supports a substantive shared structure, propose a structural-similarity link with a specific basis. Differing application conditions do not alone rule out structural similarity; record relevant differences and unresolved transfer conditions in bridgeConditions. Similarity does not transfer applicability or establish a dependency. Keep links empty when the available evidence does not support a relation.';
+export const strategySupportLearningGuidanceV1='Default Strategy revision preserves still-supported parent coverage and inherits its exact qualified proof support. Current processedSources contains only delivered proofs you actually processed now; inherited support is host-managed provenance, not newly processed evidence, extra read grants or numeric-weight evidence. Preserve conditions, bridge checks and exclusions; inheritance does not justify stronger claims. For independentRebuild:{justification}, justify that the entire new body, including every retained branch and heuristic, is independently supported by current direct proofs; only this explicit whole-body rebuild resets inherited support. Unknown legacy ancestry above version one cannot support default revision. A union exceeding 64 exact proof sources is rejected, never truncated. Prior entries marked advisoryOnly/needs_review are repair context, never scientific evidence or resource grants. If bodyUnavailable, do not claim prior coverage was inspected; rebuild wholly from current direct proofs or use no-change. Use no-change when safe revision or justified rebuilding is not supported; do not fabricate processing or rebuild merely to evade the limit.';
+export function prepareLearningGuidanceV14(call:LearningCall):ReturnType<typeof prepareLearningGuidanceV13> {
+ if(call.purpose==='network-review') {
+  if(call.networkReviewRecipe!=='manual-network-review-v1')throw new Error('Missing manual navigation review recipe.');
+  return {prompt:networkReviewInstructionsV1+'\nFrozen task data: '+JSON.stringify(call.input),documents:[],initialIds:[]};
+ }
+ const prepared=prepareLearningGuidanceV13(call),split=prepared.prompt.indexOf('\nFrozen task data: ');
+ if(split<0)throw new Error('Frozen learning input delimiter is missing.');
+ let instructions=prepared.prompt.slice(0,split);
+ const input=call.input as {frozenInput?:unknown}|undefined,data=(input?.frozenInput??input) as {operation?:{weightDecision?:unknown};knowledgeEligibility?:unknown}|undefined;
+ if(call.purpose==='v2-strategy'&&!data?.operation?.weightDecision){const end=instructions.indexOf('\n2. Evidence and scope\n');if(end<0)throw new Error('Frozen Strategy task section is missing.');instructions='1. Task\nCompare qualified final-proof summaries, necessary bodies and existing Strategies only.\nKeep reusable directions, applicability, bridge conditions and validity limits; do not copy solved-case proof chains.\nReturn exact processedSources keys; cite only processed qualified final proofs.\nNo numeric weight grant is present. Omit weightUpdate; do not change weights, Skills or Base/User Strategy.\nUse no-change when evidence does not support a safe Strategy update.'+instructions.slice(end);}
+ if(call.strategySupportRecipe==='strategy-support-v1')instructions=instructions.replaceAll('cite only processed qualified final proofs.','cite only processed qualified final proofs as direct sources.').replaceAll('supported by processed proofs','supported by current direct proofs or qualified inherited Strategy support')+'\n'+strategySupportLearningGuidanceV1;
+ if(call.purpose==='method-skill'&&data?.knowledgeEligibility)instructions+='\nFor optional knowledgeCandidates, choose only knowledgeEligibility[sourceKey] for that exact source. Never share kinds across sources; invalid optional batches are rejected without changing the primary method.';
+ if(call.methodNetworkRecipe)instructions+='\n'+(call.methodNetworkRecipe==='method-network-learning-v3'?methodNetworkLearningGuidanceV3:call.methodNetworkRecipe==='method-network-learning-v2'?methodNetworkLearningGuidanceV2:'Optionally return networkProposal with route transformation, input/output roles, checks, failure exits and typed links to exact frozen methodNetwork routes. Do not infer structural similarity from topic alone or applicability/evidence from navigation. Host binds owner and sources; unsupported optional proposals are independently rejected.');
+ let suffix=prepared.prompt.slice(split);
+ if(call.methodNetworkRecipe){
+  const delimiter='\nFrozen task data: ',presented=JSON.parse(suffix.slice(delimiter.length)),target=presented.frozenInput??presented;
+  if(Array.isArray(target.methodNetwork?.routes))target.methodNetwork.routes=target.methodNetwork.routes.map((route:Record<string,unknown>,index:number)=>{
+   const id=`learning:${presented.frozenInput?'frozenInput.':''}methodNetwork.routes.${index}`,text=JSON.stringify(route);
+   prepared.documents.push({id,kind:'knowledge',text,hash:guidanceHashV3(text)});prepared.initialIds.push(id);
+   return {id:route.id,version:route.version,resourceRef:route.resourceRef,guidanceRef:id,guidanceOmitted:true};
+  });
+  suffix=delimiter+JSON.stringify(presented);
+ }
+ return {...prepared,prompt:instructions+'\nKeep Strategy/Way instructions logically clear and as concise as possible; retain necessary conditions and checks. No prose-length quota.'+suffix};
+}
+export function learningPromptV14(call:LearningCall):string{return prepareLearningGuidanceV14(call).prompt;}
+export function learningSystemPromptV14(call:LearningCall):string {
+ if(call.modelDirectedKnowledge)return `Perform only the ${call.purpose} task. Use the supplied evidence and authorized tools. Follow STOP. If a submission is rejected for formatting, correct the format without changing the science. Stop if the same error recurs. Treat a refusal or truncated reply as incomplete.`;
+ return `Perform only the isolated ${call.purpose} task with supplied evidence and scoped tools. Follow STOP. Repair rejected formatting without new science; repeated identical failure stops. Refusal or truncation is not completion.`;
+}

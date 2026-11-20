@@ -1,0 +1,107 @@
+@layer components {
+  /* Workspace reading and input surfaces; no research state lives in this layer. */
+  .reader-dock {
+    @apply flex-none pt-0 pr-7.5 pb-3.5 pl-7.5 border-t border-t-line bg-canvas z-5;
+  }
+  .reader-dock-inner {
+    @apply max-w-210 m-auto;
+  }
+  .reader-dock .composer-dock {
+    @apply p-0;
+  }
+  .reader-dock .composer {
+    @apply rounded-panel rounded-tl-none;
+    @apply pt-2.5 pr-4 pb-2.25 pl-4 shadow-none;
+  }
+  .reader-dock .composer textarea {
+    @apply min-h-10.5 h-11.5;
+    max-height: 22vh;
+    @apply text-sm resize-y;
+  }
+  .reader-dock .composer-toolbar {
+    @apply pt-1 mt-1.25;
+  }
+  .reader-dock .composer-caption {
+    @apply absolute right-21.25 bottom-6.5 m-0 text-micro;
+  }
+  .home-composer .composer {
+    @apply border border-line rounded-dialog pt-3 pr-4.5 pb-2.75 pl-4.5 shadow-none;
+  }
+  .continuation-note {
+    @apply text-xs text-muted m-0 py-1.75 px-3 bg-surface border border-line border-b-0;
+  }
+  .home-composer .project-name-input {
+    @apply text-xs font-ui h-5 p-0 border-0 mt-0 mr-0 mb-1.25 ml-0;
+  }
+  .home-composer textarea {
+    @apply min-h-9.5 h-9.5;
+    max-height: 22vh;
+    @apply text-reading leading-[1.6];
+  }
+  .home-composer .composer-toolbar {
+    @apply mt-1.75 pt-1.5 border-line;
+  }
+  .conversation>.message:last-child {
+    @apply mb-0;
+  }
+  .capabilities-nav {
+    @apply mt-0 mr-1.5 mb-2.75 ml-1.5;
+  }
+  .capabilities-nav summary {
+    @apply flex gap-2.25 items-center py-2 px-1.25 text-control text-ink list-none;
+  }
+  .capabilities-nav summary::-webkit-details-marker {
+    @apply hidden;
+  }
+  .capabilities-nav .disclosure {
+    @apply ml-auto -rotate-90 transition-transform duration-(--motion-control);
+  }
+  .capabilities-nav[open] .disclosure {
+    @apply rotate-0;
+  }
+  .capabilities-nav nav {
+    @apply mt-0.5 mr-0 mb-0 ml-6 border-l border-l-line pl-1.75;
+  }
+  .capabilities-nav nav button {
+    @apply p-2 text-control;
+  }
+  .app-shell.has-workspace-tabs .hypothesis-float {
+    @apply top-27;
+  }
+  @media (max-width:1100px) {
+    .reader-dock {
+      @apply pt-0 pr-5 pb-3 pl-5;
+    }
+  }
+  @media (max-width:600px) {
+    .reader-dock {
+      @apply pt-0 pr-2.5 pb-2.5 pl-2.5;
+    }
+    .reader-dock .composer {
+      @apply py-2 px-2.5;
+    }
+    .reader-dock .composer textarea {
+      @apply h-10 min-h-10 text-control;
+    }
+    .home-composer .composer {
+      @apply pt-2.75 pr-3.25 pb-2.5 pl-3.25;
+    }
+    .home-composer textarea {
+      @apply min-h-9.5 text-sm;
+    }
+    .workspace-title {
+      @apply text-base max-w-55;
+    }
+    .reader-dock .composer-toolbar>.inline-actions {
+      @apply gap-0.75;
+    }
+    .reader-dock .composer-caption {
+      @apply hidden;
+    }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .capabilities-nav .disclosure {
+      @apply transition-none;
+    }
+  }
+}

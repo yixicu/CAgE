@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+@import 'katex/dist/katex.min.css' layer(components);
+@import './styles/theme.css';
+@import './styles/primitives.css';
+@import './styles/workspace.css';
+@import './styles/research.css';
+@import './styles/settings.css';
+@import './styles/documents.css';
+@import './styles/tree.css';
+@import './styles/responsive.css';
+@import './styles/reader.css';
+@import './styles/paper.css';
+@import './styles/hypothesis-entry.css';
+@import './styles/hypothesis-queue.css';
+@import './styles/capability-page.css';
+@import './styles/method-network.css';
+@import './styles/model-tools.css';
+@import './styles/round-ribbon.css';
+@import './styles/workspace-tabs.css';
+@import './styles/research-inspector.css';
+
+@import './styles/composition.css';

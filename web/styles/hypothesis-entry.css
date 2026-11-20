@@ -1,0 +1,98 @@
+/* Presentation scoped to the HypothesisEntry root. */
+@layer components {
+  .hypothesis-entry {
+    width: min(980px,100%);
+    @apply min-h-full my-0 mx-auto;
+    padding: 24px 36px clamp(30px,8vh,86px);
+    @apply grid;
+    grid-template-rows: minmax(310px,1fr) auto;
+    @apply gap-7;
+  }
+  .hypothesis-entry .entry-visual {
+    @apply relative min-h-77.5;
+  }
+  .hypothesis-entry .entry-identity {
+    @apply absolute left-1/2 top-1/2 flex items-center;
+    @apply w-max;
+    font-size: clamp(64px,11vw,172px);
+    transform: translate(-50%,-50%);
+    @apply origin-center;
+    transition: top var(--motion-entry) var(--ease-entry),transform var(--motion-entry) var(--ease-entry);
+  }
+  .hypothesis-entry .entry-identity > h1 {
+    @apply font-brand;
+    font-weight: var(--brand-weight);
+    font-size: 1em;
+    @apply leading-[1.1];
+    letter-spacing: var(--brand-tracking);
+    margin: 0 calc(-1 * var(--brand-tracking)) 0 0;
+    @apply text-brand;
+  }
+  .hypothesis-entry.has-draft .entry-identity {
+    top: 12%;
+    transform: translate(-50%,-50%) scale(.62);
+  }
+  .hypothesis-entry .entry-preview {
+    @apply absolute;
+    inset: 28% 0 0;
+    @apply flex flex-col min-h-0 py-5.5 px-6.5 bg-surface border border-line rounded-dialog opacity-0 invisible;
+    transform: translateY(18px);
+    transition: opacity .3s ease,transform .42s var(--ease-entry),visibility 0s .3s;
+  }
+  .hypothesis-entry.has-draft .entry-preview {
+    @apply opacity-100 visible;
+    transform: translateY(0);
+    transition-delay: .09s,.07s,0s;
+  }
+  .hypothesis-entry .entry-preview-label {
+    @apply text-xs text-muted flex-none mb-4.5;
+  }
+  .hypothesis-entry .entry-preview-body {
+    @apply overflow-auto min-h-0;
+    scrollbar-width: thin;
+    @apply overscroll-contain;
+  }
+  .hypothesis-entry .entry-preview .markdown-view {
+    @apply font-paper text-prose leading-[1.8] text-ink;
+  }
+  .hypothesis-entry .entry-preview .markdown-view p {
+    font-size: inherit;
+    line-height: inherit;
+  }
+  .hypothesis-entry .entry-input {
+    @apply min-w-0;
+  }
+  @media (max-width:900px) {
+    .hypothesis-entry {
+      @apply px-6;
+    }
+  }
+  @media (max-width:600px) {
+    .hypothesis-entry {
+      @apply pt-4 pr-1.5 pb-6 pl-1.5 gap-5;
+      grid-template-rows: minmax(235px,1fr) auto;
+    }
+    .hypothesis-entry .entry-visual {
+      @apply min-h-58.75;
+    }
+    .hypothesis-entry.has-draft .entry-identity {
+      top: 11%;
+      transform: translate(-50%,-50%) scale(.68);
+    }
+    .hypothesis-entry .entry-preview {
+      inset: 27% 0 0;
+      @apply py-3.75 px-4.25 rounded-panel;
+    }
+    .hypothesis-entry .entry-preview-label {
+      @apply mb-3;
+    }
+    .hypothesis-entry .entry-preview .markdown-view {
+      @apply text-reading;
+    }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .hypothesis-entry .entry-identity,.hypothesis-entry .entry-preview {
+      @apply transition-none;
+    }
+  }
+}

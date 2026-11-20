@@ -1,0 +1,106 @@
+@layer components {
+  .markdown-view {
+    @apply text-sm leading-[1.75] text-ink;
+    @apply wrap-anywhere;
+  }
+  .markdown-view > :first-child {
+    @apply mt-0;
+  }
+  .markdown-view > :last-child {
+    @apply mb-0;
+  }
+  .markdown-view h1, .markdown-view h2, .markdown-view h3 {
+    @apply mt-5.5 mb-2.5 text-balance;
+  }
+  .markdown-view h1 {
+    @apply text-xl;
+  }
+  .markdown-view h2 {
+    @apply text-title;
+  }
+  .markdown-view h3 {
+    @apply text-base;
+  }
+  .markdown-view p {
+    @apply leading-[1.75];
+  }
+  .markdown-view ul {
+    @apply list-disc;
+  }
+  .markdown-view ol {
+    @apply list-decimal;
+  }
+  .markdown-view pre {
+    @apply overflow-x-auto bg-code-soft border border-line p-3.5 rounded-panel text-xs whitespace-pre;
+  }
+  .markdown-view code {
+    @apply font-mono;
+    font-size: .9em;
+    @apply text-code;
+  }
+  .markdown-view :not(pre) > code {
+    @apply bg-code-soft py-0.5 px-1 rounded-small;
+  }
+  .markdown-view a {
+    @apply text-link underline underline-offset-3;
+  }
+  .markdown-view blockquote {
+    @apply border-l-3 border-l-line ml-0 pl-4.25 text-muted;
+  }
+  .markdown-view table {
+    @apply border-collapse block max-w-full overflow-x-auto text-xs;
+  }
+  .markdown-view th, .markdown-view td {
+    @apply border border-line py-2.25 px-3;
+  }
+  .markdown-view th {
+    @apply bg-selected;
+  }
+  .markdown-view hr {
+    @apply border-0 border-t border-t-line my-6 mx-0;
+  }
+  .math-block {
+    @apply overflow-x-auto py-1 px-0;
+  }
+  .inline-equation {
+    @apply whitespace-nowrap;
+  }
+  .image-placeholder {
+    @apply text-muted italic;
+  }
+  .markdown-editor {
+    @apply border border-line rounded-panel overflow-hidden bg-surface my-4 mx-0;
+  }
+  .markdown-editor .cm-scroller {
+    max-height: 65vh;
+    @apply overflow-auto;
+  }
+  .document-meta {
+    @apply font-mono text-eyebrow text-muted;
+    @apply wrap-anywhere;
+  }
+  .document-panel > .refinement-form {
+    @apply border-t border-t-line mt-6.5 pt-5.75;
+  }
+  .document-actions {
+    @apply flex items-center flex-wrap gap-3 mt-4.5;
+  }
+  .pdf-canvas {
+    @apply flex bg-pdf-stage p-4 overflow-auto;
+  }
+  .pdf-canvas canvas {
+    @apply flex-none m-auto;
+  }
+  .pdf-canvas canvas {
+    @apply bg-surface shadow-float;
+  }
+  .pdf-text {
+    @apply text-xs leading-[1.8];
+  }
+  .toolbar {
+    @apply flex items-center justify-between gap-2.5 text-xs my-3.5 mx-0;
+  }
+  .toolbar strong {
+    @apply wrap-anywhere;
+  }
+}

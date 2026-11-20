@@ -1,0 +1,2 @@
+/** Historical v3-operation-1 retrieval recipe only. Never selected for new boundaries. */
+export const lexicalTermsLegacyV3=(s:string)=>{const text=s.slice(0,16384).normalize('NFKC').toLowerCase(),out=new Set<string>();for(const token of text.match(/[\p{L}\p{N}_]+/gu)??[]) {out.add(token);for(const run of token.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu)??[]){const chars=[...run];for(let i=0;i<chars.length-1&&out.size<128;i++)out.add(chars[i]!+chars[i+1]!);}if(out.size>=128)break;}return [...out].slice(0,128);};

@@ -1,0 +1,60 @@
+/** Sole shared V0 spine. No Worker or Q graph, no legacy protocol coercion. */
+import type { AgentSession, FrozenInputs, ModelSelection, RoleBudget, SourceRevisionRef, UserCommand } from './v1.js';
+import type { ResearchConfigV2, Usage } from './v2.js';
+import type { PlanningSelection, UserCommandState } from './user-commands.js';
+import type { ForkManifest } from './lineage.js';
+import type { SessionPresentation } from '../../presentation/session-presentation.js';
+import type { BoundaryView, ProofRef, ResourceMeta, ResourceRef } from '../../learning/research-data.js';
+export type { AgentSession, ModelSelection, RoleBudget, SourceRevisionRef, UserCommand, Usage };
+export type ResearchConfigV0 = ResearchConfigV2;
+export type PhaseV0 = 'idle'|'planning'|'solving'|'archiving'|'checkpoint';
+export type VerdictV0 = 'open'|'solved'|'refuted';
+export interface RootInterpretationV0 { domain:string[]; conditions:string[]; symbols:Record<string,string>; strength:string; returnToRoot:string; completionCriteria:string[]; obligations:{id:string;statement:string}[] }
+export interface RootV0 extends RootInterpretationV0 { hypothesisId:string; revision:string; semanticRevision:number; originalText:string; previousId?:string; sourceCommandId?:string }
+export interface WayProposalV0 { methodKey:string; direction:string; conditions:string[]; unknownBridges:string[]; returnToRoot:string; resourceRefs:ResourceRef[]; p:number; estimateReason:string }
+export interface WayCandidateV0 extends WayProposalV0 { id:string }
+export interface PlanOutputV0 { rootInterpretation?:RootInterpretationV0; rootChange?:{sourceCommandId:string;targetText:string;interpretation:RootInterpretationV0}; candidates:WayProposalV0[]; blockers:string[] }
+export interface SelectionV0 { modelChoice?:{selectedIndex:number|null;inputHash:string;callId:string;reason:string}; planHash:string; candidates:WayCandidateV0[]; selectedWayId:string|null; maxScore:number|null; tieRule:'first-in-plan'; selectedAt:string }
+export interface SolveOutcomeV0 { verdict:VerdictV0; selectedWayId:string; rootId:string; rootRevision:string; obligations:{id:string;status:'satisfied'|'inapplicable'|'open';reason:string;evidence:string[]}[]; conditions:string[]; conditionChecks:{condition:string;basis:'root-context'|'established'|'unresolved';reason:string;evidence:string[]}[]; gaps:string[]; selfCheck:string; summary:string; reproducible:boolean; reproducibility:string; dependencySourceIds?:string[]; tags:string[]; outline:string[] }
+/** New one-request wire: IDs and duplicated selected plan are Host bookkeeping, not model work. */
+export interface SingleOutcomeV0 {
+ rootInterpretation?:RootInterpretationV0; rootChange?:PlanOutputV0['rootChange'];
+ candidates:{method:string;p:number;reason:string;conditions:string[];unknownBridges:string[];resourceRefs:ResourceRef[]}[];
+ selectedIndex:number|null;choiceReason:string;
+ verdict:VerdictV0;obligations:SolveOutcomeV0['obligations'];conditionChecks:SolveOutcomeV0['conditionChecks'];
+ gaps:string[];selfCheck:string;summary:string;reproducible:boolean;reproducibility:string;dependencySourceIds?:string[];tags:string[];outline:string[];
+}
+/** Small model-owned declaration. Closed verdict explicitly covers every original requirement. */
+export interface ProofOutcomeV0 {
+ candidates:{method:string;p:number}[];selectedIndex:number|null;verdict:VerdictV0;
+ gaps:string[];extraAssumptions:string[];usedResourceIds?:string[];inapplicableObligationIds?:string[];reproducible:boolean;subject?:string;rootReplacement?:string;
+}
+export interface ProofResultV0 {outcome:ProofOutcomeV0|null;metadataStatus:'assessed'|'unassessed';answerRef:RawAnswerRefV0;technical:TechnicalStateV0}
+export interface SingleResultV0 {outcome:SingleOutcomeV0;answerRef:RawAnswerRefV0;technical:TechnicalStateV0}
+export interface RawAnswerOwnerV0 { binding?:'call-input'; owner:string;projectId:string;epochId:string;attemptId:string;callId:string;rootId:string;rootRevision:string;planHash:string;routeId:string;inputHash:string;protocolVersion:'v0-native-1' }
+export interface RawAnswerRefV0 extends RawAnswerOwnerV0 { id:string;bodyHash:string;byteLength:number;completeness:'complete'|'partial'|'empty' }
+export interface RawAnswerGrantV0 { readerProjectId:string;readerRole:'theorist'|'moderator';purpose:'history'|'archive'|'inherited-draft';ref:RawAnswerRefV0 }
+export interface TechnicalStateV0 { executionStatus:'completed'|'failed'|'interrupted';completeness:'complete'|'partial'|'empty';stopReason?:string;rawStopReason?:string;errorCategory?:string;usage?:Usage }
+export interface RawAnswerStoreV0 { save(owner:RawAnswerOwnerV0,exactBody:string,state:TechnicalStateV0):Promise<RawAnswerRefV0>;read(ref:RawAnswerRefV0,grant:RawAnswerGrantV0):Promise<string>;list(scope:{owner:string;projectId:string;epochId?:string},grants:RawAnswerGrantV0[]):Promise<RawAnswerRefV0[]> }
+export interface CapturedAnswerV0 { answerRef:RawAnswerRefV0;technical:TechnicalStateV0 }
+export interface SolveResultV0 { outcome:SolveOutcomeV0;answerRef:RawAnswerRefV0;technical:TechnicalStateV0 }
+export interface FrozenSourceV0 { ref:SourceRevisionRef;body:string;bodyHash:string }
+export interface FrozenResourceV0 { ref:ResourceRef;body:string;bodyHash:string }
+export interface EpochSnapshotV0 { promptRevision?:'categorized-v1'; policyAssessment?:'criteria-before-probability-v1'; id:string;number:number;root:RootV0;rootInterpretationPending:boolean;inputRevision:string;sources:FrozenSourceV0[];resources:ResourceRef[];resourceCatalog:ResourceMeta[];decision?:import('../../learning/research-data.js').DecisionFile;modelConfig:{defaultModel?:ModelSelection;roleModels?:ResearchConfigV0['roleModels']};config:ResearchConfigV0;startedAt:string }
+/** Nonrecursive exact call input, also the authoritative runtime context on restored sessions. */
+export interface PriorEpochV0 { epochId:string;root:RootV0;sources:SourceRevisionRef[];evidenceStatus:'historical-only';premisesChanged:boolean;plan?:PlanOutputV0;selection?:SelectionV0;solve?:SolveResultV0;body?:string }
+export interface FrozenInvocationInputV0 { responseMode?:'proof-first'; projectId:string;epochId:string;callId:string;snapshot:EpochSnapshotV0;planningSelection?:PlanningSelection;plan?:PlanOutputV0;selection?:SelectionV0;loadedResources:ResourceRef[];resourceBodies:FrozenResourceV0[];history?:PriorEpochV0[] }
+export interface OperationPinV0 { revision:'v0-operation-1'|'v0-operation-2'|'v0-operation-3'|'v0-operation-4';task:'v0_plan'|'v0_solve'|'v0_single';schemaDigest:string;inputHash:string }
+export interface CallV0 { id:string;task:'v0_plan'|'v0_solve'|'v0_single';status:'not-started'|'pending'|'completed'|'uncertain';input:FrozenInvocationInputV0;inputHash:string;operation:OperationPinV0;result?:unknown;usage?:Usage;loadedResources?:ResourceRef[];recoveryGeneration:number }
+export interface ArchiveSelectionV0 { operationId:string;projectId:string;epochId:string;root:RootV0;way:WayCandidateV0;planHash:string;answerRef:RawAnswerRefV0;outcome:SolveOutcomeV0;possibleDependencySources:SourceRevisionRef[];expectedRevision?:number }
+export interface ArchiveReceiptV0 { operationId:string;selectionHash:string;status:'pending'|'saved';selection:ArchiveSelectionV0;proofRef?:ProofRef;error?:string;retries:number }
+export interface InFlightEpochV0 { executionMode?:'single-request'|'proof-first'; metadataStatus?:'assessed'|'unassessed'; schemaVersion:4;loop:{researchLoopVersion:'0';workerProtocolVersion:'v0-native-1'};projectId:string;epoch:number;phase:PhaseV0;snapshot:EpochSnapshotV0;planningSelection?:PlanningSelection;loadedResources:ResourceRef[];calls:CallV0[];plan?:PlanOutputV0;selection?:SelectionV0;solve?:SolveResultV0;archive?:ArchiveReceiptV0;technicalAnswers?:CapturedAnswerV0[];cancelled?:boolean;scientificCommitted?:boolean;startedAt:string }
+export interface EpochRecordV0 extends Omit<InFlightEpochV0,'schemaVersion'|'loop'> { id:string;completedAt:string;foregroundCompletedAt?:string;decision:'continue'|'pause'|'complete'|'stop';reason:string }
+export interface ResearchProjectV0 { schemaVersion:4;researchLoopVersion:'0';workerProtocolVersion:'v0-native-1';contractVersion:'v0-test-1';id:string;name:string;nameSource?:'user'|'theorist';presentation?:SessionPresentation & {hypothesisRevision:string};originalHypothesis:string;hypothesis:string;hypothesisRevision:string;hypothesisId:string;contentRevision:string;sources:SourceRevisionRef[];config:ResearchConfigV0;status:'idle'|'running'|'paused'|'completed'|'stopped'|'failed';phase:PhaseV0;epoch:number;summary:string;startedAt?:string;lastError?:string;processedCommandIds:string[];refinements:string[];pendingModificationIds?:string[];commandStates?:Record<string,UserCommandState>;userInputWarnings?:string[];plannedRefinementCount?:number;fork?:ForkManifest;root:RootV0;rootInterpretationPending:boolean;scientificVerdict:VerdictV0;archiveStatus:'none'|'pending'|'saved';epochs:EpochRecordV0[];activeEpoch?:InFlightEpochV0 }
+export interface AgentSessionSpecV0 { loop:{researchLoopVersion:'0';workerProtocolVersion:'v0-native-1'};contractVersion:'v0-test-1';id:string;projectId:string;role:'theorist';model?:ModelSelection;budget:RoleBudget;context:{project:ResearchProjectV0;snapshot:EpochSnapshotV0;marker:InFlightEpochV0} }
+export interface AgentInvocationV0 { step?:never;task:'v0_plan'|'v0_solve'|'v0_single';input:FrozenInvocationInputV0;budget?:RoleBudget;operation:OperationPinV0;recoveryGeneration?:number }
+export interface AgentRuntimeV0 { createSession(spec:AgentSessionSpecV0):Promise<AgentSession>;invoke(session:AgentSession,invocation:AgentInvocationV0):Promise<unknown>;closeSession(session:AgentSession):Promise<void>;cancelSession?(session:AgentSession):Promise<void>;retainedV0Answer?(session:AgentSession):CapturedAnswerV0|undefined;getUsage?(session:AgentSession):Usage;loadedResourceRefs?(session:AgentSession):ResourceRef[];reconcileV0?(spec:AgentSessionSpecV0,invocation:AgentInvocationV0):Promise<{status:'completed';result:unknown;loadedResources?:ResourceRef[]}|{status:'not-started'|'pending'|'uncertain';captured?:CapturedAnswerV0}> }
+export interface RawAnswerJournalV0 { begin(input:FrozenInvocationInputV0):Promise<void>;capture(callId:string,exactBody:string):Promise<void>;finalize(callId:string,state:TechnicalStateV0):Promise<RawAnswerRefV0>;reconcile(callId:string):Promise<{status:'completed';answerRef:RawAnswerRefV0;technical:TechnicalStateV0}|{status:'not-started'|'pending'|'uncertain'}> }
+export interface ResearchStoreV0 { loadProject(id:string):Promise<ResearchProjectV0>;commitCheckpoint(project:ResearchProjectV0):Promise<ResearchProjectV0>;commitPlanningCheckpoint?(project:ResearchProjectV0,marker:InFlightEpochV0):Promise<ResearchProjectV0>;enqueueCommand(command:UserCommand):Promise<void>;listCommands(id:string):Promise<UserCommand[]>;freezeInputs(project:ResearchProjectV0):Promise<FrozenInputs>;saveInFlight(marker:InFlightEpochV0):Promise<void>;loadInFlight(id:string):Promise<InFlightEpochV0|undefined>;clearInFlight(id:string):Promise<void> }
+export interface ResearchCompositionV0 { rawAnswers:RawAnswerStoreV0;freezeSources(project:Readonly<ResearchProjectV0>):Promise<FrozenSourceV0[]>;readBoundary?(project:Readonly<ResearchProjectV0>):Promise<BoundaryView>;readResource?(ref:ResourceRef,project:Readonly<ResearchProjectV0>):Promise<{meta:ResourceMeta;body:string}>;expectedArchiveRevision?(project:Readonly<ResearchProjectV0>,way:Readonly<WayCandidateV0>):Promise<number|undefined>;archiveWay(selection:ArchiveSelectionV0):Promise<ArchiveReceiptV0>;invalidateSources?(project:Readonly<ResearchProjectV0>,currentSources:SourceRevisionRef[]):Promise<void>;afterCheckpoint?(project:Readonly<ResearchProjectV0>,epoch:Readonly<EpochRecordV0>):Promise<void> }
+export interface ResearchEventV0 { contractVersion:'v0-test-1';type:'project.updated'|'epoch.phase'|'checkpoint.committed'|'research.finished'|'research.foreground-finished'|'research.warning';projectId:string;epoch:number;phase?:PhaseV0;status?:string;userVisible?:boolean;message?:string;at?:string }

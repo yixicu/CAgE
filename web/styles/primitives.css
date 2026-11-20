@@ -1,0 +1,154 @@
+@layer base {
+  :root {
+    @apply font-ui text-ink bg-canvas;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+  * {
+    @apply box-border;
+  }
+  body {
+    @apply m-0;
+  }
+  button,input,textarea,select {
+    font: inherit;
+  }
+  button,.button-link {
+    @apply inline-flex items-center justify-center gap-2 min-h-8.5 py-2 px-3 border border-line rounded-control text-inherit bg-transparent cursor-pointer text-control leading-[1.35] no-underline transition-colors duration-(--motion-control);
+  }
+  button:hover:not(:disabled),.button-link:hover {
+    @apply bg-hover;
+  }
+  button:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+  button:focus-visible,a:focus-visible,summary:focus-visible {
+    @apply outline-2 outline-accent outline-offset-3;
+  }
+  h1,h2,h3,p {
+    @apply mt-0;
+  }
+  h1 {
+    @apply text-2xl font-medium;
+    letter-spacing: -.7px;
+  }
+  h2 {
+    @apply text-base font-medium mb-3;
+  }
+  h3 {
+    @apply text-sm font-medium;
+  }
+  p {
+    @apply text-sm leading-[1.7];
+  }
+  ul,ol {
+    @apply pl-5.5;
+  }
+  li {
+    @apply mb-1.25;
+  }
+  label {
+    @apply grid gap-2 mb-4.5 text-xs font-medium;
+  }
+  input,textarea,select {
+    @apply w-full border border-line rounded-control py-2.5 px-3 bg-surface;
+    @apply text-inherit;
+    @apply text-control font-normal;
+  }
+  input:focus,textarea:focus,select:focus {
+    @apply outline-1 outline-accent outline-offset-1;
+  }
+  textarea {
+    @apply resize-y leading-[1.7] min-h-17.5;
+  }
+  input[type=checkbox] {
+    @apply w-3.75 h-3.75 accent-accent flex-none;
+  }
+  ::placeholder {
+    @apply text-placeholder;
+  }
+  fieldset {
+    @apply border border-line rounded-panel p-4 my-5 mx-0;
+  }
+  legend {
+    @apply text-xs py-0 px-1.25;
+  }
+  details {
+    @apply my-4.5 mx-0;
+  }
+  summary {
+    @apply cursor-pointer text-xs text-muted leading-[1.6];
+  }
+  details>:not(summary) {
+    @apply mt-4;
+  }
+}
+@layer components {
+  button.primary {
+    @apply bg-action text-on-action border-action;
+  }
+  button.primary:hover:not(:disabled) {
+    @apply bg-action-hover;
+  }
+  button.danger,button.danger-text {
+    @apply text-danger;
+  }
+  .text-button {
+    @apply border-0 py-0.75 px-0 min-h-6.5 text-xs;
+  }
+  .icon-button {
+    @apply border-0 w-8 h-8 min-h-8 p-1.5 flex-none;
+  }
+  .icon-button svg {
+    @apply flex-none;
+  }
+  .muted {
+    @apply text-muted;
+  }
+  .small {
+    @apply text-xs;
+  }
+  .eyebrow {
+    @apply text-eyebrow text-muted;
+  }
+  .truncate {
+    @apply min-w-0 truncate;
+  }
+  .inline-actions,.section-heading {
+    @apply flex items-center gap-2;
+  }
+  .section-heading {
+    @apply justify-between;
+  }
+  .section-heading h2 {
+    @apply m-0;
+  }
+  .flat-fieldset {
+    @apply border-0 p-0;
+  }
+  .check-label {
+    @apply flex items-start gap-2;
+  }
+  .notice {
+    @apply flex items-center gap-2.5 border border-line bg-selected rounded-panel py-2.75 px-3.5 my-3 mx-6 text-xs leading-[1.65];
+  }
+  .notice .icon-button {
+    @apply ml-auto;
+  }
+  .notice p {
+    @apply m-0 text-xs;
+  }
+  .notice.error {
+    @apply text-danger bg-danger-soft border-danger-line;
+  }
+  .notice.success {
+    @apply text-success bg-success-soft;
+  }
+  .loading-message {
+    @apply text-muted text-center p-12;
+  }
+  .visually-hidden {
+    @apply sr-only;
+  }
+  /* Only the reading panes scroll; a collapsed inspector must not scroll the shell. */
+}

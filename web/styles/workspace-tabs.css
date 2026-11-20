@@ -1,0 +1,32 @@
+/* Presentation scoped to the WorkspaceTabs root. */
+@layer components {
+  .workspace-tabs {
+    @apply flex gap-0.75 items-stretch border-b border-b-line bg-canvas py-0 px-5 overflow-auto flex-none min-h-10.25;
+  }
+  .workspace-tabs .workspace-tab {
+    @apply flex items-center flex-none border-b-2 border-b-transparent;
+  }
+  .workspace-tabs button {
+    @apply border-0 rounded-none whitespace-nowrap max-w-70 py-2.5 px-3 text-xs;
+  }
+  .workspace-tabs>button {
+    @apply shrink-0 border-b-2 border-b-transparent;
+  }
+  .workspace-tabs .current,.workspace-tabs>button.current {
+    @apply border-b-accent bg-surface;
+  }
+  .workspace-tabs .workspace-tab button:first-child {
+    @apply pr-1.25;
+  }
+  .workspace-tabs .close-tab {
+    @apply p-1.25 w-6.5 min-h-6.5 mr-0.75;
+  }
+  @media (max-width:600px) {
+    .workspace-tabs {
+      @apply py-0 px-2.5;
+    }
+    .workspace-tabs>button {
+      @apply max-w-36.25;
+    }
+  }
+}

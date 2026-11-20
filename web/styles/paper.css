@@ -1,0 +1,87 @@
+@layer components {
+  /* Single-column scientific prose. The surrounding application remains sans-serif. */
+  .research-paper {
+    max-width: 72ch;
+    @apply mx-auto text-ink font-paper text-base leading-[1.65];
+  }
+  .paper-section {
+    scroll-margin-top: 145px;
+    @apply mt-0 mr-0 mb-7 ml-0;
+  }
+  .paper-section > h2 {
+    font-family: inherit;
+    @apply text-title font-semibold leading-[1.3] mt-0 mr-0 mb-3 ml-0;
+    letter-spacing: -.2px;
+  }
+  .paper-summary {
+    @apply pb-5 border-b border-b-line;
+  }
+  .research-paper .markdown-view {
+    font-family: inherit;
+    font-size: inherit;
+    @apply text-inherit;
+    line-height: inherit;
+  }
+  .research-paper .markdown-view p {
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0 0 .8em;
+  }
+  .research-paper .markdown-view h1, .research-paper .markdown-view h2, .research-paper .markdown-view h3 {
+    font-size: 1em;
+    @apply leading-[1.45];
+    margin: 1.15em 0 .5em;
+  }
+  .research-paper .markdown-view ul, .research-paper .markdown-view ol {
+    margin: .6em 0;
+    padding-left: 1.35em;
+  }
+  .research-paper .markdown-view li {
+    padding-left: .15em;
+    margin: .25em 0;
+  }
+  .research-paper .math-block {
+    margin: 1.05em 0;
+    @apply py-0 px-1.5 overflow-x-auto overflow-y-hidden;
+  }
+  .research-paper .katex {
+    font-size: 1.08em;
+  }
+  .research-paper .katex-display {
+    margin: .4em 0;
+  }
+  .paper-reference {
+    @apply text-control leading-[1.55];
+  }
+  .paper-missing {
+    @apply font-ui text-xs text-muted;
+  }
+  .paper-original {
+    @apply border-t border-t-line pt-3;
+  }
+  .paper-original > .markdown-view {
+    @apply mt-4.5;
+  }
+  @media (max-width: 650px) {
+    .research-paper {
+      @apply text-reading leading-[1.65];
+    }
+    .paper-section > h2 {
+      @apply text-lg;
+    }
+  }
+  @media print {
+    .research-paper {
+      max-width: 165mm;
+      color: #000;
+      font-size: 11pt;
+      @apply leading-normal;
+    }
+    .paper-section > h2 {
+      @apply break-after-avoid;
+    }
+    .research-paper .math-block {
+      @apply break-inside-avoid;
+    }
+  }
+}

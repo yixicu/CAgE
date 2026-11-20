@@ -1,0 +1,137 @@
+@layer components {
+  @media (min-width:1700px) {
+    .app-shell {
+      --nav-width: 260px;
+      --inspector-width: 380px;
+    }
+  }
+  @media (min-width:901px) and (max-width:1180px) {
+    .app-shell {
+      --nav-width: 220px;
+      --inspector-width: 300px;
+    }
+    .chat-scroll {
+      @apply px-5;
+    }
+    .conversation {
+      @apply py-7 px-6;
+    }
+    .topbar {
+      @apply px-4.5;
+    }
+  }
+  @media (max-width:900px) {
+    .hypothesis-float {
+      @apply left-4 right-4;
+    }
+    .app-shell {
+      @apply block;
+      --nav-width: 280px;
+      --inspector-width: 340px;
+    }
+    .main-pane {
+      @apply w-full h-dvh;
+    }
+    .sidebar {
+      @apply fixed;
+      inset: 0 auto 0 0;
+      @apply z-20 shadow-drawer;
+    }
+    .app-shell:not(.left-open)>.sidebar {
+      transform: translateX(-100%);
+    }
+    .right-pane {
+      @apply fixed right-0 top-0 bottom-0;
+      width: min(var(--inspector-width),calc(100vw - 32px));
+      @apply z-20 shadow-drawer;
+    }
+    .app-shell:not(.right-open)>.right-pane {
+      transform: translateX(100%);
+    }
+    .panel-backdrop {
+      @apply fixed inset-0 w-full h-full border-0 rounded-none bg-scrim z-10 cursor-default;
+    }
+    .panel-backdrop:hover:not(:disabled) {
+      @apply bg-scrim;
+    }
+    .topbar {
+      @apply py-0 px-3.5 gap-2;
+    }
+    .workspace-title {
+      max-width: 55vw;
+    }
+    .topbar .inline-actions {
+      @apply gap-1.5;
+    }
+    .main-scroll {
+      @apply p-6;
+    }
+    .chat-scroll {
+      @apply pt-0 pr-4 pb-5 pl-4;
+    }
+    .conversation {
+      @apply mt-4 mr-auto mb-0 ml-auto py-6.75 px-6;
+    }
+    .settings-tabs {
+      @apply gap-4;
+    }
+    .settings-tabs button {
+      @apply text-eyebrow;
+    }
+    .settings-grid {
+      @apply grid-cols-1;
+    }
+    .research-version {
+      @apply gap-3.75;
+    }
+    .settings-title h1 {
+      @apply text-2xl;
+    }
+    .model-picker {
+      grid-template-columns: minmax(0,1fr) 100px;
+      @apply gap-2.5;
+    }
+    .toolbar {
+      @apply flex-wrap;
+    }
+    .toolbar .inline-actions {
+      @apply gap-1.25;
+    }
+    .notice {
+      @apply my-2.5 mx-3.5;
+    }
+  }
+  @media (max-width:480px) {
+    .chat-scroll {
+      @apply pt-0 pr-3 pb-4 pl-3;
+    }
+    .conversation {
+      @apply py-6 px-4.75;
+    }
+    .composer {
+      @apply pt-3.25 pr-3 pb-2.5 pl-3;
+    }
+    .composer-toolbar {
+      @apply gap-1.25;
+    }
+    .composer-toolbar>.inline-actions {
+      @apply gap-1.5;
+    }
+    .version-label {
+      @apply hidden;
+    }
+    .hypothesis-heading .section-heading {
+      @apply items-start;
+    }
+    .hypothesis-heading .small {
+      @apply text-micro;
+    }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * {
+      scroll-behavior: auto !important;
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
