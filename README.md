@@ -15,6 +15,8 @@ npm start
 
 Open the local address printed by the server. Research files and provider credentials stay in your chosen workspace. Research requests go to the provider you configure.
 
+**Upgrading an existing source checkout:** stop the old server before pulling updates. Starting from `app/` reopens the repository root's existing `.carnot-data/`, including its provider connections and storage settings. A fresh checkout uses `app/.carnot-data/`. If both directories exist, set `CARNOT_DATA_DIR` to the absolute path you want before starting. Back up your workspace and any separately configured research and log directories before changing their locations.
+
 ## Project guide
 
 | Folder | What you will find |

@@ -1,4 +1,5 @@
 import {realpath} from 'node:fs/promises';
+import {realpathSync, statSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {isWithin} from '../tools/files.js';
@@ -7,8 +8,22 @@ const applicationRoot=fileURLToPath(new URL('../../',import.meta.url));
 const localDirectory='.carnot-data';
 
 export function defaultDataRoot(sourceRoot=applicationRoot):string {
-  return process.env.CARNOT_DATA_DIR?.trim() || path.join(sourceRoot,localDirectory);
+  const configured = process.env.CARNOT_DATA_DIR?.trim();
+  if (configured) return configured;
+  const source = path.resolve(sourceRoot);
+  const current = path.join(source,localDirectory);
+  const parent = path.dirname(source);
+  if (path.basename(source) !== 'app' ||
+      !statSync(path.join(parent,'desktop-packaging','shell','tauri.conf.json'), {throwIfNoEntry:false})?.isFile()) return current;
+  const legacy = path.join(parent,localDirectory);
+  if (!statSync(legacy, {throwIfNoEntry:false})?.isDirectory()) return current;
+  if (statSync(current, {throwIfNoEntry:false}) && path.relative(realpathSync(legacy),realpathSync(current)) !== '') {
+    throw new AmbiguousWorkspaceError('Two CAgE workspaces exist. Set CARNOT_DATA_DIR to the absolute path of the workspace you want to open.');
+  }
+  return legacy;
 }
+
+export class AmbiguousWorkspaceError extends Error {}
 
 async function canonicalFuture(location:string):Promise<string>{
   try{return await realpath(location);}

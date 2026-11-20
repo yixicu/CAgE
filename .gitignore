@@ -1,0 +1,10 @@
+# Private files left at the repository root by pre-layout source installations.
+/.carnot-data/
+/app-data/
+/.env
+/.env.*
+!/.env.example
+/node_modules/
+/dist/
+/test scripts/
+/*.log

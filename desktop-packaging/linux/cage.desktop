@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Carnot Agent Engine
+Exec=/usr/bin/carnot-agent-engine
+Icon=carnot-agent-engine
+Terminal=false
+Categories=Education;Science;
