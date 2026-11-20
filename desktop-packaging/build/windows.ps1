@@ -7,10 +7,8 @@ function Invoke-Tauri([string[]]$Arguments) {
     else { & cargo tauri @Arguments }
 }
 $pack=Split-Path $PSScriptRoot
-if (!(Test-Path -LiteralPath "$pack\out\payload\app\dist\server\index.js")) {
-    & $node "$PSScriptRoot\stage.mjs"
-    if ($LASTEXITCODE) { exit $LASTEXITCODE }
-}
+& $node "$PSScriptRoot\stage.mjs"
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
 & (Join-Path $PSScriptRoot "prepare-cleanup.ps1")
 Push-Location "$pack\shell"
 try {

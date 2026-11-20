@@ -71,6 +71,8 @@ export interface DomainRequest {
 }
 import type {PublicMaintenanceHistory as MaintenanceHistory,MaintenanceInput} from '../src/server/maintenance-session';
 export const api = {
+  checkDesktopUpdate: (token?: string) => request<{currentVersion:string; latestVersion:string; available:boolean}>('/desktop/update/check', 'POST', { token }),
+  installDesktopUpdate: (version: string, token?: string) => request<{status:string}>('/desktop/update/install', 'POST', { version, token }),
   saveStorage:(locations:StorageLocations)=>request<StorageSettings>('/workspace/storage','PUT',locations),
   pickStorageFolder:()=>request<{path:string|null}>('/workspace/pick-folder','POST'),
   openStorage:()=>request<void>('/workspace/open-storage','POST'),

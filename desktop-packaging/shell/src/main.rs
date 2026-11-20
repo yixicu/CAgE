@@ -35,9 +35,10 @@ fn set_taskbar_icon(window:&tauri::WebviewWindow)->Result<(),Box<dyn Error>> {
 fn open(app: &mut tauri::App) -> Result<(), Box<dyn Error>> {
     let dir = app.path().resource_dir()?;
     let data = std::env::var_os("CARNOT_DATA_DIR").map(PathBuf::from).or_else(||saved_path(&dir,"workspace-path.txt")).unwrap_or_else(||dir.join("workspace"));
+    let version = app.package_info().version.to_string();
     let mut child = Command::new(chosen_node(&dir)).current_dir(dir.join("payload/app"))
         .args(["--input-type=module","-e",include_str!("../start.mjs")])
-        .env("CARNOT_DATA_DIR", &data).creation_flags(0x08000000)
+        .env("CARNOT_DESKTOP_VERSION", &version).env("CARNOT_DATA_DIR", &data).creation_flags(0x08000000)
         .stdout(Stdio::piped()).spawn()?;
     let stdout = child.stdout.take().ok_or("Missing startup pipe")?;
     let port = std::sync::Arc::new(std::sync::atomic::AtomicU16::new(0));
@@ -51,6 +52,7 @@ fn open(app: &mut tauri::App) -> Result<(), Box<dyn Error>> {
             (active!=0 && u.scheme()=="http" && u.host_str()==Some("127.0.0.1") && u.port_or_known_default()==Some(active))
         })
         .initialization_script(if dir.join("payload/app/dist/web/basic-physics-map.mjs").is_file() {"window.__CARNOT_BASIC_PHYSICS__=true;"} else {"window.__CARNOT_BASIC_PHYSICS__=false;"})
+        .initialization_script(format!("window.__CARNOT_DESKTOP_VERSION__='{}';", version))
         .initialization_script(include_str!("../chrome.js"))
         .build();
     let window = match window { Ok(w)=>w, Err(e)=>{let _=child.kill();let _=child.wait();return Err(e.into());} };

@@ -35,6 +35,14 @@ internal class RemovePrivate {
         if((attributes&(ReadOnly|Reparse))==ReadOnly)Check(SetFileAttributesW(path,attributes&~ReadOnly));
         Check(dir?RemoveDirectoryW(path):DeleteFileW(path));
     }
+    internal static void DeleteOwnedEntry(string path){
+        string full=Path.GetFullPath(path);
+        string native=full.StartsWith(@"\\")?@"\\?\UNC\"+full.Substring(2):@"\\?\"+full;
+        uint attributes=GetFileAttributesW(native);
+        if(attributes!=Invalid){DeleteEntry(native,attributes);return;}
+        int error=Marshal.GetLastWin32Error();
+        if(error!=2&&error!=3)throw new Win32Exception(error);
+    }
     static int Main(){
         try {
             string root=Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd('\\');

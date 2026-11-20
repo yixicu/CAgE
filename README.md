@@ -8,6 +8,8 @@ CAgE is a local-first research workspace for theoretical physics and mathematica
 
 Run the setup executable and choose a parent folder. Setup creates a Carnot Agent Engine subfolder. Under **Advanced**, choose **I have one** to detect a compatible Node.js runtime or compatible project packages. Missing packages can be downloaded during installation. The basic physics knowledge map and desktop shortcut are optional. The desktop shell uses Microsoft Edge WebView2. This release is unsigned.
 
+From desktop version 0.2.6, open **Settings → Plugins & general → Desktop updates** to check GitHub Releases and install a newer stable version. For a private release, use a GitHub account with repository access and a token with read-only Contents permission.
+
 ## Run in a browser
 
 Use Node.js 24.19 or newer in the 24.x series and npm 11.9.0. From the project directory:

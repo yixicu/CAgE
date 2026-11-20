@@ -156,10 +156,43 @@ internal class Setup {
         foreach(string id in new[]{"Node","Modules"})foreach(string prefix in new[]{"Have","New"})UI<RadioButton>(prefix+id).Checked+=(a,b)=>Plan();
         new Application().Run(window);
     }
+    static int OpenUpdate(Upgrade.Installed installed,bool automatic){
+        if(installed.Version>Upgrade.Target)throw new IOException("A newer version of Carnot Agent Engine is already installed.");
+        var window=new Window{Title="Update Carnot Agent Engine",Width=510,SizeToContent=SizeToContent.Height,ResizeMode=ResizeMode.NoResize,WindowStartupLocation=WindowStartupLocation.CenterScreen};
+        var panel=new StackPanel{Margin=new Thickness(24)};window.Content=panel;
+        panel.Children.Add(new TextBlock{Text="Carnot Agent Engine "+Upgrade.Target,FontSize=22,FontWeight=FontWeights.SemiBold});
+        var status=new TextBlock{Text=installed.Version==Upgrade.Target?"This version is installed.":("Update version "+installed.Version+" in "+installed.Root+". Close Carnot before continuing."),TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,12,0,16)};
+        panel.Children.Add(status);
+        var progress=new ProgressBar{IsIndeterminate=true,Height=4,Visibility=Visibility.Collapsed,Margin=new Thickness(0,0,0,12)};panel.Children.Add(progress);
+        var action=new Button{Content=installed.Version==Upgrade.Target?"Finish":"Update",Padding=new Thickness(16,6,16,6),HorizontalAlignment=HorizontalAlignment.Right,IsDefault=true};panel.Children.Add(action);
+        bool running=false;int result=1;
+        Func<Task> update=async delegate{
+            if(running)return;
+            running=true;action.IsEnabled=false;progress.Visibility=Visibility.Visible;
+            try{
+                await Task.Run(()=>Upgrade.Apply(installed,text=>window.Dispatcher.Invoke(new Action(()=>status.Text=text))));
+                if(automatic||installed.Version<Upgrade.Target)
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(installed.Root,"carnot-desktop.exe")){WorkingDirectory=installed.Root});
+                result=0;running=false;window.Close();
+            }catch(Exception ex){status.Text=ex.Message;action.Content="Retry";}
+            finally{running=false;action.IsEnabled=true;progress.Visibility=Visibility.Collapsed;}
+        };
+        action.Click+=async (a,b)=>await update();
+        if(automatic)window.ContentRendered+=async (a,b)=>await update();
+        window.Closing+=(a,b)=>{if(running)b.Cancel=true;};
+        new Application().Run(window);return result;
+    }
     [STAThread] public static int Main(string[] args){
         System.Globalization.CultureInfo.DefaultThreadCurrentUICulture=new System.Globalization.CultureInfo("en-US");
         AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling",false);
         AppContext.SetSwitch("Switch.System.IO.BlockLongPaths",false);
-        try{new Setup().Open();return 0;}catch(Exception e){MessageBox.Show(e.Message,"Carnot setup");return 1;}
+        try{
+            bool update=args.Length==1&&args[0]=="--update";
+            if(args.Length!=0&&!update)throw new ArgumentException("Run setup without arguments to install, or use --update for the registered installation.");
+            var installed=Upgrade.Find();
+            if(installed!=null)return OpenUpdate(installed,update);
+            if(update)throw new IOException("No registered Carnot Agent Engine installation was found for this Windows account.");
+            new Setup().Open();return 0;
+        }catch(Exception e){MessageBox.Show(e.Message,"Carnot setup");return 1;}
     }
 }

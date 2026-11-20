@@ -1,3 +1,4 @@
+import { DesktopUpdates, launchUpdate, UpdateError } from './desktop-updates.js';
 import {maintenanceReferenceTools} from './maintenance-references.js';
 import {archivedRefutation} from '../learning/research-data.js';
 import { usesV3Proof } from '../research/versions/v3/proof-version.js';
@@ -64,6 +65,7 @@ import { SessionStates, type SessionState } from './session-state.js';
 
 export interface ApplicationRuntime extends AnyAgentRuntime, Partial<LearningRuntime> { runMaintenance?(request:MaintenanceRequest):Promise<string>; auth: Pick<CAgEAuthManager, 'listProviders' | 'listModels' | 'saveApiKey' | 'startLogin' | 'getLogin' | 'answerLogin' | 'cancelLogin' | 'logout'>; invokeTheoryV4?(request:TheoryRequestV4):Promise<unknown>; hasForegroundInvocation?(): boolean; canQueueBackgroundLearning?(): boolean; shutdown(): Promise<void> }
 export interface AppOptions {
+  desktopVersion?: string;
   dataRoot?: string; sourceRoot?: string; staticRoot?: string;
   /** Deterministic tests may inject adapters; normal startup always constructs official Pi. */
   runtime?: ApplicationRuntime; store?: FileResearchStore; plugins?: PluginHost;
@@ -245,6 +247,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     await learning.close().catch(() => {}); plugins.close(); await runtime.shutdown().catch(() => {}); await store.close().catch(() => {}); throw error;
   }
   const app = Fastify({ logger: false, routerOptions: { maxParamLength: 512 }, bodyLimit: 30 * 1024 * 1024, ajv: { customOptions: { removeAdditional: false } } }) as unknown as CarnotApp;
+  const updates = options.desktopVersion ? new DesktopUpdates(options.desktopVersion, join(active.system, 'desktop-updates')) : undefined;
   const requestToken = randomBytes(32).toString('base64url');
   const streams = new Set<ServerResponse>();
   const jobs = new Map<string, Promise<void>>();
@@ -948,6 +951,53 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
   }
   app.put<{ Params: { id: string }; Body: PluginGrant }>('/api/plugins/:id/grants', { schema: { params: idParams, body: body({ projectId: identifier, role: { enum: ['theorist', 'worker', 'moderator', 'literature'] }, capabilities: { type: 'array', items: string(100), maxItems: 10 } }) } }, async request => { await snapshot(request.body.projectId); await plugins.grant(request.params.id, request.body); return plugins.discover(); });
   app.delete<{ Params: { id: string } }>('/api/plugins/:id', { schema: { params: idParams } }, async request => { await plugins.unload(request.params.id); return plugins.discover(); });
+  if (updates) {
+    const writing = new Set<FastifyRequest>();
+    app.addHook('onRequest', async (request, reply) => {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        writing.add(request);
+        reply.raw.once('close', () => writing.delete(request));
+      }
+    });
+    app.addHook('onResponse', async request => { writing.delete(request); });
+    const token = { type: 'string', pattern: '^[A-Za-z0-9_\\-]{1,512}$' };
+    app.post<{ Body: { token?: string } }>('/api/desktop/update/check', {
+      bodyLimit: 2048, schema: { body: body({ token }, []) }
+    }, request => updates.check(request.body.token));
+    let downloading = false;
+    app.post<{ Body: { token?: string; version: string } }>('/api/desktop/update/install', {
+      bodyLimit: 2048, schema: { body: body({ token, version: string(32) }, ['version']) }
+    }, async (request, reply) => {
+      const requireIdleForUpdate = async (reserve = false) => {
+        const session = await maintenance;
+        if (reply.raw.destroyed || stopping || [...writing].some(other => other !== request) || mutations.size || jobs.size || mapControllers.size ||
+          [...knownProjectIds].some(id => engine.isActive(id)) || runtime.hasForegroundInvocation?.() ||
+          session?.history().turns.at(-1)?.status === 'running' || learning.tasks().some(task => task.status === 'running')) {
+          throw new ApiError(409, 'UPDATE_BUSY', 'Finish active research and maintenance before installing the update.');
+        }
+        if (reserve) stopping = true;
+      };
+      if (downloading) throw new ApiError(409, 'UPDATE_BUSY', 'An update is already downloading.');
+      downloading = true;
+      try {
+        await requireIdleForUpdate();
+        const installer = await updates.download(request.body.version, request.body.token);
+        try {
+          await requireIdleForUpdate(true);
+          try { await launchUpdate(installer.path); }
+          catch { stopping = false; throw new ApiError(500, 'UPDATE_LAUNCH', 'Windows could not launch the verified installer.'); }
+        } catch (error) {
+          await installer.discard();
+          throw error;
+        }
+        const shutdownAfterReply = () => { void app.carnot.shutdown().catch(() => {}); };
+        reply.raw.once('finish', shutdownAfterReply);
+        reply.raw.once('close', shutdownAfterReply);
+        if (reply.raw.destroyed) shutdownAfterReply();
+        return reply.code(202).send({ status: 'launching' });
+      } finally { downloading = false; }
+    });
+  }
   app.post<{ Body: { mode: 'background' | 'shutdown' } }>('/api/exit', { schema: { body: body({ mode: { enum: ['background', 'shutdown'] } }) } }, async (request, reply) => {
     const active = await activeProjectIds(); if (request.body.mode === 'background') return { status: 'kept', activeProjectIds: active };
     stopping = true;
@@ -973,6 +1023,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
 function documentKind(path: string): 'markdown' | 'pdf' | 'text' { return /\.pdf$/i.test(path) ? 'pdf' : /\.(md|markdown)$/i.test(path) ? 'markdown' : 'text'; }
 function publicError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
+  if (error instanceof UpdateError) return new ApiError(error.status, error.code, error.message);
   if (isStorageAccessError(error)) return new ApiError(503, 'LOCAL_RESOURCE_UNAVAILABLE', 'Local storage or process resources are unavailable. Resolve the local access or resource problem, then refresh to check saved state before retrying an action.');
   if (error instanceof V1SkillError) return new ApiError(['STALE_REVISION', 'REVIEW_PENDING', 'ID_CONFLICT'].includes(error.code) ? 409 : 400, error.code, error.message);
   if (error instanceof ResearchVersionError) return new ApiError(409, error.code, error.message);

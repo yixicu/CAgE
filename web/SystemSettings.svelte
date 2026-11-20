@@ -5,6 +5,8 @@
   import ProviderSettings from './ProviderSettings.svelte';
   import StorageSettings from './StorageSettings.svelte';
   import ProjectSettings from './ProjectSettings.svelte';
+  import DesktopUpdates from './DesktopUpdates.svelte';
+  const desktopVersion = (window as Window & {__CARNOT_DESKTOP_VERSION__?:string}).__CARNOT_DESKTOP_VERSION__;
   import PluginSettings from './PluginSettings.svelte';
   import ResearchModeSelect from './ResearchModeSelect.svelte';
   import { DEFAULT_RESEARCH_MODE, type ResearchMode } from './research-mode';
@@ -46,6 +48,7 @@
       <div class="general-row"><span>Local storage</span><button onclick={async()=>{storageError='';try{await api.openStorage()}catch{storageError='Could not open the storage folder.'}}}>Open folder</button></div>
       {#if storageError}<p role="alert">{storageError}</p>{/if}
     </section>
+    {#if desktopVersion}<DesktopUpdates version={desktopVersion} />{/if}
     <PluginSettings />
   {/if}
 </div>

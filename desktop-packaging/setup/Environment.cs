@@ -123,27 +123,38 @@ internal static class SetupEnvironment {
     }
     [System.Runtime.InteropServices.DllImport("kernel32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode,SetLastError=true)]
     static extern bool DefineDosDevice(uint flags,string name,string target);
-    sealed class ShortStage:IDisposable {
-        internal readonly string Physical;
+    internal sealed class ShortPath:IDisposable {
+        readonly string physical;
         internal readonly string PathName;
         string drive;
-        internal ShortStage(string parent){
-            Physical=At(parent,".carnot-setup-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(Physical);
-            PathName=Physical;
+        internal ShortPath(string path){
+            physical=path;PathName=path;
             // ZipFile and some npm tools still use traditional Win32 path limits.
             var used=Environment.GetLogicalDrives();
             foreach(char letter in "ZYXWVUTSRQP"){
                 var name=letter+":";
                 if(used.Contains(name+"\\",StringComparer.OrdinalIgnoreCase))continue;
-                if(DefineDosDevice(8,name,Physical)){drive=name;PathName=name+@"\";break;}
+                if(DefineDosDevice(8,name,physical)){drive=name;PathName=name+@"\";break;}
             }
+        }
+        public void Dispose(){
+            if(drive!=null)DefineDosDevice(8|2|4,drive,physical);
+        }
+    }
+    sealed class ShortStage:IDisposable {
+        internal readonly string Physical;
+        internal readonly string PathName;
+        readonly ShortPath alias;
+        internal ShortStage(string parent){
+            Physical=At(parent,".carnot-setup-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(Physical);
+            alias=new ShortPath(Physical);PathName=alias.PathName;
         }
         public void Dispose(){
             try{
                 foreach(var dir in Directory.GetDirectories(PathName))Directory.Delete(dir,true);
                 foreach(var file in Directory.GetFiles(PathName))File.Delete(file);
             }finally{
-                if(drive!=null)DefineDosDevice(8|2|4,drive,Physical);
+                alias.Dispose();
                 if(!Directory.EnumerateFileSystemEntries(Physical).Any())Directory.Delete(Physical);
             }
         }
@@ -203,7 +214,7 @@ internal static class SetupEnvironment {
             Run(powershell,"-NoProfile -NonInteractive -Command \"$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:CARNOT_LINK -Target $env:CARNOT_MODULES | Out-Null\"",stage,linkVars);
             File.WriteAllBytes(At(dest,"node-path.txt"),System.Text.Encoding.Unicode.GetBytes(node));
             if(map)Extract("physics-map.js",At(dest,@"payload\app\dist\web\basic-physics-map.mjs"));
-            var shortcutVars=new Dictionary<string,string>{{"CARNOT_APP_EXE",At(dest,"carnot-desktop.exe")},{"CARNOT_ICON",At(dest,"carnot-0.2.5.ico")}};
+            var shortcutVars=new Dictionary<string,string>{{"CARNOT_APP_EXE",At(dest,"carnot-desktop.exe")},{"CARNOT_ICON",At(dest,"carnot-desktop.ico")}};
             string updateLinks="$shell=New-Object -ComObject WScript.Shell; foreach($dir in [Environment]::GetFolderPath('Programs'),[Environment]::GetFolderPath('DesktopDirectory')){foreach($l in Get-ChildItem -LiteralPath $dir -Filter 'Carnot Agent Engine.lnk' -Recurse -File){$link=$shell.CreateShortcut($l.FullName);if($link.TargetPath -eq $env:CARNOT_APP_EXE){$link.IconLocation=$env:CARNOT_ICON+',0';$link.Save()}}}";
             Run(powershell,"-NoProfile -NonInteractive -Command "+Q(updateLinks),stage,shortcutVars);
             SHChangeNotify(0x08000000,0,IntPtr.Zero,IntPtr.Zero);

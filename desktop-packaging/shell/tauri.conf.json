@@ -1,6 +1,6 @@
 {
   "productName": "Carnot Agent Engine",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "identifier": "org.carnot.agentengine",
   "build": {
     "frontendDist": "assets"
@@ -25,7 +25,7 @@
       "../out/payload/app/docs/": "payload/app/docs/",
       "../out/payload/app/package.json": "payload/app/package.json",
       "../out/payload/app/LICENSE": "payload/app/LICENSE",
-      "icons/icon.ico": "carnot-0.2.5.ico",
+      "icons/icon.ico": "carnot-desktop.ico",
       "../out/remove-carnot-environment.exe": "remove-carnot-environment.exe"
     },
     "windows": {

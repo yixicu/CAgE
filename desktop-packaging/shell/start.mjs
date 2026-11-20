@@ -12,7 +12,7 @@ const record = message => appendFile(log, `${new Date().toISOString()} ${message
 await record('Opening workspace');
 try {
   const { startServer } = await import('./dist/server/index.js');
-  const app = await startServer();
+  const app = await startServer({ desktopVersion: process.env.CARNOT_DESKTOP_VERSION });
   await record('Backend ready');
   process.stdout.write(String(app.server.address().port) + '\n');
 } catch (error) {
