@@ -1,3 +1,4 @@
+import './oauth-branding.js';
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

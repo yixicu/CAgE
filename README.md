@@ -24,3 +24,22 @@ Open the local address printed by the server. Research files and provider creden
 | [docs](docs/README.md) | The documentation index, including the [architecture guide for agents](docs/AGENTS.md), maintenance operations and plugin development. |
 
 [MIT license](docs/LICENSE)
+
+## References
+
+Pi provides the runtime. The other projects below informed specific design decisions in CAgE's research engine.
+
+| Project | What CAgE drew on |
+| --- | --- |
+| [All Agentic Architectures](https://github.com/FareedKhan-dev/all-agentic-architectures) | Critique and verification patterns for research rounds. |
+| [Claude Code](https://github.com/anthropics/claude-code) | Structured tool results and feedback when a tool call fails. |
+| [Codex](https://github.com/openai/codex) | Parsing native tool calls during agent handoffs. |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Modular plugin interfaces around a small core. |
+| [GraphRAG](https://github.com/microsoft/graphrag) | Community summaries for navigating a large knowledge collection. |
+| [GTPyhop](https://github.com/dananau/GTPyhop) | Refining high-level tasks into steps for reusable research strategies. |
+| [Harness²](https://github.com/google-research/harness2) | Retrieving evidence from an index and validating proposed changes to learned material. |
+| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | Loading a skill's details when its summary matches the task. |
+| [LangGraph](https://github.com/langchain-ai/langgraph) | Explicit inputs and outputs for reusable subgraphs. |
+| [Pi](https://github.com/earendil-works/pi) | Agent sessions, model providers, authentication and tool execution. |
+| [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent) | Handling malformed structured output in proof submission. |
+| [Soar](https://github.com/SoarGroup/Soar) | Learning reusable procedures from solved subproblems. |
