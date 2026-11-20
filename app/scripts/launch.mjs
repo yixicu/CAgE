@@ -3,13 +3,13 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readStorageLocations } from '../dist/storage/storage-locations.js';
-import { resolveDataRoot } from '../dist/storage/data-root.js';
+import { selectStartupDataRoot } from '../dist/storage/data-root.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const [selected, portText] = process.argv.slice(2);
 const port = Number(portText ?? process.env.CARNOT_PORT ?? 4327);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Choose a port between 1 and 65535.');
-const dataDir = await resolveDataRoot(selected==='--port'?undefined:selected,root);
+const dataDir = await selectStartupDataRoot(selected==='--port'?undefined:selected,root);
 const {system} = await readStorageLocations(dataDir, root);
 const logs = path.join(system, 'launcher-logs');
 fs.mkdirSync(logs, { recursive: true });

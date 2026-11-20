@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AmbiguousWorkspaceError } from '../storage/data-root.js';
+import { selectStartupDataRoot } from '../storage/data-root.js';
 import { createApp, type AppOptions, type CarnotApp } from './app.js';
 export { createApp } from './app.js';
 export type { AppOptions, ApplicationRuntime, CarnotApp } from './app.js';
@@ -22,11 +22,15 @@ export async function startServer(options: AppOptions & { port?: number; host?: 
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const app = await startServer();
+    const dataRoot = await selectStartupDataRoot().catch(error => {
+      process.stderr.write(String(error.message) + '\n');
+      throw error;
+    });
+    const app = await startServer({dataRoot});
     const address = app.server.address();
     if (process.connected && address && typeof address === 'object') process.send?.({ type: 'carnot.ready', pid: process.pid, port: address.port });
     process.stdout.write(`CAgE is running at http://127.0.0.1:${typeof address === 'object' && address ? address.port : 4327}\nClosing the browser keeps research running. Use Exit for a graceful shutdown.\n`);
     const stop = () => { void app.carnot.shutdown().catch(() => { process.stderr.write('CAgE could not finish graceful shutdown. Saved checkpoints remain available for recovery.\n'); process.exitCode = 1; }); };
     process.once('SIGINT', stop); process.once('SIGTERM', stop);
-  } catch (error) { process.stderr.write(error instanceof AmbiguousWorkspaceError ? error.message + '\n' : 'CAgE could not start. Check the local port, application data directory, and build.\n'); process.exitCode = 1; }
+  } catch { process.stderr.write('CAgE could not start. Check the local port, application data directory, and build.\n'); process.exitCode = 1; }
 }

@@ -1,5 +1,6 @@
 node_modules/
 /.carnot-data/
+/.carnot-workspace-choice
 dist/
 .env
 .env.*
