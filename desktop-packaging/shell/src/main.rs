@@ -58,7 +58,6 @@ fn open(app: &mut tauri::App) -> Result<(), Box<dyn Error>> {
             (active==0 && (u.as_str()=="about:blank" || u.host_str()==Some("tauri.localhost"))) ||
             (active!=0 && u.scheme()=="http" && u.host_str()==Some("127.0.0.1") && u.port_or_known_default()==Some(active))
         })
-        .initialization_script(if dir.join("payload/app/dist/web/basic-physics-map.mjs").is_file() {"window.__CARNOT_BASIC_PHYSICS__=true;"} else {"window.__CARNOT_BASIC_PHYSICS__=false;"})
         .initialization_script(format!("window.__CARNOT_DESKTOP_VERSION__='{}';", version))
         .initialization_script(include_str!("../chrome.js"))
         .build();

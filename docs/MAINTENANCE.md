@@ -1,6 +1,6 @@
 # Maintenance Assistant
 
-Open **Maintenance Assistant** in the sidebar. Select a project for its saved rounds and V4 knowledge map, or **Shared library** for Skills and Strategies used across projects. Choose a connected model. Leave **Allow changes** clear to inspect records or preview an edit. To apply a proposal, stay in the same scope, check **Allow changes**, and send a new instruction. The checkbox resets after submission and when you change scope.
+Open **Maintenance Assistant** in the sidebar. Select a project for its saved rounds and V4 knowledge map, or **Shared library & Core map** for shared scientific nodes, Skills and Strategies. When installed, the Core map is imported once and is available to Theorists and their Workers. Opening a supplied argument does not accept it as a foundation. Choose a connected model. Leave **Allow changes** clear to inspect records or preview an edit. To apply a proposal, stay in the same scope, check **Allow changes**, and send a new instruction. The checkbox resets after submission and when you change scope.
 
 ## Diagnose a project or recover an interrupted turn
 
@@ -19,7 +19,7 @@ The assistant has no shell, general file browser, or tool for opening, editing, 
 
 ## Manage and transfer Skills and Strategies
 
-Select **Shared library**. Ask for matches by title, then ask to read the chosen card's ID, version, full Markdown body, applicability and tags. A change here affects the shared library across projects.
+Select **Shared library & Core map**. Ask for matches by title, then ask to read the chosen card's ID, version, full Markdown body, applicability and tags. A change here affects the shared library across projects.
 
 | To do this | Ask the assistant |
 |---|---|
@@ -30,7 +30,7 @@ Select **Shared library**. Ask for matches by title, then ask to read the chosen
 
 Creation, revision and retirement require **Allow changes**. Created and revised cards start disabled with status `needs_review`. If another edit changed the target, read the new version before reapplying the change. For a manual edit of an available card, open the resource in **cages** and use **Edit resource** when enabled.
 
-For a portable text copy, ask for the card's complete body and metadata, then save the reply as Markdown yourself. In the destination workspace, select **Shared library**, attach the file, and ask for a new card of the same kind. Verify its stored body and status. This transfers the instructions as a new revision-one card. IDs, history, provenance and review decisions belong to the source workspace. The assistant has no bulk Skill/Strategy package importer or file-export tool.
+For a portable text copy, ask for the card's complete body and metadata, then save the reply as Markdown yourself. In the destination workspace, select **Shared library & Core map**, attach the file, and ask for a new card of the same kind. Verify its stored body and status. This transfers the instructions as a new revision-one card. IDs, history, provenance and review decisions belong to the source workspace. The assistant has no bulk Skill/Strategy package importer or file-export tool.
 
 ## Transfer a V4 knowledge map
 

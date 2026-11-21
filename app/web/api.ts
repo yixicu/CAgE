@@ -77,6 +77,7 @@ export const api = {
   saveStorage:(locations:StorageLocations)=>request<StorageSettings>('/workspace/storage','PUT',locations),
   pickStorageFolder:()=>request<{path:string|null}>('/workspace/pick-folder','POST'),
   openStorage:()=>request<void>('/workspace/open-storage','POST'),
+  coreMap:()=>request<{entries:(import('../src/learning/knowledge-map').MapEntry & {suppliedProof?:{argument:string};supports?:{status:string;argument:string}[]})[];relations:import('../src/learning/knowledge-map').MapRelation[]}>('/research/core-map'),
   cageMap:(id:string)=>request<{entries:import('../src/learning/knowledge-map').MapEntry[];relations:import('../src/learning/knowledge-map').MapRelation[]}>(`/research/knowledge-map?projectId=${segment(id)}`),
   maintenanceSession:()=>request<MaintenanceHistory>('/maintenance/session'),
   stopMaintenance:(requestId:string)=>request<MaintenanceHistory>('/maintenance/session/stop','POST',{requestId}),

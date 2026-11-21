@@ -17,6 +17,10 @@ import type { V3Execution } from '../research/versions/v3/integration.js';
 import type { OptionalRetainedV21 } from './v21-optional-control.js';
 import type { OptionalControlV21, OptionalTheoristResultV21 } from '../research/versions/v21/optional-types.js';
 
+function publicPhase(signature?:string):unknown{
+  try{return signature && JSON.parse(signature)?.phase;}catch{return undefined;}
+}
+
 /** V3 alone permits dynamic tools in the same Pi conversation. Every public
  * response is retained; only the terminal declaration freezes the manuscript. */
 export class ProofControlV3 extends V21Control {
@@ -26,6 +30,12 @@ export class ProofControlV3 extends V21Control {
   private toolCorrectionDispatches=0;
   private current?: V0AnswerCollector;
   private completed: string[] = [];
+  onCommentary?: (text:string)=>void;
+  private readonly announced=new Set<number>();
+  private hasAnswerText=false;
+  private requestedManuscript=false;
+  needsManuscript=false;
+  get writingManuscript(){return this.requestedManuscript&&!this.correction;}
   private dispatchNumber = 0;
   private currentRecorded = false;
   private invalidText = false;
@@ -44,9 +54,9 @@ export class ProofControlV3 extends V21Control {
   }
   get retained(): OptionalRetainedV21 | undefined { return this.retainedState.value; }
   override startDispatch():void {
-    super.startDispatch();this.dispatchNumber++;this.toolRejections.clear();
+    super.startDispatch();this.announced.clear();this.dispatchNumber++;this.toolRejections.clear();
     if(this.pendingToolCorrection){this.pendingToolCorrection=false;this.toolCorrectionDispatches++;void this.journal.capture({kind:'v3-tool-correction-dispatch',count:this.toolCorrectionDispatches,...(this.nativeHandoff?{limit:1}:budgetControlsEnabledV3(this.capacityPolicy)?{limit:2}:{controlsEnabled:false})}).catch(()=>{});}
-    if(!this.correction){this.currentRecorded=false;this.current=new V0AnswerCollector(event=>{void this.journal.capture({kind:'v3-original-text',dispatch:this.dispatchNumber,event}).catch(()=>{});});}
+    if(!this.correction){this.currentRecorded=false;this.current=this.collector;}
   }
   protected override canRequestFormatCorrection():boolean{return this.nativeHandoff?this.toolCorrectionDispatches+this.journal.state.corrections<1:super.canRequestFormatCorrection();}
   override get allowsDispatch():boolean{return super.allowsDispatch&&(!this.pendingToolCorrection||(this.nativeHandoff?this.canRequestFormatCorrection():!budgetControlsEnabledV3(this.capacityPolicy)||this.toolCorrectionDispatches<2));}
@@ -77,11 +87,23 @@ export class ProofControlV3 extends V21Control {
     }
     return result;
   }
-  override observe(event:AssistantMessageEvent):void {super.observe(event);if(!this.correction&&!this.current?.terminal)this.current?.observe(event);}
-  private recordCurrent():void {
+  override observe(event:AssistantMessageEvent):void {
+    super.observe(event);
+    if(this.correction)return;
+
+    if(this.onCommentary && event.type==='text_end' && event.content.trim()){
+      const part=event.partial.content[event.contentIndex];
+      if(part?.type==='text' && publicPhase(part.textSignature)==='commentary' && !this.announced.has(event.contentIndex)){
+        this.announced.add(event.contentIndex);
+        this.onCommentary(event.content);
+      }
+    }
+  }
+  private recordCurrent(manuscript?:string):void {
     if(this.currentRecorded||!this.current)return;
     this.invalidText ||= this.current.mismatch;
-    if(this.current.text)this.completed.push(this.current.text);
+    const text=manuscript??this.current.text;
+    if(text)this.completed.push(text);
     this.currentRecorded=true;
   }
   async preserveOriginal(forceIncomplete=false):Promise<void>{
@@ -97,12 +119,40 @@ export class ProofControlV3 extends V21Control {
     await this.journal.capture({kind:'v21-optional-original',...this.retainedState.value});
   }
   override async prepareMessage(message:AssistantMessage,skippedOperation=false):Promise<void>{
-    await this.journal.capture({kind:'v3-original-message',dispatch:this.dispatchNumber,correction:this.correction,message:{...message,content:message.content.filter(part=>part.type!=='thinking')}});
+    const progressParts:number[]=[];
+    let manuscript='';
+    if(this.declarationSupplement && !this.correction){
+      const calls=message.content.filter(part=>part.type==='toolCall');
+      const mixed=calls.length>0&&!calls.some(call=>call.name===SUBMIT_RESULT && call.arguments.action!=='complete');
+      let publicIndex=-1;
+      for(const [i,part] of message.content.entries()){
+        if(part.type==='thinking')continue;
+        publicIndex++;
+        if(part.type!=='text')continue;
+        const phase=publicPhase(part.textSignature);
+        if(phase==='commentary'||mixed&&phase!=='final_answer'){
+          progressParts.push(publicIndex);
+          if(part.text.trim()&&!this.announced.has(i))this.onCommentary?.(part.text);
+        }else manuscript+=part.text;
+      }
+    }
+    await this.journal.capture({...(progressParts.length?{progressParts}:{}),kind:'v3-original-message',dispatch:this.dispatchNumber,correction:this.correction,message:{...message,content:message.content.filter(part=>part.type!=='thinking')}});
     for(const evidence of this.evidence.values())await this.journal.capture({kind:'v21-optional-arguments',dispatch:this.dispatchNumber,evidence});
-    if(!this.correction)this.recordCurrent();
+    if(!this.correction)this.recordCurrent(this.declarationSupplement?manuscript:undefined);
     if(this.invalidText){this.fatal=new RuntimeError('TOOL_PROTOCOL_FAILED');return;}
     if(this.cancelled()){this.fatal=new RuntimeError('BUDGET_EXHAUSTED');return;}
-    const terminal=message.content.some(part=>part.type==='toolCall'&&part.name===SUBMIT_RESULT);
+    const submission=message.content.find(part=>part.type==='toolCall'&&part.name===SUBMIT_RESULT);
+    const terminal=!!submission;
+    if(this.declarationSupplement&&!this.correction){
+      const answerText=!!manuscript.trim()&&(message.stopReason==='stop'||terminal);
+      this.hasAnswerText ||= answerText;
+      if(this.requestedManuscript && !answerText){this.fatal=new RuntimeError('INVALID_OUTPUT');return;}
+      if(!this.hasAnswerText && (submission?.type==='toolCall' && submission.arguments.action==='complete' || message.stopReason==='stop' && progressParts.length)){
+        this.needsManuscript=true;this.requestedManuscript=true;
+        this.feedback='The progress message was saved. Write the actual answer and derivation now.';
+        return;
+      }
+    }
     if(terminal||this.declarationSupplement&&message.stopReason==='stop'&&message.content.some(p=>p.type==='text'&&p.text.trim())){await this.preserveOriginal();if(!this.retained||this.retained.technical.completeness!=='complete'){this.fatal=new RuntimeError('INVALID_OUTPUT');return;}}
     await super.prepareMessage(message,skippedOperation);
   }

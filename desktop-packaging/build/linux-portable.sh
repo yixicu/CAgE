@@ -12,6 +12,7 @@ trap 'rm -rf -- "$stage"' EXIT
 pkg="$stage/Carnot-$version"
 mkdir -p "$pkg/docs" "$pkg/scripts"
 cp -R "$root/app/dist" "$root/app/plugins" "$pkg/"
+cp "$root/app/web/core-preview.json" "$pkg/dist/web/core-preview.json"
 cp "$root/app/package.json" "$root/app/package-lock.json" "$root/desktop-packaging/linux/start.mjs" "$root/docs/LICENSE" "$pkg/"
 cp "$root/app/scripts/subagent-host.mjs" "$root/app/scripts/subagent-session.mjs" "$pkg/scripts/"
 cp "$root/docs/MAINTENANCE.md" "$root/docs/ROLE_MODELS.md" "$root/docs/SUBAGENTS.md" "$root/docs/THIRD_PARTY_NOTICES.md" "$pkg/docs/"

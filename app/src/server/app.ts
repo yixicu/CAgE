@@ -54,6 +54,7 @@ import { PluginHost, PluginError, type PluginGrant } from '../plugins/index.js';
 import { readPreferences, writePreferences, parsePreferences, researchDefaults, applyPreferences } from './preferences.js';
 import { registerLibraryCapabilityRoutes } from './library-capabilities.js';
 import {registerKnowledgeMapRoutes,publicResearchTask} from './knowledge-map-routes.js';
+import {CORE_MAP_ID, type MapSeedInput} from '../learning/knowledge-map-store.js';
 import {MapError} from '../learning/knowledge-map.js';
 import {admitMapMaintenance,startMapMaintenance,waitMapMaintenance,isMapMaintenanceRunning} from '../research/versions/v4/map-maintenance.js';
 import {MapReader} from '../research/versions/v4/map-reader.js';
@@ -166,6 +167,19 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     endedAttempts: project => project.schemaVersion === 1 ? endedV1Attempts(project) : project.schemaVersion === 2 ? endedV2Attempts(project) : [], onUnavailable: markUnavailable,
   });
   try {
+    // Older Windows installations store the optional data as a JSON literal in an ES module.
+    // Parse it as data. Never execute code from an installed map.
+    const webRoot=options.staticRoot ?? join(sourceRoot,'dist','web');
+    for(const file of [join(webRoot,'basic-physics-map.mjs'),join(sourceRoot,'web','core-preview.json'),join(webRoot,'core-preview.json')]){
+      let contents:string;
+      try{contents=await readFile(file,'utf8');}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')continue;throw error;}
+      if(!await store.library.knowledgeMap.hasCoreMap()){
+        const entries:MapSeedInput['entries']=JSON.parse(contents.trim().replace(/^export default /,'').replace(/;$/,''));
+        await store.library.knowledgeMap.importSeeds({projectId:CORE_MAP_ID,requestId:'bundled-core-v1',expectedProfileVersion:0,entries},
+          {purpose:'map-user',ownerId:'local-user',projectId:CORE_MAP_ID});
+      }
+      break;
+    }
     plugins = options.plugins ?? await PluginHost.open(dataRoot, firecrawlKeyFile);
     runtime = options.runtime ?? await CAgERuntimeAdapter.create({ appDataDir: join(dataRoot, 'pi'), authRoot: join(anchor, 'pi'), recordsRoot: join(active.system, 'pi'), rawAnswers: store.rawAnswers, rawAnswersV0: store.rawAnswersV0,
       onProgress: progress => activity.observe(progress),
@@ -182,7 +196,11 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
             const grant=existing.view.grant;
             if(grant.ownerId!=='local-user'||grant.projectId!==spec.projectId||grant.taskId!==spec.id||grant.purpose!=='map-worker'||!Array.isArray(grant.allowedRefs))throw new RuntimeError('INVALID_CONFIGURATION');
             allowedRefs.push(...grant.allowedRefs);
-          }else if(parent){
+          }else{
+            const core=await store.library.knowledgeMap.inspectMaintenance(CORE_MAP_ID);
+            allowedRefs.push(...core.entries.filter(entry=>entry.status==='active').map(entry=>entry.ref));
+          }
+          if(!existing&&parent){
             const saved=await savedRead(parent);
             if(saved){
               const grant=saved.view.grant;
@@ -396,6 +414,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
   };
   const requireIdle = (id: string) => { if (jobs.has(id) || engine.isActive(id)) throw new ProjectBusyError(); };
 
+  app.get('/api/research/core-map',async()=>store.library.knowledgeMap.inspectMaintenance(CORE_MAP_ID));
   app.get('/api/maintenance/session',async()=>(await getMaintenance()).history());
   app.post<{Body:{requestId:string}}>('/api/maintenance/session/stop',{schema:{body:body({requestId:identifier})}},async request=>{
     const session=await getMaintenance();session.stop(request.body.requestId);return session.history();

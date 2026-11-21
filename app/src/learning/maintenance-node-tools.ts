@@ -1,5 +1,6 @@
 import {defineTool,type ToolDefinition} from '@earendil-works/pi-coding-agent';
-import {Type,type TSchema,type Static} from 'typebox';
+import {Type,type TSchema,type TObject,type Static} from 'typebox';
+import {CORE_MAP_ID} from './knowledge-map-store.js';
 import {exact} from '../runtime/strict-schema.js';
 import {RESOURCE_TITLE_GUIDANCE, SKILL_BODY_GUIDANCE, STRATEGY_BODY_GUIDANCE} from './resource-authoring.js';
 import {FIELD_TAG_GUIDANCE} from '../shared/knowledge-fields.js';
@@ -9,7 +10,7 @@ import type {ResearchLibrary} from './research-library.js';
 
 
 const closed={additionalProperties:false};
-const scope=Type.Union([Type.Literal('project-map'),Type.Literal('shared-library')]);
+const scope=Type.Union([Type.Literal('project-map'),Type.Literal('core-map'),Type.Literal('shared-library')]);
 const revision=Type.Integer({minimum:0}), id=Type.String({minLength:1,maxLength:256});
 const target={scope,id,version:Type.Integer({minimum:1}),revision};
 const content={
@@ -46,7 +47,30 @@ function tool<S extends TSchema,R>(name:string,description:string,parameters:S,r
 }
 
 export function maintenanceNodeTools(library:ResearchLibrary,projectId?:string):ToolDefinition[] {
- const allowed=projectId===undefined?'shared-library':'project-map';
+ if(projectId===undefined){
+  const resources=scopedNodeTools(library);
+  const core=scopedNodeTools(library,CORE_MAP_ID);
+  return core.map(mapTool=>{
+   const resource=resources.find(tool=>tool.name===mapTool.name);
+   return {...mapTool,description:'Choose core-map for shared scientific nodes or shared-library for Skills and Strategies. '+mapTool.description.replace(/^This session can access only core-map\. /,''),
+    parameters:{...mapTool.parameters,properties:{...(mapTool.parameters as TObject).properties,scope:Type.Union([Type.Literal('core-map'),Type.Literal('shared-library')])}},
+    execute:async(callId,input,signal,onUpdate,ctx)=>{
+      if(!input||typeof input!=='object'||!('scope' in input))throw new MapError('INVALID_INPUT','Choose core-map or shared-library.');
+      if(input.scope==='core-map')return mapTool.execute(callId,input,signal,onUpdate,ctx);
+      if(input.scope==='shared-library'&&resource){
+        const result=await resource.execute(callId,input,signal,onUpdate,ctx);
+        if(resource.name!=='maintenance_list_nodes')return result;
+        const coreList=await mapTool.execute(callId,{...input,scope:'core-map'},signal,onUpdate,ctx);
+        return {content:[...result.content,...coreList.content],details:{summary:[result.details,coreList.details].map(d=>(d as {summary:string}).summary).join(' ')}};
+      }
+      throw new MapError('INVALID_INPUT','Choose core-map for a scientific node or shared-library for a Skill or Strategy.');
+    }};
+  });
+ }
+ return scopedNodeTools(library,projectId);
+}
+function scopedNodeTools(library:ResearchLibrary,projectId?:string):ToolDefinition[]{
+ const allowed=projectId===undefined?'shared-library':projectId===CORE_MAP_ID?'core-map':'project-map';
  const authoring=allowed==='shared-library'?' '+[RESOURCE_TITLE_GUIDANCE,'For Skills: '+SKILL_BODY_GUIDANCE,'For Strategies: '+STRATEGY_BODY_GUIDANCE,FIELD_TAG_GUIDANCE].join(' '):' '+MAP_NODE_WRITING;
  function scopedTool<S extends TSchema,R>(name:string,description:string,parameters:S,run:(input:Static<S>,callId:string,signal?:AbortSignal)=>Promise<R>,summarize:(receipt:R,input:Static<S>)=>string){
   return tool(name,`This session can access only ${allowed}. ${description}`,parameters,(input,callId,signal)=>{
@@ -67,7 +91,7 @@ export function maintenanceNodeTools(library:ResearchLibrary,projectId?:string):
  };
  async function write(input:{scope:Static<typeof scope>;revision:number},callId:string,ref?:{id:string;version:number},value?:Content,signal?:AbortSignal){
   if(value&&value.kind!=='theorem'&&(value.review!==undefined||value.proof!==undefined||value.dependencies!==undefined))throw new MapError('INVALID_INPUT','Only a project theorem accepts proof, review or dependencies.');
-  if(input.scope==='project-map'){
+  if(projectId!==undefined){
    if(value?.description!==undefined)throw new MapError('INVALID_INPUT','Use summary for project-map nodes.');
    if(value&&value.kind!=='concept'&&value.kind!=='theorem')throw new MapError('INVALID_INPUT','Choose a concept or theorem for the project map.');
    const receipt=await library.knowledgeMap.maintainNode(projectId!,callId,input.revision,{target:ref,content:value?{...value,kind:value.kind as 'concept'|'theorem'}:undefined},signal,checkpoints.get(input.revision));
@@ -82,12 +106,12 @@ export function maintenanceNodeTools(library:ResearchLibrary,projectId?:string):
  const writeSummary=(action:string)=>(receipt:Awaited<ReturnType<typeof write>>,input:{title?:string;scope:string})=>{
   const ref='ref' in receipt?receipt.ref:receipt;
   const title=input.title?'“'+input.title+'”':ref?.id??'node';
-  return `${action} ${title}${ref?' (v'+ref.version+')':''} in the ${receipt.scope==='project-map'?'project map':'shared library'}. Status: ${receipt.status.replaceAll('_',' ')}. Revision ${receipt.revision}.`;
+  return `${action} ${title}${ref?' (v'+ref.version+')':''} in the ${projectId===CORE_MAP_ID?'Core map':receipt.scope==='project-map'?'project map':'shared library'}. Status: ${receipt.status.replaceAll('_',' ')}. Revision ${receipt.revision}.`;
  };
  return [
   scopedTool('list_nodes','List up to 40 current nodes, including retired records. Project map is local to this project. Shared library edits affect all projects. Use the returned revision for any read or write.',list,async input=>{
    let current:number,items:{id:string;version:number;title:string;kind:string;status:string;summary?:string;description?:string;aliases?:string[]}[];
-   if(input.scope==='project-map'){
+   if(projectId!==undefined){
     const map=await snapshot();current=map.revision;
     const latest=new Map<string,(typeof map.entries)[number]>();
     for(const entry of map.entries)if((latest.get(entry.ref.id)?.ref.version??0)<entry.ref.version)latest.set(entry.ref.id,entry);
@@ -100,10 +124,10 @@ export function maintenanceNodeTools(library:ResearchLibrary,projectId?:string):
    const query=(input.query??'').toLowerCase(),offset=input.offset??0;
    const matches=items.filter(e=>[e.id,e.kind,e.title,e.summary??'',e.description??'',...e.aliases??[]].some(v=>v.toLowerCase().includes(query))).sort((a,b)=>a.id.localeCompare(b.id));
    return {scope:input.scope,revision:current,total:matches.length,nodes:matches.slice(offset,offset+40),nextOffset:offset+40<matches.length?offset+40:null};
-  },(r,input)=>`Found ${r.total} matching node${r.total===1?'':'s'}${input.query?' for “'+input.query+'”':''} in the ${r.scope==='project-map'?'project map':'shared library'}. Showing ${r.nodes.length} at revision ${r.revision}.`),
+  },(r,input)=>`Found ${r.total} matching node${r.total===1?'':'s'}${input.query?' for “'+input.query+'”':''} in the ${r.scope==='core-map'?'Core map':r.scope==='project-map'?'project map':'shared library'}. Showing ${r.nodes.length} at revision ${r.revision}.`),
   scopedTool('read_node','Read an exact project map node or shared Skill/Strategy. Use offset for long bodies. For an attached proof, read its supportId.',read,async input=>{
    let body:string,metadata:{title:string;status:string;[key:string]:unknown};
-   if(input.scope==='project-map'){
+   if(projectId!==undefined){
     const map=await snapshot();
     if(input.revision!==map.revision)throw new MapError('CONFLICT','Map changed. List the nodes again.');
     const node=map.entries.find(e=>e.ref.id===input.id&&e.ref.version===input.version);

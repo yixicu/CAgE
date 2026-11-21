@@ -50,7 +50,7 @@ export async function validateOptionalResultV21(spec:AgentSessionSpecV21,invocat
  const operation=optionalOperationV21(spec,invocation);operation.observeEvidence({mapWriteReads,publicBody:body});if(['v3-operation-1','v3-operation-2','v3-operation-3','v3-operation-4','v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(invocation.operation?.revision??''))operation.observeEvidence({...(mapEnabled?{mapKnowledge:mapKnowledge??[]}:{}),receipts:r.v3Execution?.receipts??[],...(r.v3Execution?.catalogPin?{catalogMaterials:r.v3Execution.catalogMaterials??[],knowledgeReads:r.v3Execution.knowledgeReads??[]}:{}),...(resources?{resources}:{}),...(deliveries?{deliveries}:{})});operation.validatePrepared(r.control);
  if(!body.trim())throw new RuntimeError('INVALID_CONFIGURATION');return structuredClone(r);
 }
-type SavedRow={kind:string;dispatch?:number;correction?:boolean;message?:AssistantMessage;event?:AnswerCaptureEvent;evidence?:ToolArgumentEvidence;owner?:RawAnswerOwnerV21;text?:string;technical?:TechnicalStateV21;declaration?:unknown;result?:unknown};
+type SavedRow={kind:string;progressParts?:number[];dispatch?:number;correction?:boolean;message?:AssistantMessage;event?:AnswerCaptureEvent;evidence?:ToolArgumentEvidence;owner?:RawAnswerOwnerV21;text?:string;technical?:TechnicalStateV21;declaration?:unknown;result?:unknown};
 /** Finish persistence only. A pending/uncertain provider call is never replayed. */
 export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocation:AgentInvocationV21,journal:OperationJournal,raw:RawAnswerStoreV21,mapReader?:MapReader):Promise<OptionalTheoristResultV21|undefined> {
  if(journal.state.dispatches===0)return undefined;
@@ -104,7 +104,7 @@ export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocati
   if(evidence.toolCallId!==terminal.id||evidence.tool!==terminal.name||!isDeepStrictEqual(evidence.sdkArguments,terminal.arguments))return undefined;
   const declaration=decodeSafeToolArguments(evidence).value,savedDeclaration=rows.find(row=>row.kind==='v21-declaration-constraints')?.declaration;
   if(!supplement&&savedDeclaration!==undefined&&!isDeepStrictEqual(savedDeclaration,declaration))throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
-  const publicText=rows.filter(row=>row.kind==='v3-original-message'&&!row.correction).map(row=>row.message?.content.filter(p=>p.type==='text').map(p=>p.text).join('')??'').filter(Boolean).join('\n\n');
+  const publicText=rows.filter(row=>row.kind==='v3-original-message'&&!row.correction).map(row=>row.message?.content.filter((_,i)=>!row.progressParts?.includes(i)).filter(p=>p.type==='text').map(p=>p.text).join('')??'').filter(Boolean).join('\n\n');
   if(publicText!==intent.text||!isDeepStrictEqual(intent.owner,optionalOwnerV21(spec,invocation)))throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
   const retained=await recoverOptionalOriginalV21(spec,invocation,journal,raw);if(!retained)return undefined;
   const events=rows as unknown as {kind:string;receipt?:import('../research/versions/v3/operations.js').OperationReceiptV3;instance?:import('../research/versions/v3/route-instances.js').RouteInstanceV3}[],base='brief'in spec.context?spec.context.brief.v3:spec.context.snapshot.v3;

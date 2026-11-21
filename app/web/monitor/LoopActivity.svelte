@@ -5,10 +5,11 @@
   import { researchProgress } from './research-progress';
   import MonitorButton from './MonitorButton.svelte';
   import Icon from '../Icon.svelte';
-  let { project, view, hasOutput = false, number, onmonitor }: {
-    project: AnyResearchProject; view: LoopView; hasOutput?: boolean; number?: number; onmonitor: () => void;
+  let { project, view, commentary=[], hasOutput = false, number, onmonitor }: {
+    project: AnyResearchProject; commentary?:{epoch:number;text:string}[]; view: LoopView; hasOutput?: boolean; number?: number; onmonitor: () => void;
   } = $props();
   let progress = $derived(researchProgress(project, number ?? view.number));
+  let notes=$derived(commentary.filter(note=>note.epoch===(number??view.number)));
   let current = $derived((number ?? view.number) === view.number);
   let scopeKey = $derived(`${project.id}:${project.schemaVersion}:${number ?? view.number}`);
   let open = $state(true), lastScope = '', hadOutput = false;
@@ -22,11 +23,14 @@
   <div class="flex items-center gap-2">
     <button class="group flex min-h-7 min-w-0 flex-1 items-center justify-start gap-2 border-0 p-0 text-left text-xs hover:bg-transparent" type="button" aria-expanded={open} aria-label={`${progress.scope} · Research progress${current && view.live ? ` · ${view.current}` : ''}`} onclick={() => open = !open}>
       <span class="shrink-0 text-muted"><Icon name={open ? 'chevronUp' : 'chevronDown'} size={12} /></span>
-      <span class="min-w-0 text-muted">{progress.scope} · {#if !open && current && view.live}<SourceText text={view.current} interactive={false} />{:else}Research progress{!open && progress.milestones.length ? ` · ${progress.milestones.length}` : ''}{/if}</span>
+      <span class="min-w-0 text-muted">{progress.scope} · {#if !open && current && view.live}<SourceText text={notes.at(-1)?.text??view.current} interactive={false} />{:else}Research progress{!open && progress.milestones.length ? ` · ${progress.milestones.length}` : ''}{/if}</span>
     </button>
     <MonitorButton onclick={onmonitor} />
   </div>
   {#if open}
+    {#each notes as note}
+      <p class="my-2 whitespace-pre-wrap break-words"><span class="font-semibold">Theorist · </span><SourceText text={note.text}/></p>
+    {/each}
     <ol class="m-0 mt-2 list-none space-y-2 border-l border-line pl-3">
       {#each progress.milestones as milestone (milestone.id)}
         <li class="relative m-0 min-w-0" data-milestone-id={milestone.id}>

@@ -399,6 +399,7 @@ class ConditionResearchRunnerV21 {
    else if(recovered&&'captured'in recovered&&recovered.captured)call.captured=structuredClone(recovered.captured);
    if(recovered?.status==='denied')call.status='denied';
    if(recovered?.status==='rejected'&&call.captured){call.status='rejected';call.usage=call.captured.technical.usage;}
+   if(call.captured)await this.recordRawDelivery(p,m,call);
    if(branch&&call.captured)branch.state='completed';
   }
   await this.ports.save(m);
@@ -433,7 +434,7 @@ class ConditionResearchRunnerV21 {
     if(rejected.length){
      const last=rejected.at(-1)!;
      if(!f.rawDeliveryHistory?.some(row=>row.callId===last.id))await this.recordRawDelivery(p,m,last);
-     const notice=rejected.length===1?'The previous scientific declaration was rejected. Make a fresh scientific decision. Dispatch requires an open outcome and a precise Worker assignment.':'Two scientific declarations were rejected. Start a new Epoch to try again.';
+     const notice=rejected.length===1?'The previous submission was rejected. Continue the scientific work in the public answer, including the derivation supporting your conclusion. Map updates are optional.':'Two scientific declarations were rejected. Start a new Epoch to try again.';
      if(!f.notices.includes(notice)){f.notices.push(notice);await this.ports.save(m);this.ports.emit(p,'research.warning',{userVisible:true,message:notice});}
      if(rejected.length>1){f.continuationNeeded=false;break;}
     }

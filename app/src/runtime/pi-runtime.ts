@@ -93,6 +93,7 @@ function isLearningSpec(spec: RuntimeSpec): spec is LearningSessionSpec { return
 function learningModelIdentity(model:Parameters<StreamFn>[0]) {return {provider:model.provider,id:model.id,api:model.api,modelBinding:stableHash(model)};}
 
 export interface RuntimeProgress {
+  commentary?: {epoch:number;text:string};
   sessionId: string; projectId: string; role: ResearchRole;
   status: 'started' | 'invocation_start' | 'invocation_end' | 'turn' | 'tool' | 'tool_end' | 'settled' | 'closed';
   /** Observation-only metadata; never include invocation input or tool arguments. */
@@ -663,7 +664,9 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       const projected = projectResearchContext(record.decisionOnly ? decisionContext(historyContext) : historyContext, model.contextWindow, model.maxTokens);
       // Dynamic strict schemas are provider payload too, although Pi's local validator is permissive.
       const schemaCodecs=record.v3Guidance?(record.v21Control?.codecs??record.handoff?.codecs):record.handoff?.codecs;
-      const schemaBytes=Buffer.byteLength(JSON.stringify([...schemaCodecs?.values()??[]].map(codec=>codec.schema)),'utf8');
+      const activeNames=new Set(record.pi.getActiveToolNames());
+      const dispatchTools=record.originalTools.filter(tool=>activeNames.has(tool.name));
+      const schemaBytes=Buffer.byteLength(JSON.stringify(dispatchTools.map(tool=>schemaCodecs?.get(tool.name)?.schema??tool.parameters)),'utf8');
       projected.usage.estimatedTokens+=Math.ceil(schemaBytes/3);
       if(model.contextWindow>0)projected.usage.estimatedWindowUse=(projected.usage.estimatedTokens+model.maxTokens)/model.contextWindow;
       record.contextUsage = projected.usage;
@@ -724,7 +727,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
             view.exposure=record.v3Guidance.project(input,schemas).exposure;
           }
           if(record.proofCheckpoint && !record.v21Control?.correction && model.contextWindow>0){
-            const providerTools=record.originalTools.filter(tool=>record.toolNames.has(tool.name)).map(tool=>({name:tool.name,description:tool.description,parameters:activeCodecs?.get(tool.name)?.schema??tool.parameters}));
+            const providerTools=dispatchTools.map(tool=>({name:tool.name,description:tool.description,parameters:activeCodecs?.get(tool.name)?.schema??tool.parameters}));
             const inputBytes=Buffer.byteLength(JSON.stringify(input))+Buffer.byteLength(JSON.stringify(providerTools));
             const plan=record.proofCheckpoint.plan(model.contextWindow,outputCap,inputBytes,input.messages.length);
             if(plan.compact) input=await record.proofCheckpoint.compact(input);
@@ -800,7 +803,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
             if(record.v3Guidance&&(!isDeepStrictEqual(payload,before)||!isDeepStrictEqual(original,before)))throw new RuntimeError('INVALID_CONFIGURATION');
             if(record.v3Guidance&&(options?.signal?.aborted||this.shuttingDown||record.v21OptionalCancelled))throw new RuntimeError('BUDGET_EXHAUSTED');
             const verifyToolBudget=(value:unknown)=>{if(pendingGuidance){const prose=schemaGuidanceProseV3((value as {tools?:unknown})?.tools);if(prose.reduce((sum,text)=>sum+guidanceCostV3(text),0)>(pendingGuidance.toolLines??0))throw new RuntimeError('INVALID_CONFIGURATION');}};
-            if (record.answerCollector){verifyToolBudget(original);const limited=limitPayload(original);payloadAdmitted=true;return limited;}
+            if (record.answerCollector || record.v21Control instanceof ProofControlV3 && record.v21Control.writingManuscript && !(original as {tools?:unknown[]}).tools?.length){verifyToolBudget(original);const limited=limitPayload(original);payloadAdmitted=true;return limited;}
             const codecs = record.v0Control?.codecs ?? record.v21Control?.codecs ?? record.handoff!.codecs;
             const body=structuredOutputPayload(original, target, codecs,capability,record.handoff?.version ?? HANDOFF_VERSION);
             for(const [name,codec] of codecs)wireSchemas.set(name,structuredClone(codec.schema));
@@ -1232,6 +1235,10 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       if(intent.text!==text)throw new RuntimeError('INVALID_CONFIGURATION');
       return {originalRef:await this.options.rawAnswers!.save(owner,intent.text,intent.technical),technical:intent.technical,...(record.mapReader?{mapKnowledge:structuredClone(record.mapKnowledge??[])}:{})};
     },()=>!!record.v21OptionalCancelled||this.shuttingDown,()=>record.v3Tools!.summary(),['v3-operation-2','v3-operation-3','v3-operation-4','v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(invocation.operation?.revision??''),record.v3Guidance?.guidanceReferenceState()?()=>record.v3Guidance!.guidanceReferenceState()!:undefined,record.spec.budget.capacityPolicy,nativeHandoff,('brief'in spec.context?spec.context.brief:spec.context.marker.snapshot).inquiryGuidance==='theorist-prior-v3');
+    if(control instanceof ProofControlV3 && 'snapshot' in spec.context && spec.role==='theorist'){
+      const epoch=spec.context.snapshot.number;
+      control.onCommentary=text=>this.emit(record,'turn',undefined,undefined,{epoch,text});
+    }
     record.v21Control=control;this.syncAvailableTools(record);
     let prompt=taskPrompt(record.bundle,invocation);
     if(invocation.task==='v21_theorist')prompt+='\n'+workerDispatchRule;
@@ -1246,6 +1253,13 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
         if(control.accepted)return control.value;
         if(!control.feedback)throw new RuntimeError('INVALID_OUTPUT');
         if(record.v21OptionalCancelled||this.shuttingDown)throw new RuntimeError('BUDGET_EXHAUSTED');
+        if(control instanceof ProofControlV3 && control.needsManuscript){
+          control.needsManuscript=false;
+          prompt=control.feedback;
+          control.feedback=undefined;
+          record.pi.setActiveToolsByName([]);
+          continue;
+        }
         await journal.correction(nativeHandoff?1:budgetControlsEnabledV3(spec.budget.capacityPolicy)?2:undefined);control.correction=true;this.syncAvailableTools(record);
         prompt=control.supplementPrompt?control.supplementPrompt+'Diagnostics:\n'+control.feedback:nativeHandoff?'Correct only the reported tool-input metadata format through submit_research_result. Keep the saved report and all scientific decisions unchanged. Diagnostics:\n'+control.feedback:(record.v3Guidance?.guidanceReferenceState()?'Preserve the original proof and every scientific field. Submit metadata only through submit_research_result; no text or research calls.\nOnly add missing classification tags and remove originally frozen route.resourceRefs with zero body bytes ever delivered. Keep every partially or fully delivered reference, order and duplicates; add or substitute nothing.\nKeep route identity, description, reason, verdict, assumptions, dependencies and adoptions unchanged. Diagnostics:\n'+control.feedback:'Your exact original and initial scientific declaration are immutable. Submit only a metadata correction through submit_research_result. No new public text, proof, resource calls, assumptions, obligations, scope, dependencies, adoption, worker contracts, verdict or route choice. Preserve every field, its absence and array order. Only missing classification tags may be filled. Never erase caveats or invent a missing declaration. Diagnostics:\n'+control.feedback);
         control.feedback=undefined;
@@ -1335,8 +1349,8 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       control.feedback = undefined;
     }
   }
-  private emit(record: ActiveSession, status: RuntimeProgress['status'], toolName?: string, toolCallId?: string): void {
-    try { this.options.onProgress?.({ sessionId: record.spec.id, projectId: record.spec.projectId, role: record.spec.role, status, ...record.activity, ...(toolCallId ? { toolCallId } : {}), turns: record.turns, toolCalls: record.toolCalls, ...(record.tokensKnown ? { tokens: record.tokens } : {}), usage: { tokens: record.tokensKnown ? 'reported' : 'unavailable', cost: record.costKnown ? 'estimated' : 'unavailable' }, ...(record.costKnown ? { costUsd: record.costUsd } : {}), ...(record.contextUsage ? { context: record.contextUsage } : {}), softDeadline: { ...record.softDeadline.state },...(record.spec.budget.capacityPolicy?{budget:structuredClone(record.spec.budget)}:{}), ...(toolName && record.toolNames.has(toolName) ? { toolName } : {}) }); } catch { /* UI observers cannot change execution. */ }
+  private emit(record: ActiveSession, status: RuntimeProgress['status'], toolName?: string, toolCallId?: string, commentary?:RuntimeProgress['commentary']): void {
+    try { this.options.onProgress?.({ sessionId: record.spec.id, projectId: record.spec.projectId, role: record.spec.role, status, ...(commentary?{commentary}:{}), ...record.activity, ...(toolCallId ? { toolCallId } : {}), turns: record.turns, toolCalls: record.toolCalls, ...(record.tokensKnown ? { tokens: record.tokens } : {}), usage: { tokens: record.tokensKnown ? 'reported' : 'unavailable', cost: record.costKnown ? 'estimated' : 'unavailable' }, ...(record.costKnown ? { costUsd: record.costUsd } : {}), ...(record.contextUsage ? { context: record.contextUsage } : {}), softDeadline: { ...record.softDeadline.state },...(record.spec.budget.capacityPolicy?{budget:structuredClone(record.spec.budget)}:{}), ...(toolName && record.toolNames.has(toolName) ? { toolName } : {}) }); } catch { /* UI observers cannot change execution. */ }
   }
 }
 /** Explicit refinement classification uses the established planner, not a V3 proof workspace. */

@@ -110,7 +110,11 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
   const fail=(message:string)=>{if(issues.length<32)issues.push(message);};
   if(result.mapChanges){
    if(!['complete','pause'].includes(result.action))fail('Attach map changes only when releasing the public report.');
-   const fields=mapMetadataIssues(result.mapChanges,mapWriteReads,publicBody);
+   const fields=mapMetadataIssues(result.mapChanges,mapWriteReads,publicBody).filter(field=>{
+    if(!field.path.includes('proofSection')||!publicBody||!result.mapChanges||!('entries' in result.mapChanges))return true;
+    delete result.mapChanges.entries[Number(field.path[2])]!.proofSection;
+    return false;
+   });
    if(c.marker?.snapshot.theoremAuthoring)fields.push(...theoremAuthoringIssues(result.mapChanges,mapWriteReads,result.outcome.knowledgeRefs??[]));
    if(fields.length)throw new DeclarationSupplementError(fields.map(f=>f.message),'map-metadata',fields);
   }

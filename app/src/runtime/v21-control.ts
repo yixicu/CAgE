@@ -43,7 +43,7 @@ export class V21Control {
   correction = false;
   private dispatch = 0;
   private correctionDispatches = 0;
-  private collector?: V0AnswerCollector;
+  protected collector?: V0AnswerCollector;
   private declaration?: unknown;
   private declarationSeen = false;
   private supplement?:DeclarationSupplementError;

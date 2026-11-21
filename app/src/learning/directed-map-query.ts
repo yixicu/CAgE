@@ -6,6 +6,7 @@ import {MAP_RECIPE, MapReadError, mapEvidenceHandle, mapHandle, mapRefKey, mapSo
  type MapRef, type MapSelection, type MapSourceRef, type MapView} from './knowledge-map.js';
 
 const name=(text:string)=>text.normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
+const searchTerms=(text:string)=>catalogTermsV3(text.normalize('NFKD').replace(/\p{M}/gu,''));
 const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
 const branchHandle=(domain:string|null)=>'branch_'+stableHash(domain);
 const pathKey=(p:MapNavigationPath)=>JSON.stringify([p.kind,p.direction,p.from,p.to,p.support,p.role,p.basis]);
@@ -14,9 +15,9 @@ export function directedMapQuery(state:KnowledgeMapState,view:MapView,query:MapQ
  const mode=query.mode??'exact',offset=query.offset??0,limit=query.limit??24;
  const textMode=['exact','lexical','source'].includes(mode),selected=mode==='branch'||mode==='relations';
  if(!['exact','lexical','source','directory','branch','relations'].includes(mode)
-    ||(textMode?!query.query?.trim():query.query!==undefined)
-    ||(selected?!query.selection?.trim():query.selection!==undefined)
-    ||mode!=='relations'&&(query.relation!==undefined||query.direction!==undefined)||query.domain!==undefined)
+    ||(textMode&&!query.query?.trim())
+    ||(selected&&!query.selection?.trim())
+    ||query.domain!==undefined)
   throw new MapReadError('INVALID_INPUT','Choose a directory, branch, relation, exact name, lexical search or source search and supply only its fields');
  if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>256)
   throw new MapReadError('INVALID_INPUT','Map pagination');
@@ -91,7 +92,7 @@ export function directedMapQuery(state:KnowledgeMapState,view:MapView,query:MapQ
   }
   for(const [entry,list] of paths)matches.push({entry,reason:'relation',score:0,paths:list.sort((a,b)=>compare(pathKey(a),pathKey(b)))});
  }else if(mode==='source'){
-  const terms=new Set(catalogTermsV3(query.query!));
+  const terms=new Set(searchTerms(query.query!));
   const sources=state.sources.filter(s=>s.ref.kind!=='maintenance-proof'&&sourceKeys.has(mapSourceKey(s.ref))&&s.status==='active'&&catalogTermsV3(s.body).some(t=>terms.has(t)))
    .sort((a,b)=>compare(mapSourceKey(a.ref),mapSourceKey(b.ref)));
   result.evidence=page(sources).map(s=>({selection:mapEvidenceHandle(s.ref),source:structuredClone(s.ref),conversion:coverageRows.find(c=>c.sourceKey===mapSourceKey(s.ref))?.state??'available'}));
@@ -105,10 +106,10 @@ export function directedMapQuery(state:KnowledgeMapState,view:MapView,query:MapQ
    else if(entry.aliases.some(alias=>name(alias)===wanted))matches.push({entry,reason:'alias',score:1});
   }
  }else{
-  const terms=new Set(catalogTermsV3(query.query!));
+  const terms=new Set(searchTerms(query.query!));
   for(const entry of entries){
    const searchable=[entry.title,...entry.aliases,...entry.domain,entry.summary??'',entry.body??'',...entry.assumptions,...(entry.observation?Object.values(entry.observation).flat():[])].join(' ');
-   const score=catalogTermsV3(searchable).filter(t=>terms.has(t)).length;
+   const score=searchTerms(searchable).filter(t=>terms.has(t)).length;
    if(score)matches.push({entry,reason:'lexical',score});
   }
  }

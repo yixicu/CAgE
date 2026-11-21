@@ -41,12 +41,26 @@ export class ResearchEngineV21 implements ResearchLoopV21 {
  private save(marker:InFlightEpochV21):Promise<void>{const snapshot=parseInFlight(JSON.parse(JSON.stringify(marker)));const job=this.writes.then(()=>this.store.saveInFlight(snapshot));this.writes=job.catch(()=>{});return job;}
  private async controls(p:ResearchProjectV21){const commands=await this.store.listCommands(p.id);initializeCommandStates(p,commands);const flags=ingestCommands(p,commands);if(flags.stop)this.stop.add(p.id);if(flags.pause)this.pause.add(p.id);return commands;}
  private async halted(p:ResearchProjectV21){await this.controls(p);return this.stop.has(p.id)||this.pause.has(p.id);}
+ private optionalRunner(){
+  if(!this.composition)throw new Error('Optional research requires the archive adapter.');
+  return new OptionalResearchRunnerV21(this.store,this.runtime,this.composition,{stopped:project=>this.stop.has(project.id),save:marker=>this.save(marker),halted:project=>this.halted(project),emit:(project,type,extra)=>this.emit(project,type,extra),registerLearning:(project,epoch)=>this.registerLearning(project,epoch)});
+ }
  async reconcile(id:string){
   if(this.active.has(id))throw new Error('Cannot reconcile an active writer.');
   const p=await this.store.loadProject(id),m=await this.store.loadInFlight(id);
   // Register only durable reviewed epochs, never the uncommitted marker. Preserve
   // the saved stopped state while checking admission, before projecting paused UI.
   if(m)parseInFlight(m);
+  if(m?.optionalFlow && p.status==='running'){
+   await this.controls(p);
+   if(this.stop.has(id)){
+    m.optionalFlow.phase='stopped';
+    await this.optionalRunner().collectStopped(p,m);
+   }
+   p.status=this.stop.has(id)?'stopped':'paused';
+   p.phase='idle';
+   Object.assign(p,await this.store.commitCheckpoint(p));
+  }
   const committedMarker=m&&!m.optionalFlow&&p.epochs.some(e=>e.id===m.snapshot.id);
   if(committedMarker){await this.store.clearInFlight(id);delete p.activeEpoch;}
   if(p.status==='stopped')await this.composition?.stopOptionalLearning?.(p);for(const epoch of p.epochs)await this.registerLearning(p,epoch);
@@ -234,9 +248,9 @@ export class ResearchEngineV21 implements ResearchLoopV21 {
   if(!this.composition)throw new Error('Missing V2.1 composition.');
   if(m?.loop.researchLoopVersion==='4.0' && m.calls.some(c=>c.status==='denied')){await this.retireDeniedBoundary(p,m);m=undefined;}
   if(m&&!m.optionalFlow&&p.epochs.some(e=>e.id===m!.snapshot.id)){await this.store.clearInFlight(id);m=undefined;}
-  if(m?.optionalFlow?.phase==='stopped'){const retiredRunner=new OptionalResearchRunnerV21(this.store,this.runtime,this.composition,{stopped:project=>this.stop.has(project.id),save:marker=>this.save(marker),halted:project=>this.halted(project),emit:(project,type,extra)=>this.emit(project,type,extra),registerLearning:(project,epoch)=>this.registerLearning(project,epoch)});await retiredRunner.collectStopped(p,m);const {schemaVersion:_schema,loop:_loop,...record}=structuredClone(m);const retired:EpochRecordV21={...record,id:m.snapshot.id,completedAt:now(),...(m.optionalFlow.foregroundCompletedAt?{foregroundCompletedAt:m.optionalFlow.foregroundCompletedAt}:{}),decision:'stop',reason:'Stopped optional boundary retained; explicit Start creates a fresh boundary without replaying its calls.'};const index=p.epochs.findIndex(e=>e.id===retired.id);if(index<0)p.epochs.push(retired);else p.epochs[index]=retired;p.epoch=m.epoch;p.status='paused';p.phase='idle';Object.assign(p,await this.store.commitCheckpoint(p));await this.store.clearInFlight(id);m=undefined;}
+  if(m?.optionalFlow?.phase==='stopped'){const retiredRunner=this.optionalRunner();await retiredRunner.collectStopped(p,m);const {schemaVersion:_schema,loop:_loop,...record}=structuredClone(m);const retired:EpochRecordV21={...record,id:m.snapshot.id,completedAt:now(),...(m.optionalFlow.foregroundCompletedAt?{foregroundCompletedAt:m.optionalFlow.foregroundCompletedAt}:{}),decision:'stop',reason:'Stopped optional boundary retained; explicit Start creates a fresh boundary without replaying its calls.'};const index=p.epochs.findIndex(e=>e.id===retired.id);if(index<0)p.epochs.push(retired);else p.epochs[index]=retired;p.epoch=m.epoch;p.status='paused';p.phase='idle';Object.assign(p,await this.store.commitCheckpoint(p));await this.store.clearInFlight(id);m=undefined;}
   for(;;){await this.controls(p);if(this.stop.has(id)||this.pause.has(id)){p.status=this.stop.has(id)?'stopped':'paused';p.phase='idle';if(m)await this.save(m);Object.assign(p,await this.store.commitCheckpoint(p));break;}
-   m??=await this.newEpoch(p);if(m.solverMode===OPTIONAL_MODE_V21){const runner=new OptionalResearchRunnerV21(this.store,this.runtime,this.composition,{stopped:project=>this.stop.has(project.id),save:marker=>this.save(marker),halted:project=>this.halted(project),emit:(project,type,extra)=>this.emit(project,type,extra),registerLearning:(project,epoch)=>this.registerLearning(project,epoch)});this.optionalRunners.set(id,runner);try{p=await runner.run(p,m);this.resumeArchiveResearch(p,runner.archiveBridge(),m.snapshot.id);}finally{this.optionalRunners.delete(id);}break;}if(!m.sealed)await this.plan(p,m);else if(m.plan){if(m.plan.rootInterpretation){if(!isDeepStrictEqual(interpretedRootV21(p.root,m.plan.rootInterpretation),m.snapshot.root))throw new Error('Saved initial root interpretation conflicts with project identity.');p.root=structuredClone(m.snapshot.root);p.rootInterpretationPending=false;}for(const w of m.plan.ways){const i=p.ways.findIndex(x=>x.id===w.id);if(i<0)p.ways.push(w);else p.ways[i]=w;}for(const q of m.plan.questions){const i=p.questions.findIndex(x=>x.id===q.id);if(i<0)p.questions.push(q);else p.questions[i]=q;}}
+   m??=await this.newEpoch(p);if(m.solverMode===OPTIONAL_MODE_V21){const runner=this.optionalRunner();this.optionalRunners.set(id,runner);try{p=await runner.run(p,m);this.resumeArchiveResearch(p,runner.archiveBridge(),m.snapshot.id);}finally{this.optionalRunners.delete(id);}break;}if(!m.sealed)await this.plan(p,m);else if(m.plan){if(m.plan.rootInterpretation){if(!isDeepStrictEqual(interpretedRootV21(p.root,m.plan.rootInterpretation),m.snapshot.root))throw new Error('Saved initial root interpretation conflicts with project identity.');p.root=structuredClone(m.snapshot.root);p.rootInterpretationPending=false;}for(const w of m.plan.ways){const i=p.ways.findIndex(x=>x.id===w.id);if(i<0)p.ways.push(w);else p.ways[i]=w;}for(const q of m.plan.questions){const i=p.questions.findIndex(x=>x.id===q.id);if(i<0)p.questions.push(q);else p.questions[i]=q;}}
    if(m.plan?.rootChange){if(m.rootIdentityRecipe)validateRootIdentity(m.plan,{project:p,marker:m,deliveries:[]});p.root=structuredClone(m.plan.rootChange.root);p.hypothesis=p.root.originalText;p.hypothesisId=p.root.hypothesisId;p.hypothesisRevision=p.root.revision;if(m.plan.rootChange.kind!=='working'&&p.rootInterpretationPending===true)p.rootInterpretationPending=false;p=await this.finish(p,m);m=undefined;continue;}
    if(!m.review){await this.execute(p,m);if(!await this.halted(p))await this.check(p,m);}
    if(await this.halted(p)){p.status=this.stop.has(id)?'stopped':'paused';p.phase='idle';await this.save(m);Object.assign(p,await this.store.commitCheckpoint(p));break;}

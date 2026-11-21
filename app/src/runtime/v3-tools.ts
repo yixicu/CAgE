@@ -98,14 +98,17 @@ export class RuntimeToolsV3 {
         this.dispatches++;
         let result:unknown;
         try{
-          if(input&&typeof input==='object'&&'view' in input){
+          if(input&&typeof input==='object'&&'view' in input&&!('mode' in input)){
             if(!network||!port?.network)throw new Error('Route family reader unavailable.');
             const q=input as {view:'directory'|'family';clusterRef?:string;offset?:number;maxNodes?:number};
-            if(Object.keys(q).some(k=>!['view','clusterRef','offset','maxNodes'].includes(k))||(q.view==='family')!==!!q.clusterRef)
+            if(q.view==='family'&&!q.clusterRef)
               throw new DirectedRouteInputError('Select view=directory, or view=family with its exact clusterRef.');
-            result=await port.network(network.pin,{...q,query:''});
+            result=await port.network(network.pin,{view:q.view,...(q.view==='family'?{clusterRef:q.clusterRef}:{}),offset:q.offset,maxNodes:q.maxNodes,query:''});
           }else{
-            const query=input as DirectedRouteQuery;
+            const raw=input as DirectedRouteQuery;
+            const query:DirectedRouteQuery={mode:raw.mode,offset:raw.offset,limit:raw.limit,
+              ...(['lexical','exact'].includes(raw.mode)?{query:raw.query}:raw.mode==='branch'?{branch:raw.branch}:
+                raw.mode==='relations'?{selection:raw.selection,relation:raw.relation,direction:raw.direction}:{})};
             validateDirectedRouteQuery(query);
             if(pin){
               if(!port?.directedRoutes)throw new Error('Directed route reader unavailable.');

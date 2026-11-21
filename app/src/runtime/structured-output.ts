@@ -36,7 +36,9 @@ export function structuredOutputPayload(payload:unknown,model:Target,codecs:Read
     if(!declaration || (capability.protocol!=='anthropic-tools' && tool.type!=='function'))throw new RuntimeError('STRICT_SCHEMA_UNSUPPORTED');
     const codec=codecs.get(declaration.name);if(!codec)throw new RuntimeError('STRICT_SCHEMA_UNSUPPORTED');
     const converted={...declaration,...(capability.protocol==='anthropic-tools'?{input_schema:codec.schema}:{parameters:codec.schema})};
-    if(version==='cage-strict-1')converted.strict=true;else delete converted.strict;
+    if(version==='cage-strict-1')converted.strict=true;
+    else if(capability.protocol==='response-tools'&&['lookup_map_knowledge','retrieve_knowledge'].includes(declaration.name))converted.strict=false;
+    else delete converted.strict;
     return capability.protocol==='chat-tools'?{...tool,function:converted}:converted;
   });
   // Auto works with thinking models; text is never accepted as delivery.

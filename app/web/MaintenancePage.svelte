@@ -75,7 +75,7 @@
   <form onsubmit={send}>
     <textarea bind:value={message} aria-label="Maintenance request" placeholder="Ask about a saved round or a node…" rows="3" disabled={sending}
       onkeydown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}></textarea>
-    <div class="tools"><select aria-label="Maintenance scope" bind:value={projectId} onchange={()=>allowChanges=false} disabled={sending||running}><option value="">Shared library</option>{#each projects as p}<option value={p.id}>{p.name}</option>{/each}</select>
+    <div class="tools"><select aria-label="Maintenance scope" bind:value={projectId} onchange={()=>allowChanges=false} disabled={sending||running}><option value="">Shared library &amp; Core map</option>{#each projects as p}<option value={p.id}>{p.name}</option>{/each}</select>
       <label><input type="checkbox" bind:checked={allowChanges} disabled={sending||running}/> Allow changes</label>
       <input hidden bind:this={fileInput} type="file" accept=".md,.markdown,.txt,.tex,.csv,.json,text/plain,text/markdown" onchange={e=>attach(e.currentTarget.files?.[0])}/>
       <button class="attach" type="button" aria-label="Attach note" title={note?.name??'Attach note'} disabled={sending||running||readingNote} onclick={()=>fileInput.click()}>+</button>
