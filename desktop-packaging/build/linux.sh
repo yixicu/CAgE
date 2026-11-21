@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Build from an existing Linux x64 Node 24 installation and a production app/dist.
+# Build from an existing Linux x64 Node 24 installation and locked development dependencies.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 pack="$root/desktop-packaging"
 [[ $(uname -sm) == 'Linux x86_64' ]]
 node -e 'if (process.platform !== "linux" || process.arch !== "x64" || !/^24\./.test(process.versions.node) || Number(process.versions.node.split(".")[1]) < 19) process.exit(1)'
-test -f "$root/app/dist/web/index.html"
 version=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1])).version' "$pack/shell/tauri.conf.json")
 mkdir -p "$pack/out/linux" "$pack/out/release"
 stage=$(mktemp -d "$pack/out/linux/build-XXXXXX")

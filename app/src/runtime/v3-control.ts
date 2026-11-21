@@ -21,6 +21,13 @@ function publicPhase(signature?:string):unknown{
   try{return signature && JSON.parse(signature)?.phase;}catch{return undefined;}
 }
 
+// Unphased text accompanying a completion may be either progress or the finished paper.
+export function completionCandidate(message:AssistantMessage):string{
+  const calls=message.content.filter(p=>p.type==='toolCall');
+  if(calls.length!==1||calls[0]!.name!==SUBMIT_RESULT||calls[0]!.arguments.action!=='complete')return '';
+  return message.content.flatMap(p=>p.type==='text'&&!publicPhase(p.textSignature)?[p.text]:[]).join('');
+}
+export const confirmPrevious='Use previous answer';
 /** V3 alone permits dynamic tools in the same Pi conversation. Every public
  * response is retained; only the terminal declaration freezes the manuscript. */
 export class ProofControlV3 extends V21Control {
@@ -34,6 +41,7 @@ export class ProofControlV3 extends V21Control {
   private readonly announced=new Set<number>();
   private hasAnswerText=false;
   private requestedManuscript=false;
+  private previousCandidate='';
   needsManuscript=false;
   get writingManuscript(){return this.requestedManuscript&&!this.correction;}
   private dispatchNumber = 0;
@@ -136,7 +144,10 @@ export class ProofControlV3 extends V21Control {
         }else manuscript+=part.text;
       }
     }
-    await this.journal.capture({...(progressParts.length?{progressParts}:{}),kind:'v3-original-message',dispatch:this.dispatchNumber,correction:this.correction,message:{...message,content:message.content.filter(part=>part.type!=='thinking')}});
+    const confirmation=this.requestedManuscript&&!this.correction&&message.stopReason==='stop'&&manuscript.trim()===confirmPrevious;
+    const confirmedPrevious=confirmation&&!!this.previousCandidate.trim();
+    if(confirmation)manuscript=this.previousCandidate;
+    await this.journal.capture({...(confirmedPrevious?{confirmedPrevious:true}:{}),...(progressParts.length?{progressParts}:{}),kind:'v3-original-message',dispatch:this.dispatchNumber,correction:this.correction,message:{...message,content:message.content.filter(part=>part.type!=='thinking')}});
     for(const evidence of this.evidence.values())await this.journal.capture({kind:'v21-optional-arguments',dispatch:this.dispatchNumber,evidence});
     if(!this.correction)this.recordCurrent(this.declarationSupplement?manuscript:undefined);
     if(this.invalidText){this.fatal=new RuntimeError('TOOL_PROTOCOL_FAILED');return;}
@@ -149,7 +160,8 @@ export class ProofControlV3 extends V21Control {
       if(this.requestedManuscript && !answerText){this.fatal=new RuntimeError('INVALID_OUTPUT');return;}
       if(!this.hasAnswerText && (submission?.type==='toolCall' && submission.arguments.action==='complete' || message.stopReason==='stop' && progressParts.length)){
         this.needsManuscript=true;this.requestedManuscript=true;
-        this.feedback='The progress message was saved. Write the actual answer and derivation now.';
+        this.previousCandidate=completionCandidate(message);
+        this.feedback=this.previousCandidate.trim()?`If your preceding text is already the complete answer, reply exactly “${confirmPrevious}”. Otherwise write the complete derivation now.`:'The progress message was saved. Write the actual answer and derivation now.';
         return;
       }
     }

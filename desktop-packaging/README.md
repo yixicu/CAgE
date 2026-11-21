@@ -63,6 +63,6 @@ The package loads the bundled basic physics map into a new workspace on startup.
 
 ## Build Linux packages
 
-With the locked development dependencies installed, run `npm --prefix app run build` and `bash desktop-packaging/build/linux-portable.sh` from the repository root. The portable build uses Bash, GNU tar and sha256sum. It writes the archive and checksum to `desktop-packaging/out/release/`.
+With the locked development dependencies installed, run `bash desktop-packaging/build/linux-portable.sh` from the repository root. The portable build uses Bash, GNU tar and sha256sum. It writes the archive and checksum to `desktop-packaging/out/release/`.
 
 To build a self-contained Debian package on Linux x86-64, put the official x64 Node 24.19+ (24.x) distribution and npm on PATH. Set `NODE_LICENSE` to that distribution’s LICENSE file and run `bash desktop-packaging/build/linux.sh`. This build also uses ar and dpkg-deb. Install the resulting package using `sudo apt install ./Carnot-0.2.16-linux-amd64.deb` from the output directory, substituting the built version. Start CAgE from the applications menu or run `carnot-agent-engine --no-browser`. The installation bundles Node and production dependencies under `/opt/carnot-agent-engine`. Install a newer .deb to upgrade.

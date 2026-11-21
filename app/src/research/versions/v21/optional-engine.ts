@@ -150,6 +150,18 @@ class ConditionResearchRunnerV21 {
   // must not suppress validation after interrupted or failed acceptance.
   if(existing?.acceptanceCommitted){await this.flushEffects(p,m);return;}
   if(!result?.originalRef||!result.control||!result.technical)throw new Error('Optional runtime returned no immutable result.');
+  // A completed root that explicitly depends on a fully read Worker result has
+  // already selected that exact outcome as a premise. Reuse its frozen metadata.
+  if(!branch&&f.operationRevision==='v4-proof-5'&&result.control.action==='complete'&&result.control.outcome.scope==='root'&&result.control.outcome.resultKind==='supported-result'){
+   const control=result.control;
+   const delivered=fullOriginalRefsV3(call.answerDeliveries??[],f.artifacts);
+   const selected=f.artifacts.filter(a=>a.authorRole!=='theorist'&&a.acceptanceCommitted&&a.qualification==='unreviewed'&&
+    a.control.outcome.resultKind==='supported-result'&&control.outcome.dependencyArtifactIds.includes(a.id)&&
+    !control.adoptions.some(review=>review.artifactId===a.id)&&delivered.some(ref=>isDeepStrictEqual(ref,a.originalRef)));
+   if(selected.length)result={...result,control:{...control,adoptions:[...control.adoptions,...selected.map(a=>({
+    artifactId:a.id,status:'valid' as const,outcome:structuredClone(a.control.outcome),reason:control.outcome.reason
+   }))]}};
+  }
   if(this.theory && !branch) {
     const prefix='method:theory-use/';
     const used=(result.control.outcome.tags??[]).filter(tag=>tag.startsWith(prefix)).map(tag=>tag.slice(prefix.length));
@@ -324,7 +336,21 @@ class ConditionResearchRunnerV21 {
  }
  private launch(p:ResearchProjectV21,m:InFlightEpochV21,b:OptionalBranchV21):void{
   if(this.running.has(b.id)||['completed','cancelled'].includes(b.state))return;
-  const promise=(async()=>{try{await this.transition(m,async()=>{if(b.state!=='uncertain')b.state='running';await this.ports.save(m);});const call=m.calls.find(c=>c.id===b.callId)!;const result=await this.invoke(p,m,call,b);await this.accept(p,m,call,result,b);}catch(error){await this.transition(m,async()=>{const call=m.calls.find(c=>c.id===b.callId);b.state=call?.captured?'completed':'uncertain';if(!call?.captured)this.errors.push(error);await this.ports.save(m);});}finally{this.running.delete(b.id);}})();
+  const promise=(async()=>{
+   try{
+    await this.transition(m,async()=>{if(b.state!=='uncertain')b.state='running';await this.ports.save(m);});
+    const call=m.calls.find(c=>c.id===b.callId)!;
+    await this.accept(p,m,call,await this.invoke(p,m,call,b),b);
+   }catch(error){
+    await this.transition(m,async()=>{
+     const call=m.calls.find(c=>c.id===b.callId);
+     b.state=call?.status==='rejected'?'cancelled':call?.captured?'completed':'uncertain';
+     if(call?.status==='rejected')this.flow(m).notices.push(`Worker ${b.id} submission was rejected; no artifact is available for adoption.`);
+     if(!call?.captured)this.errors.push(error);
+     await this.ports.save(m);
+    });
+   }finally{this.running.delete(b.id);}
+  })();
   this.running.set(b.id,promise);
  }
  private dependencies(a:OptionalProofArtifactV21,all:OptionalProofArtifactV21[]):OptionalProofArtifactV21[]{const found=new Map<string,OptionalProofArtifactV21>();const visit=(x:OptionalProofArtifactV21)=>{for(const dep of ['v4-proof-2','v4-proof-3','v4-proof-4'].includes(x.operationRevision??'')?fragmentSupportV4(x,all):[]){if(!found.has(dep.id)){found.set(dep.id,dep);visit(dep);}}for(const id of (x.acceptedOutcome??(['v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(x.operationRevision??'')?x.control.outcome:undefined))?.dependencyArtifactIds??[]){if(found.has(id))continue;const dep=all.find(v=>v.id===id);if(!dep)throw new Error('Missing archive dependency.');found.set(id,dep);visit(dep);}};visit(a);return [...found.values()].map(x=>structuredClone(x));}
@@ -384,6 +410,7 @@ class ConditionResearchRunnerV21 {
   const epoch:EpochRecordV21={...record,id:m.snapshot.id,completedAt:now(),...(f.foregroundCompletedAt?{foregroundCompletedAt:f.foregroundCompletedAt}:{}),decision,reason:f.conflictArtifactIds.length?'Same-root contradictory claims await review.':qualified?'Qualified exact original archived.':halted?'STOP preserved admitted originals.':'Bounded optional research remains open.'};
   const index=p.epochs.findIndex(e=>e.id===epoch.id);if(index<0)p.epochs.push(epoch);else p.epochs[index]=epoch;
   p.epoch=m.epoch;p.status=halted?(this.ports.stopped(p)?'stopped':'paused'):qualified?'completed':'paused';p.phase=terminal?'idle':'executing';p.summary=f.conflictArtifactIds.length?'Previously delivered proof requires review: opposite same-root claim received.':qualified?`${selected!.authorRole==='theorist'?'Theorist':'Worker'} original: ${selected!.acceptedOutcome!.reason}`:epoch.reason;
+  if(p.status==='completed')delete p.lastError;
   const saved=this.store.commitGuardedCheckpoint?await this.store.commitGuardedCheckpoint(p,()=>this.terminalWatermark(m)===terminalWatermark&&(terminal||halted||!this.cancelled&&!this.ports.stopped(p))):await this.store.commitCheckpoint(p);
   if(!saved){await this.collectCompleted(p,m);await this.checkpoint(p,m,terminal);return;}Object.assign(p,saved);
   await this.collectCompleted(p,m);if(f.evidenceRevision!==watermark){await this.checkpoint(p,m,terminal);return;}
@@ -400,7 +427,7 @@ class ConditionResearchRunnerV21 {
    if(recovered?.status==='denied')call.status='denied';
    if(recovered?.status==='rejected'&&call.captured){call.status='rejected';call.usage=call.captured.technical.usage;}
    if(call.captured)await this.recordRawDelivery(p,m,call);
-   if(branch&&call.captured)branch.state='completed';
+   if(branch&&call.captured)branch.state=call.status==='rejected'?'cancelled':'completed';
   }
   await this.ports.save(m);
  }

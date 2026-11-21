@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Assemble the system-Node edition from a completed browser production build.
+# Assemble the system-Node edition from the application sources.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 out="$root/desktop-packaging/out"
 version=$(sed -n 's/^[[:space:]]*"version": "\([0-9.]*\)",.*/\1/p' "$root/desktop-packaging/shell/tauri.conf.json")
 [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-test -f "$root/app/dist/web/index.html"
 mkdir -p "$out/linux" "$out/release"
 stage=$(mktemp -d "$out/linux/portable-XXXXXX")
 trap 'rm -rf -- "$stage"' EXIT

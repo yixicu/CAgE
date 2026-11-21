@@ -1931,7 +1931,7 @@ export class ResearchLibrary {
     });
   }
   /** Current accepted role-neutral judgments, never restored by a stale checkpoint. */
-  async recordV21OptionalEvidence(sessionId: string, artifacts: Record<string,string>, actor: LearningActor): Promise<void> {
+  async recordV21OptionalEvidence(sessionId: string, artifacts: Record<string,string>, actor: LearningActor, expected?:Readonly<Record<string,string>>): Promise<void> {
     this.theorist(actor,sessionId);
     await this.serial(async () => {
       const next = structuredClone(this.state); next.v21OptionalEvidence ??= {};
@@ -1939,6 +1939,7 @@ export class ResearchLibrary {
       next.v21OptionalAppliedEvidence ??= {}; const applied = next.v21OptionalAppliedEvidence[sessionId] ??= {};
       for (const [id, hash] of Object.entries(artifacts)) {
         requireText(id,'artifact identity',1000); requireData(/^[a-f0-9]{64}$/u.test(hash),'Invalid optional evidence hash.');
+        if (expected && (evidence[id]!==expected[id] || next.v21OptionalInvalidArtifacts?.[optionalArtifactKey(sessionId,id)])) continue;
         if (applied[id]?.includes(hash)) continue;
         (applied[id] ??= []).push(hash);
         if (!next.v21OptionalInvalidArtifacts?.[optionalArtifactKey(sessionId,id)]) evidence[id] = hash;

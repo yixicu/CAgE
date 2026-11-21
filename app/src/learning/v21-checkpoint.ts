@@ -106,6 +106,14 @@ export async function archiveOptionalProofV21(library: ResearchLibrary, raw: Raw
         ?{kind:['v4-proof-2','v4-proof-3','v4-proof-4'].includes(artifact.operationRevision??'')?'fragment' as const:'continuation' as const,originalOutcome:dependency.control.outcome}
         :{acceptedOutcome:dependency.acceptedOutcome!,...(selection.resultContract&&dependency.acceptedOutcome?.resultKind!=='supported-result'?{kind:'refutation-evidence' as const}:{})})})),
   };
+  // The learning checkpoint may already have registered this original before
+  // the Theorist adopted it. Advance only that exact unreviewed identity.
+  const adopted=selection.dependencies.filter(a=>a.operationRevision==='v4-proof-5'&&a.authorRole!=='theorist'&&a.qualification==='valid'&&a.judgment&&a.acceptedOutcome);
+  if(adopted.length){
+    const expected=Object.fromEntries(adopted.map(a=>[a.id,optionalArtifactEvidenceKeyV21({...a,qualification:'unreviewed',acceptedOutcome:undefined,judgment:undefined,adoptionReason:undefined,scientificFailure:undefined})]));
+    const reviewed=Object.fromEntries(adopted.map(a=>[a.id,optionalArtifactEvidenceKeyV21(a)]));
+    await library.recordV21OptionalEvidence(selection.projectId,reviewed,{role:'theorist',sessionId:selection.projectId},expected);
+  }
   const prior = Object.values(library.snapshot().proofs).find(proof=>proof.sessionId === selection.projectId && proof.optionalProof?.artifactId === artifact.id);
   const proofRef = await library.publishProof({sessionId:selection.projectId,hypothesisId:root.hypothesisId,hypothesisRevision:root.revision,
     targetKey:stableHash({text:root.originalText,conditions:root.conditions}),target:root.originalText,methodKey:artifact.route.methodKey,

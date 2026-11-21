@@ -1,6 +1,6 @@
 {
   "productName": "Carnot Agent Engine",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "identifier": "org.carnot.agentengine",
   "build": {
     "frontendDist": "assets"

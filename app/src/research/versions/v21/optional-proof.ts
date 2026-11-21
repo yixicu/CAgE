@@ -68,6 +68,7 @@ export function validateOptionalArtifactV21(root:RootV21,artifact:OptionalProofA
    const ownContinuation=continuations.includes(id);
    if(!ownContinuation){
     const premise=dependency!.acceptedOutcome;
+    requireProof(!!premise,`dependency ${id} has no accepted scientific outcome`);
     const sameNegativeEvidence=current.resultContract&&premise?.resultKind===outcome!.resultKind&&
      (outcome!.resultKind==='empirical-exclusion'||outcome!.resultKind==='valid-refutation'&&outcome!.refutationKind===premise?.refutationKind);
     requireProof(premise?.resultKind==='supported-result'||sameNegativeEvidence,'negative evidence cannot discharge a positive premise or change refutation category');

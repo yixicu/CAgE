@@ -23,7 +23,7 @@ export const OptionalOutcomeSchemaV21=obj({resultKind:Type.Union(['open','suppor
 export const OptionalWorkerRequestSchemaV21=obj({kind:Type.Union(['auxiliary-worker','way-worker'].map(value=>Type.Literal(value))),route:OptionalRouteSchemaV21,question:text,symbols:Type.Record(Type.String(),text),checks:strings,effort:Type.Union(['shallow','deep'].map(value=>Type.Literal(value))),reason:text});
 export const OptionalControlSchemaV21=obj({action:Type.Union(['dispatch','continue','complete','pause'].map(value=>Type.Literal(value))),route:OptionalRouteSchemaV21,outcome:OptionalOutcomeSchemaV21,rootInterpretation:Type.Optional(RootInterpretationSchemaV21),workers:Type.Array(OptionalWorkerRequestSchemaV21),adoptions:Type.Array(obj({artifactId:text,status:Type.Union(['valid','rejected','deferred'].map(value=>Type.Literal(value))),outcome:OptionalOutcomeSchemaV21,reason:text,scientificFailure:Type.Optional(Type.Boolean())})),nearTieReason:Type.Optional(text),failures:Type.Optional(Type.Array(obj({artifactIds:strings,patternKey:text,summary:text,tags:TagsSchemaV21,scientific:Type.Boolean(),generalizable:Type.Boolean()})))});
 export interface OptionalOperationContextV21 { project?:ResearchProjectV21; marker?:InFlightEpochV21; brief?:FrozenQuestionV21; root:RootV21; boundaryId:string }
-export interface OptionalOperationContractV21 { pin:OperationPinV21; schema:TSchema; prepare(value:unknown):OptionalControlV21; validatePrepared(value:unknown):OptionalControlV21; observeEvidence(evidence:{mapWriteReads?:import('../../../learning/knowledge-map.js').MapOpenResult[];publicBody?:string;mapKnowledge?:import('../../../learning/knowledge-map.js').MapOpenResult[];catalogMaterials?:CatalogMaterialV3[];knowledgeReads?:string[];rootDelivered?:boolean;deliveries?:import('../../contracts/v21.js').AnswerDeliveryV21[];resources?:ResourceRef[];receipts?:import('../v3/operations.js').OperationReceiptV3[]}):void }
+export interface OptionalOperationContractV21 { pin:OperationPinV21; schema:TSchema; wireSchema?:TSchema; prepare(value:unknown):OptionalControlV21; validatePrepared(value:unknown):OptionalControlV21; observeEvidence(evidence:{mapWriteReads?:import('../../../learning/knowledge-map.js').MapOpenResult[];publicBody?:string;mapKnowledge?:import('../../../learning/knowledge-map.js').MapOpenResult[];catalogMaterials?:CatalogMaterialV3[];knowledgeReads?:string[];rootDelivered?:boolean;deliveries?:import('../../contracts/v21.js').AnswerDeliveryV21[];resources?:ResourceRef[];receipts?:import('../v3/operations.js').OperationReceiptV3[]}):void }
 function exact(schema:TSchema,value:unknown):void {if(Value.Check(schema,value))return;const details=[...Value.Errors(schema,value)].slice(0,32).map(e=>({path:e.instancePath,keyword:e.keyword,message:e.message}));throw new ContractValidationError(details.map(d=>`${d.path}: ${d.message}`),'format',details);}
 /** Operation9 does not reinterpret saved operation8 schemas or declarations. */
 export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_worker',input:unknown,context:OptionalOperationContextV21,revision:OperationPinV21['revision']='v21-operation-9'):OptionalOperationContractV21 {
@@ -100,7 +100,18 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
  const readOriginal=(ref:import('../../contracts/v21.js').RawAnswerRefV21):string|undefined=>{const chunks=deliveries.filter(d=>isDeepStrictEqual(d.answerRef,ref)&&d.startByte>=0&&d.endByte<=ref.byteLength&&d.endByte>d.startByte&&Buffer.byteLength(d.body)===d.endByte-d.startByte&&digestV21(d.body)===d.excerptHash).sort((a,b)=>a.startByte-b.startByte||b.endByte-a.endByte);let end=0;const bytes:Buffer[]=[];for(const d of chunks){if(d.startByte>end)return undefined;if(d.endByte<=end)continue;bytes.push(Buffer.from(d.body).subarray(end-d.startByte));end=d.endByte;}const body=Buffer.concat(bytes).toString('utf8');return end===ref.byteLength&&digestV21(body)===ref.bodyHash?body:undefined;};
  let loaded=['v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(revision??'')?[]:(deliveredBodies??[]).map(r=>r.ref),rootDelivered=false;
  let receipts=structuredClone(c.marker?.optionalFlow?.v3?.receipts??[]);
+ // The immutable operation still validates and stores the full route. A V4 Worker
+ // only supplies its scientific content; the assignment already owns this key.
+ const assignedKey=worker&&revision==='v4-proof-5'?c.brief?.way.methodKey:undefined;
+ const wireSchema=assignedKey?structuredClone(schema):schema;
+ if(assignedKey){
+  const route=wireSchema.properties.route as TSchema&{required:string[];properties:Record<string,TSchema>};
+  route.required=route.required.filter(key=>key!=='methodKey');
+  route.properties.methodKey={...route.properties.methodKey!,description:'Assigned by the program; omit.'};
+ }
  const validate=(value:unknown):OptionalControlV21=>{
+  if(assignedKey&&value&&typeof value==='object'&&'route' in value&&value.route&&typeof value.route==='object'&&!Array.isArray(value.route))
+   value={...value,route:{...value.route,methodKey:assignedKey}};
   if(schema.properties.mapChanges){
    const format=scientificMapFormatIssue((value as OptionalControlV21|undefined)?.mapChanges);if(format)throw format;
   }
@@ -210,6 +221,15 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
    }
    if(new Set(originals.map(original=>original?.originalRef.callId)).size!==originals.length||new Set(originals.map(original=>original?.originalRef.id)).size!==originals.length||new Set(originals.map(original=>original?.originalRef.attemptId)).size!==originals.length)fail('Repeated artifacts or retries from one Worker original are not independent scientific failures.');
   }
+  if(!worker&&revision==='v4-proof-5'&&result.action==='complete'&&result.outcome.resultKind==='supported-result'){
+   for(const id of result.outcome.dependencyArtifactIds){
+    const target=c.marker?.optionalFlow?.artifacts.find(a=>a.id===id);
+    if(!target||target.authorRole==='theorist')continue;
+    const review=result.adoptions.find(a=>a.artifactId===id);
+    if(review?review.status!=='valid':target.qualification!=='valid'&&!(target.qualification==='unreviewed'&&target.control.outcome.resultKind==='supported-result'&&readOriginal(target.originalRef)))
+     fail(`Dependency ${id} needs a reviewed supporting result. Read its original and assess it before declaring it a premise.`);
+   }
+  }
   if(new Set(result.adoptions.map(a=>a.artifactId)).size!==result.adoptions.length)fail('Each delivered artifact may be reviewed only once in this response.');
   if(revision==='v4-proof-2'){
    const visible=Array.isArray(frozen.publicFragments)?frozen.publicFragments as PublicFragmentV4[]:[];
@@ -232,7 +252,7 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
    result.outcome.dependencyArtifactIds.filter(id=>(c.marker?.optionalFlow?.artifacts??[]).some(a=>a.id===id&&a.authorRole==='theorist'&&a.acceptanceCommitted&&isDeepStrictEqual(a.root,root))));
   return result;
  };
- return {pin,schema,prepare:validate,validatePrepared(value){
+ return {pin,schema,wireSchema,prepare:validate,validatePrepared(value){
   const declaration=structuredClone(value);
   if(projected&&!worker&&declaration&&typeof declaration==='object')delete (declaration as OptionalControlV21).publicStage;
   const prepared=validate(declaration);

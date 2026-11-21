@@ -5,11 +5,11 @@
   import { researchProgress } from './research-progress';
   import MonitorButton from './MonitorButton.svelte';
   import Icon from '../Icon.svelte';
-  let { project, view, commentary=[], hasOutput = false, number, onmonitor }: {
-    project: AnyResearchProject; commentary?:{epoch:number;text:string}[]; view: LoopView; hasOutput?: boolean; number?: number; onmonitor: () => void;
+  let { project, view, commentary=[], manuscript, hasOutput = false, number, onmonitor }: {
+    project: AnyResearchProject; commentary?:{epoch:number;text:string}[]; view: LoopView; manuscript?:string; hasOutput?: boolean; number?: number; onmonitor: () => void;
   } = $props();
   let progress = $derived(researchProgress(project, number ?? view.number));
-  let notes=$derived(commentary.filter(note=>note.epoch===(number??view.number)));
+  let notes=$derived(commentary.filter(note=>note.epoch===(number??view.number)&&note.text!==manuscript));
   let current = $derived((number ?? view.number) === view.number);
   let scopeKey = $derived(`${project.id}:${project.schemaVersion}:${number ?? view.number}`);
   let open = $state(true), lastScope = '', hadOutput = false;

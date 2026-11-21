@@ -30,7 +30,7 @@ assert.equal((await api('GET','/api/research/core-map')).entries.length,78);
 const title='有限深方势阱偶宇称态的边界匹配';
 const declaration={action:'complete',route:{methodKey:'matching',description:title,reason:'Finite potential step.',resourceRefs:[]},outcome:{resultKind:'supported-result',scope:'root',gaps:[],dependencyArtifactIds:[],reason:'Matched the boundary conditions.',reproducible:true}};
 const answer='Inside the well the even solution is A cos(kx). Outside it is B exp(-kappa(x-a)). Continuity at a gives B=A cos(ka). Derivative matching gives Ak sin(ka)=kappa B. Eliminating B yields k tan(ka)=kappa.';
-const empty=process.argv.includes('--empty');
+const empty=process.argv.includes('--empty'), confirm=process.argv.includes('--confirm');
 const route={mode:'lexical',query:'Schrodinger',branch:'Strategy',selection:1,relation:'related',direction:'outgoing',offset:0,limit:10,view:'directory',clusterRef:'Strategy',maxNodes:10};
 const lookup={mode:'lexical',query:'Schrodinger',selection:'quantum',relation:'related',direction:'outgoing',offset:0,limit:10};
 const queries=[['retrieve_knowledge',route],['retrieve_knowledge',{...route,mode:'directory'}],['lookup_map_knowledge',lookup],
@@ -48,8 +48,8 @@ globalThis.fetch=async(input,init)=>{
  const output=[];
  if(turn===1)output.push(text('I will derive it.','commentary'));
  if(turn<=queries.length)output.push(call(...queries[turn-1]));
- else if(turn===7){output.push(text('Next I will match the waves.'),call('submit_research_result',declaration));}
- else if(turn===8)output.push(text(empty?'':answer,'final_answer'));
+ else if(turn===7){output.push(text(confirm?answer:'Next I will match the waves.'),call('submit_research_result',declaration));}
+ else if(turn===8)output.push(text(empty?'':confirm?'Use previous answer':answer,'final_answer'));
  else output.push(call('submit_research_result',declaration));
  if(page&&turn===8){
    try {
@@ -57,7 +57,7 @@ globalThis.fetch=async(input,init)=>{
      const toggle=progress.locator('button[aria-expanded]').first();
      await toggle.waitFor({timeout:15000});
      if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();
-     await progress.getByText('Next I will match the waves.',{exact:false}).last().waitFor({timeout:8000});
+     await progress.getByText(confirm?answer:'Next I will match the waves.',{exact:false}).last().waitFor({timeout:8000});
      assert.ok((await progress.innerText()).includes('I will derive it.'));
      console.log('PASS live Research progress while manuscript request is pending');
    } catch(error) { progressError=error; }
@@ -79,6 +79,9 @@ const p=await api('POST','/api/projects',{...input,requestId:'title-retry'});
 assert.equal(manual.nameSource,'user');
 assert.notEqual(p.id,manual.id);
 assert.equal(p.nameSource,undefined);
+const stored=await app.carnot.store.loadProject(p.id);
+stored.lastError='Previous recovery warning';
+await app.carnot.store.commitCheckpoint(stored);
 if(process.argv.includes('--ui')){
  const {chromium}=await import('@playwright/test');
  browser=await chromium.launch({env:{...process.env,LOCALAPPDATA:dir,APPDATA:dir,USERPROFILE:dir}});
@@ -97,6 +100,7 @@ const result=await api('GET','/api/projects/'+p.id);
 if(progressError)throw progressError;
 
 assert.equal(result.status,empty?'paused':'completed',result.lastError);
+if(!empty)assert.equal(result.lastError,undefined);
 assert.ok(titleRequested);
 assert.deepEqual(seen[7],[]);
 if(!empty)assert.deepEqual(seen[8],['submit_research_result']);
@@ -107,7 +111,7 @@ const reads=rows.filter(row=>row.tool==='lookup_map_knowledge'&&row.type==='know
 assert.equal(reads.length,2);
 assert.ok(reads[0].result.total>0);
 const activity=await api('GET','/api/projects/'+p.id+'/activity');
-assert.deepEqual(activity.commentary.map(n=>n.text),['I will derive it.','Next I will match the waves.']);
+assert.deepEqual(activity.commentary.map(n=>n.text),['I will derive it.',confirm?answer:'Next I will match the waves.']);
 const raw=await Promise.all((await fs.readdir(path.join(dir,'raw-answers')).catch(error=>{if(error.code==='ENOENT')return [];throw error})).map(async f=>JSON.parse(await fs.readFile(path.join(dir,'raw-answers',f),'utf8'))));
 if(empty)assert.ok(raw.every(r=>r.ref.completeness!=='complete'));else assert.ok(raw.some(r=>r.body===answer));
 if (!empty) {
@@ -118,6 +122,12 @@ if (!empty) {
   if(page){
     await page.locator('.workspace-title').filter({hasText:title}).waitFor();
     await page.getByRole('navigation',{name:'Research projects'}).getByRole('button',{name:title,exact:true}).waitFor();
+    if(confirm){
+      await page.getByRole('textbox',{name:'Discuss or revise the proposition'}).fill('Explain the zero-depth limit.');
+      await page.getByRole('button',{name:'Queue discussion turn'}).click();
+      await page.getByText('Follow-up queued. Select Continue research to run it.',{exact:true}).waitFor();
+      assert.equal((await api('GET','/api/projects/'+p.id)).status,'completed');
+    }
     await browser.close(); browser=undefined;
   }
   await app.carnot.shutdown(); app=await createApp({dataRoot:dir});
