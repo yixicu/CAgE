@@ -13,6 +13,10 @@
  const strokes:Record<string,string>={prerequisite:'none','uses-definition':'2 4','upper-structure':'12 4',related:'1 6',specializes:'7 3 2 3',tests:'9 4 2 4',measures:'4 3','measured-in':'4 3 1 3','member-of':'12 3 3 3'};
  type FieldChoice=keyof typeof FIELD_CATALOG | '';
  let field=$state<FieldChoice>('');
+ import NodeProofs from './NodeProofs.svelte';
+ import Icon from './Icon.svelte';
+ import type {MapNodeDocument} from '../src/learning/knowledge-map';
+ import {tick} from 'svelte';
  import NodeReviewBadge from './NodeReviewBadge.svelte';
  import MarkdownView from './MarkdownView.svelte';
  import {containDialogFocus} from './capabilities/dialog-focus';
@@ -137,13 +141,29 @@
  function focusCited(node:HTMLButtonElement,cited:boolean){if(cited)node.focus({preventScroll:true})}
  async function refreshReviewedNode(){
    const target=selected?.ref;
+   proofRefresh++;
    try{
      const next=citation?await api.cageMap(citation.projectId):await api.coreMap();
      result=next;
      if(target&&selected?.ref&&address(target)===address(selected.ref))selected=next.entries.find(e=>address(e.ref)===address(target));
    }catch(e){notice=String(e)}
  }
- function open(n:CoreEntry){editing=false;selected=n;draft=n.body??(n===citedEntry?citation?.read.body:'')??'';expanded=false;notice=''}
+ let trail=$state<{entry:CoreEntry;doc?:MapNodeDocument;top:number}[]>([]),documentView=$state<MapNodeDocument>();
+ let article=$state<HTMLElement>(),sheet=$state<HTMLElement>(),proofRefresh=$state(0);
+ function visit(doc?:MapNodeDocument){
+   if(!selected)return;
+   const previous=doc?undefined:trail.at(-1);
+   const target=doc?result?.entries.find(e=>address(e.ref)===address(doc.node.ref)&&e.ref.bodyHash===doc.node.ref.bodyHash):previous?.entry;
+   if(!target){notice='This prerequisite version is unavailable.';return}
+   sheet?.focus({preventScroll:true});
+   if(doc)trail.push({entry:selected,doc:documentView,top:article?.scrollTop??0});
+   else trail.pop();
+   select(target);documentView=doc??previous?.doc;
+   if(documentView)draft=documentView.node.body;
+   void tick().then(()=>article?.scrollTo(0,previous?.top??0));
+ }
+ function open(n:CoreEntry){trail=[];documentView=undefined;expanded=false;select(n)}
+ function select(n:CoreEntry){editing=false;selected=n;draft=n.body??(n===citedEntry?citation?.read.body:'')??'';notice=''}
  async function submit(){
    if(!selected||sending)return;
    sending=true;
@@ -159,10 +179,10 @@
 {#each edges as r}{@const a=positions.get(key(r.from)+'@'+r.from.version)}{@const b=positions.get(key(r.to)+'@'+r.to.version)}{#if a&&b&&front(address(r.from))&&front(address(r.to))&&r.status==='active'}<polyline data-relation={r.kind} points={arrowPoints(a,b,scale,r.direction==='forward')} fill="none" stroke-dasharray={strokes[r.kind]} class:incident={incident(r)} marker-mid={r.direction==='forward'?'url(#map-arrow)':undefined}/>{/if}{/each}</svg>
 {#each nodes as n}{@const pos=positions.get(address(n.ref))!}{#if front(address(n.ref))}<button class="node" use:focusCited={n===citedEntry} data-cited={n===citedEntry || undefined} style:--field-color={fieldTone(discipline(n))} data-kind={scientificType(n)} aria-label={scientificType(n)+": "+n.title} class:neighbor={n===citedEntry || neighbors.has(address(n.ref)) || n===currentMatch} use:dragNode={(dx,dy)=>{if(sphere){moveOnGlobe(address(n.ref),dx,dy);return}const k=address(n.ref),o=offsets[k];offsets[k]={x:(o?.x??0)+dx,y:(o?.y??0)+dy}}} style:left={pos.x+'px'} style:top={pos.y+'px'} onclick={()=>open(n)}><i aria-hidden="true"></i><span>{n.title}{#if n===citedEntry} · v{n.ref.version}{/if}</span></button>{/if}{/each}</div></div>
 {#if edges.length}<aside class="edge-key" aria-label="Relations">{#each [...new Set(edges.filter(e=>e.status==="active").map(e=>e.kind))] as kind}<span><svg width="30" height="8" aria-hidden="true"><line x1="1" y1="4" x2="29" y2="4" stroke="currentColor" stroke-dasharray={strokes[kind]}/></svg>{kind}</span>{/each}</aside>{/if}<button class="network-minimap" aria-label="Fit knowledge map" onclick={overview}><svg viewBox={`0 0 ${boardWidth} ${boardHeight}`} aria-hidden="true">{#each edges as r}{@const a=positions.get(address(r.from))}{@const b=positions.get(address(r.to))}{#if a&&b&&front(address(r.from))&&front(address(r.to))&&r.status==='active'}<line stroke-dasharray={strokes[r.kind]} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="currentColor" stroke-width="4"/>{/if}{/each}{#each positions as [k,pos]}<circle cx={pos.x} cy={pos.y} r="14" opacity={front(k)?1:.2}/>{/each}<rect class="mini-window" x={-x/scale} y={-y/scale} width={width/scale} height={height/scale}/></svg></button></div>{/if}
-{#if selected}<div class="sheet" use:movable={'dialog'} class:expanded role="dialog" aria-modal="true" aria-labelledby="map-title" tabindex="-1" use:containDialogFocus={()=>{if(!sending)selected=undefined}}>
-<header><h2 id="map-title">{selected.title}</h2>{#if !citation}<button aria-label={editing?"Read document":"Edit node"} onclick={()=>editing=!editing}>{editing?"Read":"Edit"}</button>{/if}<button aria-label="Toggle expanded editor" onclick={()=>expanded=!expanded}>⛶</button><button aria-label="Close node" disabled={sending} onclick={()=>selected=undefined}>×</button></header>
-{#key address(selected.ref)}<NodeReviewBadge projectId={citation?.projectId??'shared-core-map'} ref={selected.ref} qualification={selected.qualification} kind={selected.kind} onchange={refreshReviewedNode}/>{/key}
-<div class:split={editing} class:reading={!editing}>{#if editing}<textarea aria-label="Node Markdown" bind:value={draft} disabled={sending||selected.body===undefined}></textarea>{/if}<article><MarkdownView content={draft}/>{#if !editing}{#each selected.assumptions as assumption}<MarkdownView content={assumption}/>{/each}{#each [...new Set([selected.suppliedProof?.argument,...(selected.supports??[]).filter(s=>s.status==='proved').map(s=>s.argument)].filter(Boolean))] as argument}<MarkdownView content={argument??''}/>{/each}{/if}</article></div><footer><span role="status">{notice}</span>{#if editing}<button disabled={sending||!draft.trim()||draft===selected.body} onclick={submit}>Submit for review</button>{/if}</footer></div>{/if}{/if}</section>
+{#if selected}<div class="sheet" bind:this={sheet} use:movable={'dialog'} class:expanded role="dialog" aria-modal="true" aria-labelledby="map-title" tabindex="-1" use:containDialogFocus={()=>{if(!sending)selected=undefined}}>
+<header>{#if trail.length}<button aria-label="Back to previous node" title="Back to previous node" onclick={()=>visit()}><Icon name="back"/></button>{/if}<h2 id="map-title">{selected.title}</h2>{#if !citation}<button aria-label={editing?"Read document":"Edit node"} onclick={()=>editing=!editing}>{editing?"Read":"Edit"}</button>{/if}<button aria-label="Toggle expanded editor" onclick={()=>expanded=!expanded}>⛶</button><button aria-label="Close node" disabled={sending} onclick={()=>selected=undefined}>×</button></header>
+{#key address(selected.ref)}<NodeReviewBadge projectId={citation?.projectId??'shared-core-map'} ref={selected.ref} qualification={selected.qualification} kind={selected.kind} nodeType={selected.nodeType??(selected.definition?'definition':undefined)} onchange={refreshReviewedNode}/>{/key}
+<div bind:this={article} class:split={editing} class:reading={!editing}>{#if editing}<textarea aria-label="Node Markdown" bind:value={draft} disabled={sending||selected.body===undefined}></textarea>{/if}<article><MarkdownView content={draft}/>{#if !editing}{#each selected.assumptions as assumption}<MarkdownView content={assumption}/>{/each}{#key selected.ref}{#key proofRefresh}<NodeProofs projectId={citation?.projectId??'shared-core-map'} ref={selected.ref} initial={proofRefresh?undefined:documentView} fallback={selected} theorem={selected.kind==='theorem'} onopen={visit}/>{/key}{/key}{/if}</article></div><footer><span role="status">{notice}</span>{#if editing}<button disabled={sending||!draft.trim()||draft===selected.body} onclick={submit}>Submit for review</button>{/if}</footer></div>{/if}{/if}</section>
 <style>
   .citation-location { font-size:.85rem; color:var(--color-muted); margin:.4rem .5rem }
 .map{font-family:"Times New Roman",serif}.scroll{flex:1;cursor:grab}.board{transform-origin:0 0}.sheet header{cursor:move}.sheet.expanded{translate:0 0!important}.map{position:relative;height:100%;min-height:0;padding:1rem;display:flex;flex-direction:column}.map header,.map footer{display:flex;align-items:center;gap:.6rem}.map h1,.map h2{margin:0 auto 0 0;font-size:1.15rem}.scroll,.split article{overflow:auto}.board{position:relative}.board svg{opacity:.5}.node,.sheet{background:var(--color-surface);color:inherit;border:1px solid var(--color-line);border-radius:12px}.node{position:absolute;display:grid;align-content:center;width:190px;height:62px;text-align:left;padding:.4rem .8rem;overflow:hidden}.sheet{position:absolute;inset:12% 5%;padding:1rem;display:flex;flex-direction:column;gap:1rem;box-shadow:0 12px 50px var(--color-scrim)}.expanded{inset:0}.split{display:grid;grid-template-columns:1fr 1fr;min-height:0;flex:1}.split>*{min-width:0;padding:1rem}.split textarea{color:inherit;background:transparent;resize:none}.map footer{justify-content:flex-end}@media(max-width:640px){.split{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}

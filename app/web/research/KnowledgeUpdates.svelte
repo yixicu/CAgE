@@ -1,9 +1,9 @@
 <script lang="ts">
  import {onMount} from 'svelte';
- import {api,type ReportUpdate,type DomainRequest,type ReviewedPremiseOrigin} from '../api';
+ import {api,type ReportUpdate,type ReportPublication,type DomainRequest,type ReviewedPremiseOrigin} from '../api';
  import ReportUpdateView from './ReportUpdateView.svelte';
  import ResearchPaper from '../ResearchPaper.svelte';
- let {projectId,epochs,onreports,onmaintenance}:{onmaintenance:()=>void;projectId:string;epochs:{id:string;number:number}[];onreports:(rows:ReportUpdate[])=>void}=$props();
+ let {projectId,epochs,onreports,onmaintenance}:{onmaintenance:()=>void;projectId:string;epochs:{id:string;number:number}[];onreports:(rows:ReportUpdate[],publications:ReportPublication[])=>void}=$props();
  let updates=$state<ReportUpdate[]>([]), requests=$state<DomainRequest[]>([]);
  let referrals=$state<{id:string;origin:string;epochId?:string}[]>([]);
  let pending=$state(''), error=$state(''), readError=$state('');
@@ -14,7 +14,7 @@
    const current=++generation; clearTimeout(timer);
    try{
     const [reports,domains]=await Promise.all([api.reportUpdates(projectId,controller.signal),api.domainRequests(projectId,controller.signal)]);
-    if(!controller.signal.aborted&&current===generation){referrals=reports.referrals??[];updates=reports.updates;onreports(reports.updates);requests=domains.requests;readError='';}
+    if(!controller.signal.aborted&&current===generation){referrals=reports.referrals??[];updates=reports.updates;onreports(reports.updates,reports.publications??[]);requests=domains.requests;readError='';}
    }catch(cause){if(!controller.signal.aborted&&current===generation)readError=cause instanceof Error?cause.message:'Updates unavailable.';}
    finally{if(!controller.signal.aborted&&current===generation)timer=setTimeout(()=>{if(document.hidden)onVisibility();else void refresh();},10000);}
   };

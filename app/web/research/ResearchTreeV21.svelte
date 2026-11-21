@@ -10,19 +10,20 @@
   import V3Evidence from './V3Evidence.svelte';
   import ResearchTag from './ResearchTag.svelte';
   import { agentTag, proofTerms, statusTag } from './research-tags';
-  let { project,reportUpdates=[],onmap }: { project: ResearchProjectV21;reportUpdates?:ReportUpdate[];onmap:(read:MapOpenResult)=>void } = $props();
+  let { project,reportUpdates=[],publications=[],onmap }: { project: ResearchProjectV21;reportUpdates?:ReportUpdate[];publications?:import('../api').ReportPublication[];onmap:(read:MapOpenResult)=>void } = $props();
   let selectionLabel = $state('Original answer');
   import ReportUpdateView from './ReportUpdateView.svelte';
   import type {ReportUpdate} from '../api';
   let loadedAssessment=$state<ReportUpdate>();
-  let assessment=$derived.by(()=>{
+  let selectedRecord=$derived.by(()=>{
     for(const epoch of optionalEpochs){
       const flow=epoch.optionalFlow;
       const artifactId=flow?.archives.find(a=>a.operationId===selected)?.artifactId??flow?.artifacts.find(a=>a.originalRef.id===selected)?.id;
-      if(artifactId)return reportUpdates.findLast(row=>row.projectId===project.id&&row.epochId===epoch.snapshot.id&&row.artifactId===artifactId&&row.status!=='queued')??loadedAssessment;
+      if(artifactId)return {epochId:epoch.snapshot.id,artifactId};
     }
-    return loadedAssessment;
   });
+  const belongsToRecord=(item:{projectId:string;epochId:string;artifactId:string})=>item.projectId===project.id&&item.epochId===selectedRecord?.epochId&&item.artifactId===selectedRecord?.artifactId;
+  let assessment=$derived(reportUpdates.findLast(row=>row.status!=='queued'&&belongsToRecord(row))??loadedAssessment);
   let refutation=$state<ArchivedRefutation>();
   let selected = $state(''), original = $state<SavedProof>(), error = $state(''), loading = $state(false);
   let answers = $derived([...project.answers, ...(project.activeEpoch?.answers ?? [])].filter((answer, index, all) => all.findIndex(other => other.id === answer.id) === index));
@@ -153,6 +154,6 @@
     <h4>{selectionLabel}</h4>
     {#if assessment}<ReportUpdateView update={assessment} />{/if}
     {#if refutation}<ArchivedRefutationView result={refutation} />{/if}
-    {#if loading}<p role="status">Loading original…</p>{:else if error}<p role="alert">{error}</p>{:else if original}<SavedProofView projectId={project.id} proof={original} paper={false} {onmap}/>{/if}
+    {#if loading}<p role="status">Loading original…</p>{:else if error}<p role="alert">{error}</p>{:else if original}<SavedProofView projectId={project.id} proof={original} publications={publications.filter(belongsToRecord)} paper={false} {onmap}/>{/if}
   </section>{/if}
 </section>

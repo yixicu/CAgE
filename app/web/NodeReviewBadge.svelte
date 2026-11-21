@@ -1,15 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Icon from './Icon.svelte';
   import { api } from './api';
   import type { MapRef, MapOpenResult, NodeReviewStatus } from '../src/learning/knowledge-map';
 
-  let { projectId, ref, kind, qualification, onchange }: { projectId:string; ref:MapRef; kind:MapOpenResult['kind']; qualification?:MapOpenResult['qualification']; onchange?:()=>void } = $props();
+  let { projectId, ref, kind, nodeType, qualification, onchange, compact=false }: { projectId:string; ref:MapRef; kind:MapOpenResult['kind']; nodeType?:MapOpenResult['nodeType']; qualification?:MapOpenResult['qualification']; onchange?:()=>void; compact?:boolean } = $props();
+  const typeLabel=$derived((nodeType??(kind==='concept'&&qualification==='definition'?'definition':kind)).replaceAll('-',' '));
   const labels:Record<NodeReviewStatus,string>={approved:'Approved',pending:'Pending review',invalid:'Invalid'};
   let review=$state<Awaited<ReturnType<typeof api.nodeReview>>>(), editing=$state(false), saving=$state(false), message=$state('');
   let choice=$state<NodeReviewStatus>('pending'), argument=$state('');
   const status=$derived(review?.status ?? (qualification==='disputed'||qualification==='withdrawn'?'invalid':qualification==='proved'||qualification==='observed'||qualification==='definition'?'approved':qualification?'pending':undefined));
   const label=$derived(review?.qualification==='withdrawn'||!review&&qualification==='withdrawn'?'Withdrawn':status?labels[status]:'Checking review…');
   const origin=$derived(review?.origin==='user'?'User review':review?.origin==='theorist'?'Theorist review':review?.origin==='core'?'Published core map':'');
+  export function reviewOrigin(){return origin}
   onMount(()=>{
     let live=true;
     api.nodeReview(projectId,ref).then(r=>{if(live)review=r}).catch(()=>{if(live)message='Current review status is unavailable.'});
@@ -27,11 +30,12 @@
     }finally{saving=false}
   }
 </script>
-<section class="review" aria-label="Node review">
+<section class="review" class:compact aria-label="Node review">
   <div class="row">
-    <span class="review-state" data-state={status} title={[label,origin].filter(Boolean).join(' · ')}><i aria-hidden="true"></i>{label}</span>
-    {#if origin}<small>{origin}</small>{/if}
-    {#if review?.editable}<button type="button" aria-label="Change review status" aria-expanded={editing} onclick={()=>{editing=!editing;choice=review!.status;argument='';message=''}}>Change</button>{/if}
+    <span class="node-type" title="Knowledge node type">{typeLabel}</span>
+    {#if review?.editable}<button type="button" class="change" title="Change" aria-label="Change review status" aria-expanded={editing} onclick={()=>{editing=!editing;choice=review!.status;argument='';message=''}}><Icon name="edit" size={14}/></button>{/if}
+    <span class="review-state" data-state={status} title={label}><i aria-hidden="true"></i>{label}</span>
+    {#if origin&&!compact}<small>{origin}</small>{/if}
   </div>
   {#if editing}
     <form onsubmit={e=>{e.preventDefault();void save()}}>
@@ -47,6 +51,7 @@
 <style>
   .review{padding:.4rem .8rem;flex:none;max-height:42%;overflow:auto}
   .row,form{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+  .node-type{display:inline-flex;align-items:center;padding:.14rem .48rem;border-radius:4px;color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 11%,var(--color-surface));text-transform:capitalize;font-size:.8rem;font-weight:600}
   .review-state{display:inline-flex;align-items:center;gap:.35rem;font-weight:600;font-size:.85rem}
   i{width:.65rem;height:.65rem;border-radius:50%;background:var(--color-muted);border:1px solid color-mix(in srgb,currentColor 22%,transparent)}
   [data-state=approved] i{background:#42b477}
@@ -55,7 +60,13 @@
   small{color:var(--color-muted)}
   button,select,textarea{font:inherit;color:inherit;background:var(--color-surface);border:1px solid var(--color-line);border-radius:.3rem}
   button,select{padding:.2rem .45rem;font-size:.82rem}
-  .row button{margin-left:auto}
+  .review.compact{padding:0;flex:1;min-width:0;max-height:none}
+  .compact .row{gap:.36rem;min-height:28px}
+  .compact .node-type{font-size:.72rem;padding:.12rem .4rem;font-weight:600}
+  .compact .review-state{font-size:.75rem;gap:.28rem}
+  .compact i{width:.48rem;height:.48rem}
+  .row .change{display:inline-grid;place-items:center;min-width:26px;min-height:26px;padding:0;border:0;background:transparent;color:var(--color-muted);cursor:pointer}
+  .row .change:hover,.row .change:focus-visible,.row .change[aria-expanded=true]{color:var(--color-accent);background:var(--color-selected)}
   form{margin-top:.5rem}
   label{width:100%;font-size:.82rem}textarea{display:block;box-sizing:border-box;width:100%;padding:.3rem}
 </style>

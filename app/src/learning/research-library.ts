@@ -1,5 +1,6 @@
 import {KnowledgeMapStore,type MapSeedInput} from './knowledge-map-store.js';
-import {ScientificTextStore} from '../storage/scientific-text.js';
+import {reportPublications} from '../presentation/report-publications.js';
+import {ScientificTextStore,needsMapTextUpgrade} from '../storage/scientific-text.js';
 import {emptyKnowledgeMap,type KnowledgeMapState,type MapGrant,type MapView,type MapQuery,type MapUser,type MapRef,type MapSource,type MapReviewedProposal} from './knowledge-map.js';
 import { usesV3Proof } from '../research/versions/v3/proof-version.js';
 import {directedRouteSelection,directedRoutePresentation,type DirectedRouteQuery} from './directed-route.js';
@@ -109,8 +110,18 @@ export class ResearchLibrary {
     if (await exists(path.join(root, 'checkpoint.json'))) {
       const pointer = await readJson<Pointer>(path.join(root, 'checkpoint.json'));
       revision = pointer.revision;
-      state = await new ScientificTextStore(path.join(path.dirname(root),'scientific-content')).decode<ResearchLibraryState>(JSON.parse(new TextDecoder().decode(await git.read(revision, 'state.json'))),['knowledgeMapV4']);
+      const texts=new ScientificTextStore(path.join(path.dirname(root),'scientific-content'));
+      const stored=JSON.parse(new TextDecoder().decode(await git.read(revision,'state.json')));
+      state=await texts.decode<ResearchLibraryState>(stored,['knowledgeMapV4']);
       requireData(state.schemaVersion === 1 && Number.isSafeInteger(state.generation) && !!state.catalogs && !!state.decisions, 'Unsupported research library snapshot.');
+      if(needsMapTextUpgrade(stored)){
+        const migrated=await texts.encode(state,['knowledgeMapV4']);
+        const next=await git.commit({'state.json':json(migrated)},revision,'Separate knowledge proof text',true);
+        const restored=await texts.decode(JSON.parse(new TextDecoder().decode(await git.read(next,'state.json'))),['knowledgeMapV4']);
+        requireData(stableHash(restored)===stableHash(state),'Knowledge proof migration verification failed.');
+        await atomicWrite(path.join(root,'checkpoint.json'),json({revision:next,previousRevision:revision}));
+        revision=next;
+      }
     } else {
       const generation = 0;
       state = { schemaVersion: 1, generation, proofs: {}, nextProof: {}, failures: {}, resources: {},
@@ -681,6 +692,9 @@ export class ResearchLibrary {
     return operationId?this.state.operations[operationId]?.createdAt:undefined;
   }
   /** Administrative snapshot; never supplied to an Agent or a plugin. */
+  reportPublications(project:import('../research/contracts/v21.js').ResearchProjectV21) {
+    return reportPublications(project,this.state,async ref=>JSON.parse(await this.readText(`${resourcePath(ref)}/meta.json`)) as ResourceMeta);
+  }
   snapshot(): ResearchLibraryState {
     const view=structuredClone(this.state);
     for(const resource of Object.values(view.resources))if(!this.resourceSupportValid(resource)){

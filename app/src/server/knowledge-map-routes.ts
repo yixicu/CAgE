@@ -72,6 +72,9 @@ export function registerKnowledgeMapRoutes(app:FastifyInstance,options:Knowledge
  };
 
  const reviewActor=async(projectId:string)=>{if(projectId!==CORE_MAP_ID)await actor(projectId);};
+ app.post<{Body:{projectId:string;ref:MapRef}}>('/api/research/knowledge-map/node-document',{schema:{body:reviewTarget}},async(request,reply)=>mapResponse(reply,async()=>{
+  const {projectId,ref}=request.body;await reviewActor(projectId);return options.library.knowledgeMap.nodeDocument(projectId,ref);
+ }));
  app.post<{Body:{projectId:string;ref:MapRef}}>('/api/research/knowledge-map/review-status',{schema:{body:reviewTarget}},async(request,reply)=>mapResponse(reply,async()=>{
   const {projectId,ref}=request.body;await reviewActor(projectId);return options.library.knowledgeMap.nodeReview(projectId,ref);
  }));

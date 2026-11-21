@@ -12,6 +12,15 @@ const original='The original Markdown.', displayBody='By [historical result](#ca
 const proof={body:original,displayBody,citations:[read],presentationIssues:['One reference could not be located.']};
 const localEntry={ref,ownerId:'local-user',kind:'theorem',title:read.title,body:read.body,assumptions:[],aliases:[],domain:['math'],status:'withdrawn',createdFrom:[],definition:false};
 const updated={...localEntry,ref:{...ref,version:2,bodyHash:'changed'},title:'Updated result',status:'active'};
+const base={...localEntry,status:'active',ref:{...ref,id:'bound',bodyHash:'boundhash'},title:'Norm bound',body:'The norm bounds each component.'};
+const axiom={...base,ref:{...ref,id:'triangle',bodyHash:'trianglehash'},title:'Triangle inequality',body:'The norm is subadditive.'};
+function proofDocument(entry,next){
+  const node={...read,...entry,selection:'map_'+entry.ref.id};
+  if(!next)return {node,links:[]};
+  const link={supportId:'s',ref:next.ref,title:next.title,selection:'map_'+next.ref.id};
+  return {node:{...node,supports:[{id:'s',status:'proved',prerequisites:[{role:'established',ref:next.ref}],
+    argument:'Apply [['+next.title+']] to the sum. Unbound [[Other result]] and code `[['+next.title+']]`.'}]},links:[link]};
+}
 const input=resolve('web/citation-browser-fixture.js'),slash=p=>p.replaceAll('\\','/');
 const result=await build({configFile:false,root:process.cwd(),cacheDir:resolve('tests/.vite-citation'),logLevel:'error',plugins:[{
   name:'citation-browser-fixture',
@@ -32,6 +41,13 @@ const script=[...assets.values()].find(item=>item.type==='chunk' && item.isEntry
 let seenMap=false,latestReview='pending';
 const server=createServer((req,res)=>{
   const url=new URL(req.url,'http://localhost');
+  if(url.pathname==='/api/research/knowledge-map/node-document'){
+    let data='';req.on('data',chunk=>{data+=chunk});req.on('end',()=>{
+      const {ref:r,projectId}=JSON.parse(data);assert.equal(projectId,'project1');
+      const doc=r.id===axiom.ref.id?proofDocument(axiom):r.id===base.ref.id?proofDocument(base,axiom):proofDocument(r.version===1?localEntry:updated,base);
+      res.setHeader('Content-Type','application/json');res.end(JSON.stringify(doc));
+    });return;
+  }
   if(url.pathname==='/api/research/knowledge-map/review-status'){
     let data='';req.on('data',chunk=>{data+=chunk});req.on('end',()=>{
       const request=JSON.parse(data),historical=request.ref.version===1;
@@ -43,7 +59,7 @@ const server=createServer((req,res)=>{
   }
   if(url.pathname==='/api/research/knowledge-map'){
     seenMap=url.searchParams.get('projectId')==='project1';
-    res.setHeader('Content-Type','application/json');res.end(JSON.stringify({entries:[updated,localEntry],relations:[]}));return;
+    res.setHeader('Content-Type','application/json');res.end(JSON.stringify({entries:[updated,localEntry,base,axiom],relations:[]}));return;
   }
   const asset=assets.get(url.pathname.slice(1));
   if(asset){res.setHeader('Content-Type',asset.type==='chunk'?'text/javascript':'text/css');res.end(asset.type==='chunk'?asset.code:asset.source);return}
@@ -61,6 +77,7 @@ try{
   await link.hover();await card.waitFor();
   await card.getByTitle('Withdrawn',{exact:true}).waitFor();
   assert.equal(await card.locator('.review-state').getAttribute('data-state'),'invalid');
+  assert.equal(await card.locator('.node-type').innerText(),'Theorem');
   assert.match(await card.innerText(),/Exact saved theorem\./);
   assert.match(await card.innerText(),/Positive mass\./);
   assert.equal(await page.getByRole('link',{name:'Unverified'}).count(),0);
@@ -71,7 +88,24 @@ try{
   await page.keyboard.press('Escape');await card.waitFor({state:'hidden'});assert.equal(await link.evaluate(a=>a===document.activeElement),true);
   await page.getByText('Original Markdown',{exact:true}).click();assert.equal(await page.locator('pre').innerText(),original);
   await link.click();await card.waitFor();
-  await page.getByRole('button',{name:'Show on knowledge map'}).click();
+  async function roundTrip(rootTitle){
+    const inline=card.locator('.markdown-view a[data-proof-link]').first();
+    await inline.hover();assert.equal(await page.getByRole('dialog').count(),1);
+    assert.equal(await card.getByRole('heading',{name:rootTitle}).count(),1);
+    assert.equal(await card.locator('code a[data-proof-link]').count(),0);
+    assert.equal(await card.getByRole('link',{name:'Other result'}).count(),0);
+    await inline.click();
+    await card.getByRole('heading',{name:'Norm bound'}).waitFor();
+    await card.locator('.markdown-view a[data-proof-link]').click();
+    await card.getByRole('heading',{name:'Triangle inequality'}).waitFor();
+    const back=card.getByRole('button',{name:'Back to previous node'});
+    assert.equal((await back.innerText()).trim(),'');
+    await back.click();await card.getByRole('heading',{name:'Norm bound'}).waitFor();
+    await back.click();await card.getByRole('heading',{name:rootTitle}).waitFor();
+    assert.equal(await back.count(),0);
+  }
+  await roundTrip('Historical result');
+  await page.getByRole('button',{name:'Show on map'}).click();
   const node=page.locator('button[data-cited=true]');await node.waitFor({timeout:3000}).catch(async e=>{console.error({errors,seenMap,body:await page.locator('body').innerText(),buttons:await page.getByRole('button').allTextContents()});throw e});
   assert.equal(seenMap,true);assert.match(await node.innerText(),/Historical result\s*· v1/);
   assert.equal(await node.evaluate(b=>b===document.activeElement),true);
@@ -80,9 +114,12 @@ try{
   await node.click();assert.equal(await page.getByRole('button',{name:'Edit node'}).count(),0);
   await page.getByTitle('Withdrawn',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Change review status'}).count(),0);
+  await roundTrip('Historical result');
   await page.getByRole('button',{name:'Close node'}).click();
+  await page.getByRole('searchbox',{name:'Search node titles'}).fill('Updated result');
   await page.getByRole('button',{name:'theorem: Updated result'}).click();
   await page.getByTitle('Pending review',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('dialog').locator('.node-type').innerText(),'Theorem');
   await page.getByRole('button',{name:'Change review status'}).click();
   await page.getByRole('combobox',{name:'Review status'}).selectOption('approved');
   await page.getByRole('button',{name:'Save review'}).click();

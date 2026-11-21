@@ -105,10 +105,32 @@ md.block.ruler.before('fence', 'carnot_math_block', (state, startLine, endLine, 
 }, { alt: ['paragraph', 'reference', 'blockquote'] });
 md.renderer.rules.carnot_math_block = (tokens, index) => `<div class="math-block">${math(tokens[index]!.content, true)}</div>\n`;
 md.renderer.rules.image = (tokens, index) => `<span class="image-placeholder">[Image: ${md.utils.escapeHtml(tokens[index]!.content)}]</span>`;
+// A proof can link only the exact premises recorded for this particular argument.
+md.inline.ruler.before('link','proof_prerequisite',(state,silent)=>{
+  const names=state.env.proofNames as ReadonlyMap<string,string>|undefined;
+  if(!names||state.linkLevel||!state.src.startsWith('[[',state.pos))return false;
+  const end=state.src.indexOf(']]',state.pos+2);
+  if(end<0)return false;
+  const name=state.src.slice(state.pos+2,end),selection=names.get(name);
+  if(!selection)return false;
+  if(!silent){
+    state.push('link_open','a',1).attrSet('href','#cage-node-'+selection);
+    state.push('text','',0).content=name;
+    state.push('link_close','a',-1);
+  }
+  state.pos=end+2;
+  return true;
+});
 md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
   const href = tokens[index]!.attrGet('href');
   if (typeof href === 'string' && href.startsWith('#cage-node-')) {
     const selection = href.slice('#cage-node-'.length);
+    if(env?.proofNames instanceof Map){
+      const exact=env.proofNames.get(selection);
+      if(!exact)return '<a>';
+      tokens[index]!.attrSet('data-proof-link',exact);
+      return renderer.renderToken(tokens,index,options);
+    }
     if (!(env?.citationKeys instanceof Set) || !env.citationKeys.has(selection)) return '<a>';
     tokens[index]!.attrSet('data-map-citation', selection);
     tokens[index]!.attrSet('aria-haspopup', 'dialog');
@@ -129,6 +151,6 @@ md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
   return renderer.renderToken(tokens, index, options);
 };
 
-export function renderMarkdown(source: string, options: { paperMath?: boolean; citationKeys?: ReadonlySet<string> } = {}): string {
+export function renderMarkdown(source: string, options: { paperMath?: boolean; proofNames?: ReadonlyMap<string,string>; citationKeys?: ReadonlySet<string> } = {}): string {
   return md.render(source, options);
 }

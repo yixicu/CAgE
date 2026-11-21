@@ -68,6 +68,7 @@ async function request<T>(path: string, method = 'GET', body?: unknown, signal?:
 }
 
 export type ReportUpdate = import('../src/learning/report-assessment').ReportUpdate & {foundationChoice?:'accepted'|'available'};
+export type {ReportPublication} from '../src/presentation/report-publications';
 export interface SavedProof {
   body: string;
   displayBody?: string;
@@ -88,14 +89,15 @@ export const api = {
   saveStorage:(locations:StorageLocations)=>request<StorageSettings>('/workspace/storage','PUT',locations),
   pickStorageFolder:()=>request<{path:string|null}>('/workspace/pick-folder','POST'),
   openStorage:()=>request<void>('/workspace/open-storage','POST'),
-  coreMap:()=>request<{entries:(import('../src/learning/knowledge-map').MapEntry & {qualification?:import('../src/learning/knowledge-map').MapQualification;suppliedProof?:{argument:string};supports?:{status:string;argument:string}[]})[];relations:import('../src/learning/knowledge-map').MapRelation[]}>('/research/core-map'),
+  coreMap:()=>request<{entries:(import('../src/learning/knowledge-map').MapEntry & {qualification?:import('../src/learning/knowledge-map').MapQualification;suppliedProof?:{argument:string};supports?:import('../src/learning/knowledge-map').MapSupport[]})[];relations:import('../src/learning/knowledge-map').MapRelation[]}>('/research/core-map'),
   cageMap:(id:string)=>request<{entries:import('../src/learning/knowledge-map').MapEntry[];relations:import('../src/learning/knowledge-map').MapRelation[]}>(`/research/knowledge-map?projectId=${segment(id)}`),
+  nodeDocument:(projectId:string,ref:MapRef,signal?:AbortSignal)=>request<import('../src/learning/knowledge-map').MapNodeDocument>('/research/knowledge-map/node-document','POST',{projectId,ref},signal),
   nodeReview:(projectId:string,ref:MapRef)=>request<Awaited<ReturnType<KnowledgeMapStore['nodeReview']>>>('/research/knowledge-map/review-status','POST',{projectId,ref}),
   setNodeReview:(projectId:string,ref:MapRef,expected:string,status:NodeReviewStatus,argument?:string)=>request<Awaited<ReturnType<KnowledgeMapStore['nodeReview']>>>('/research/knowledge-map/review-status','PUT',{projectId,ref,expected,status,argument}),
   maintenanceSession:()=>request<MaintenanceHistory>('/maintenance/session'),
   stopMaintenance:(requestId:string)=>request<MaintenanceHistory>('/maintenance/session/stop','POST',{requestId}),
   sendMaintenance:(input:MaintenanceInput)=>request<MaintenanceHistory>('/maintenance/session/turns','POST',input),
-  reportUpdates:(id:string,signal?:AbortSignal)=>request<{updates:ReportUpdate[];referrals?:{id:string;origin:string;epochId?:string}[]}>(`/projects/${segment(id)}/v4/report-updates`,'GET',undefined,signal),
+  reportUpdates:(id:string,signal?:AbortSignal)=>request<{updates:ReportUpdate[];publications?:import('../src/presentation/report-publications').ReportPublication[];referrals?:{id:string;origin:string;epochId?:string}[]}>(`/projects/${segment(id)}/v4/report-updates`,'GET',undefined,signal),
   domainRequests:(id:string,signal?:AbortSignal)=>request<{requests:DomainRequest[]}>(`/projects/${segment(id)}/v4/domain-requests`,'GET',undefined,signal),
   retryMapTask:(projectId:string,taskId:string)=>request('/research/knowledge-map/retry','POST',{projectId,taskId}),
   acceptPremise:(projectId:string,statement:string,origin:ReviewedPremiseOrigin)=>request('/research/knowledge-map/reviewed-premises','POST',{projectId,statement,origin}),

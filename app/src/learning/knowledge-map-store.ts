@@ -5,7 +5,7 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {directedMapQuery} from './directed-map-query.js';
 import {stableHash} from './research-hash.js';
 import {directedMapQualification,mapBasisHandle,mapProofBases} from './knowledge-map-support.js';
-import {MAP_RECIPE,MapError,MapReadError,reviewHold,type NodeReviewStatus,suppliedSeedProof,admitMapSources,assertMapGrant,assertMapUser,mapEvidenceHandle,mapHandle,mapProfile,mapQualification,mapRefKey,mapSourceKey,prepareKnowledgeMap,publishMapProposal,retainedMaintenanceVersions,supersedesMaintenanceVersions,queryKnowledgeMap,sameMapRef,selectMapProfile,validateKnowledgeMap,type KnowledgeMapState,type MapEntry,type MapGrant,type MapOpenResult,type MapPrerequisite,type MapQuery,type MapRef,type MapReviewedProposal,type MapSource,type MapSourceRef,type MapUser,type MapView} from './knowledge-map.js';
+import {MAP_RECIPE,MapError,MapReadError,reviewHold,type NodeReviewStatus,suppliedSeedProof,admitMapSources,assertMapGrant,assertMapUser,mapEvidenceHandle,mapHandle,mapProfile,mapQualification,mapRefKey,mapSourceKey,prepareKnowledgeMap,publishMapProposal,retainedMaintenanceVersions,supersedesMaintenanceVersions,queryKnowledgeMap,sameMapRef,selectMapProfile,validateKnowledgeMap,type KnowledgeMapState,type MapEntry,type MapGrant,type MapOpenResult,type MapNodeDocument,type MapPrerequisite,type MapQuery,type MapRef,type MapReviewedProposal,type MapSource,type MapSourceRef,type MapUser,type MapView} from './knowledge-map.js';
 
 import {type AuthoredRelation,type MapNodeType} from './map-node-fields.js';
 
@@ -358,8 +358,7 @@ export class KnowledgeMapStore {
   const editable=(maintenanceMapScope(entry,projectId)||maintenanceMapScope(entry,CORE_MAP_ID))&&entry.status==='active'&&!entry.observationChange&&!state.entries.some(e=>e.ownerId===entry.ownerId&&e.ref.store===ref.store&&e.ref.id===ref.id&&e.ref.version>ref.version);
   return {entry,editable};
  }
- private async reviewInfo(state:KnowledgeMapState,projectId:string,ref:MapRef){
-  const {entry,editable}=this.reviewTarget(state,projectId,ref);
+ private async nodeEvidence(state:KnowledgeMapState,projectId:string,entry:MapEntry){
   const needed=new Set<string>(),visited=new Set<string>();
   function collect(target:MapRef){
    const key=mapRefKey(target);if(visited.has(key))return;
@@ -371,16 +370,38 @@ export class KnowledgeMapStore {
     for(const premise of support.prerequisites)collect(premise.ref);
    }
   }
-  collect(ref);
+  collect(entry.ref);
   const valid=await this.validSources(state,entry.ownerId,projectId,needed);
   const allowed=(source:MapSourceRef)=>valid.has(mapSourceKey(source));
   const profile=mapProfile(state,entry.ownerId,projectId);
-  const {qualification}=directedMapQualification(state,entry,profile,allowed,r=>state.entries.some(e=>sameMapRef(e.ref,r)&&this.readable(e,valid,state,{purpose:'map-proof',ownerId:entry.ownerId,projectId,profileId:profile.id,taskId:'inspect'})));
+  const grant:MapGrant={purpose:'map-proof',ownerId:entry.ownerId,projectId,profileId:profile.id,taskId:'inspect'};
+  const visible=(r:MapRef)=>state.entries.find(e=>sameMapRef(e.ref,r)&&this.readable(e,valid,state,grant));
+  return {allowed,visible,status:directedMapQualification(state,entry,profile,allowed,r=>!!visible(r))};
+ }
+ private async reviewInfo(state:KnowledgeMapState,projectId:string,ref:MapRef){
+  const {entry,editable}=this.reviewTarget(state,projectId,ref);
+  const {status:{qualification}}=await this.nodeEvidence(state,projectId,entry);
   const catalogReview=entry.reviewDecision?entry.reviewDecision.status==='approved':!!entry.coreReview;
   const metadataOnly=(entry.kind!=='theorem'||entry.nodeType==='basic-knowledge')&&entry.kind!=='observation';
   const status:NodeReviewStatus=qualification==='withdrawn'||qualification==='disputed'?'invalid':
    qualification==='proved'||qualification==='observed'||qualification==='definition'||catalogReview&&metadataOnly?'approved':'pending';
   return {status,qualification,token:stableHash([entry.ref,entry.reviewDecision,qualification,state.supports.filter(s=>sameMapRef(s.statement,entry.ref))]),editable,origin:entry.reviewDecision?.origin??(entry.coreReview?'core':undefined)};
+ }
+ async nodeDocument(projectId:string,ref:MapRef):Promise<MapNodeDocument>{
+  const {state}=await this.port.snapshot();
+  const {entry}=this.reviewTarget(state,projectId,ref);
+  const {allowed,visible,status}=await this.nodeEvidence(state,projectId,entry);
+  const links:MapNodeDocument['links']=[];
+  for(const support of status.supports)for(const p of support.prerequisites){
+   if(p.role!=='established')continue;
+   const parent=visible(p.ref),basisSelection=p.basis&&mapBasisHandle(p.basis);
+   if(parent&&(projectId!==CORE_MAP_ID||maintenanceMapScope(parent,CORE_MAP_ID)))links.push({supportId:support.id,ref:p.ref,title:parent.title,selection:mapHandle(p.ref),basisSelection});
+  }
+  const body=entry.body??await this.port.theoryBody?.(ref);
+  if(body===undefined||stableHash(body)!==ref.bodyHash)throw new MapError('STALE_SOURCE','Exact node body unavailable.');
+  return {node:{ref,selection:mapHandle(ref),title:entry.title,kind:entry.kind,nodeType:entry.nodeType??(entry.definition?'definition':entry.kind),
+   body,assumptions:entry.assumptions,domain:entry.domain,aliases:entry.aliases,observation:entry.observation,sources:entry.createdFrom,
+   ...status,suppliedProof:suppliedSeedProof(state,entry,status.supports,allowed)},links};
  }
  async nodeReview(projectId:string,ref:MapRef){return this.reviewInfo((await this.port.snapshot()).state,projectId,ref);}
  async setNodeReview(projectId:string,ref:MapRef,expected:string,status:NodeReviewStatus,argument?:string){

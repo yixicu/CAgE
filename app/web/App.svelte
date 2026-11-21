@@ -18,6 +18,8 @@
   import ResizeHandle from './layout/ResizeHandle.svelte';
   import { resizeSidebars } from './layout/sidebar-resize';
   import HypothesisInspector from './HypothesisInspector.svelte';
+  import ReportOutline from './research/ReportOutline.svelte';
+  import ReadingWidth from './ReadingWidth.svelte';
   import ResearchPaper from './ResearchPaper.svelte';
   import ReportUpdateView from './research/ReportUpdateView.svelte';
   import KnowledgeUpdates from './research/KnowledgeUpdates.svelte';
@@ -131,6 +133,8 @@
   let optionalOriginalKey=$derived(optionalOriginal?.key);
   let optionalProof=$state<SavedProof>(),optionalBodyError=$state(''),optionalBodyLoading=$state(false);
   let optionalBody=$derived(optionalProof?.body ?? '');
+  let publications=$state<import('./api').ReportPublication[]>([]);
+  let selectedPublications=$derived(publications.filter(p=>p.projectId===project?.id&&p.epochId===optionalOriginal?.epochId&&p.artifactId===optionalOriginal?.artifactId));
   let reportUpdates=$state<ReportUpdate[]>([]);
   let loadedAssessment=$state<ReportUpdate>();
   let optionalAssessment=$derived(reportUpdates.findLast(row=>row.projectId===project?.id&&row.epochId===optionalOriginal?.epochId&&row.artifactId===optionalOriginal?.artifactId&&row.status!=='queued')??loadedAssessment);
@@ -868,6 +872,7 @@
   }
 </script>
 <svelte:window onkeydown={panelKeyboard} onpointerdown={event => { if (transcript?.contains(event.target as Node)) outlineTarget = ''; }} />
+{#snippet savedReport(proof:SavedProof,projectId:string)}<div data-current-report><SavedProofView {projectId} {proof} publications={selectedPublications} onmap={showCitationOnMap}/></div>{/snippet}
 {#snippet outline()}
 {#if project}{#key project.id}<SessionOutline checkpoints={pages} summary={project.summary} nodes={project.schemaVersion === 4 || project.schemaVersion === 3 ? [] : project.graph} active={outlineLocation} onsection={openSection} onnode={openDirection} originalPages={project.schemaVersion === 3 && (project.researchLoopVersion === '3.0' || !!optionalOriginal)} displayed={selectedPage ? { id: selectedPage.id, content: optionalOriginal ? displayedOriginal?.content : selectedPage.content } : undefined} />{/key}{/if}
 {/snippet}
@@ -953,8 +958,8 @@
 
       {:else}
 
-        <div class="conversation w-full max-w-206 flex-[1_0_auto] rounded-t-panel rounded-b-none bg-surface shadow-none px-5 py-7 min-[901px]:px-7" bind:this={readingColumn} aria-label="Research conversation">
-          <article class="hypothesis-heading border-0 sticky top-0 z-10 bg-surface pt-2 pb-5 mb-5" data-outline-id="hypothesis" bind:this={hypothesisBlock} use:watchReadingArea><div class="section-heading flex-wrap gap-x-3 gap-y-1 mb-2"><div class="flex min-w-0 flex-wrap items-center gap-2"><h1 class="text-2xl font-normal leading-tight text-accent">Hypothesis</h1><button class="icon-button w-auto! gap-1 px-1.5!" type="button" aria-label="Edit current hypothesis" title={selectedPageId || premiseLoading || premiseError || readingHypothesis !== project.hypothesis ? 'Copy the current hypothesis Markdown/LaTeX source into Modify hypothesis, not the saved premise shown above' : 'Copy the current hypothesis Markdown/LaTeX source into Modify hypothesis'} disabled={busy || !project.hypothesis.trim()} onclick={editCurrentHypothesis}><Icon name="edit" size={16} />{#if selectedPageId}<span class="ml-1 text-xs text-accent">Edit current</span>{/if}</button><span class="loop-badge">V{researchModeLocked(project)?project.researchLoopVersion:DEFAULT_RESEARCH_MODE}</span></div><span class="muted small">{readable(project.status)}</span></div>{#if premiseLoading}<p role="status">Loading saved premise…</p>{:else if premiseError}<p class="notice error" role="alert">{premiseError}</p>{:else}<StickyHypothesis text={readingHypothesis} bind:expanded={hypothesisExpanded} />{/if}</article>
+        <div class="conversation fluid-reader w-full flex-[1_0_auto] rounded-t-panel rounded-b-none bg-surface shadow-none px-5 py-7 min-[901px]:px-7" bind:this={readingColumn} aria-label="Research conversation">
+          <article class="hypothesis-heading border-0 sticky top-0 z-10 bg-surface pt-2 pb-5 mb-5" data-outline-id="hypothesis" bind:this={hypothesisBlock} use:watchReadingArea><ReadingWidth/><div class="section-heading flex-wrap gap-x-3 gap-y-1 mb-2"><div class="flex min-w-0 flex-wrap items-center gap-2"><h1 class="text-2xl font-normal leading-tight text-accent">Hypothesis</h1><button class="icon-button w-auto! gap-1 px-1.5!" type="button" aria-label="Edit current hypothesis" title={selectedPageId || premiseLoading || premiseError || readingHypothesis !== project.hypothesis ? 'Copy the current hypothesis Markdown/LaTeX source into Modify hypothesis, not the saved premise shown above' : 'Copy the current hypothesis Markdown/LaTeX source into Modify hypothesis'} disabled={busy || !project.hypothesis.trim()} onclick={editCurrentHypothesis}><Icon name="edit" size={16} />{#if selectedPageId}<span class="ml-1 text-xs text-accent">Edit current</span>{/if}</button><span class="loop-badge">V{researchModeLocked(project)?project.researchLoopVersion:DEFAULT_RESEARCH_MODE}</span></div><span class="muted small">{readable(project.status)}</span></div>{#if premiseLoading}<p role="status">Loading saved premise…</p>{:else if premiseError}<p class="notice error" role="alert">{premiseError}</p>{:else}<StickyHypothesis text={readingHypothesis} bind:expanded={hypothesisExpanded} />{/if}</article>
           {#if loopView && (active || selectedPage) && (!selectedPage?.inheritedSessionId || (active && !selectedPageId))}{#key project.id}<LoopActivity {project} commentary={monitorActivity?.projectId===project.id?monitorActivity?.commentary:undefined} view={loopView} number={selectedPageId ? selectedPage?.number : undefined} onmonitor={() => openMonitor()} hasOutput={!!selectedPage && !selectedPage.inheritedSessionId && selectedPage.number === researchNumber && (project.schemaVersion !== 3 || project.researchLoopVersion !== '3.0' || displayedOriginal?.content !== undefined)} />{/key}{/if}
           {#if selectedPage && (project.schemaVersion !== 3 || project.researchLoopVersion !== '3.0' || selectedPage.time || optionalOriginal || selectedPage.inheritedSessionId)}
             <div class="message assistant-message" id="selected-research-output" role="tabpanel" tabindex="0" aria-labelledby={`round-tab-${selectedPage.id}`} data-outline-id={selectedPage.id}>
@@ -965,15 +970,15 @@
               {#if optionalOriginal}
                 <p role="status">{optionalOriginal.label}</p>
                 {#if optionalAssessment}<ReportUpdateView update={optionalAssessment} />{/if}{#if optionalRefutation}<ArchivedRefutationView result={optionalRefutation} />{/if}
-                {#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else if optionalProof}<SavedProofView projectId={project.id} proof={optionalProof} onmap={showCitationOnMap}/>{/if}
-              {:else}<ResearchPaper content={selectedPage.content} />{/if}
+                {#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else if optionalProof}{@render savedReport(optionalProof,project.id)}{/if}
+              {:else}<div data-current-report><ResearchPaper content={selectedPage.content} /></div>{/if}
               <div class="message-footer"><span>{selectedPage.time ? new Date(selectedPage.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Saved output'}</span></div>
           <ResponseActions actions={responseActions} />
             </div>
           {/if}
 
-          {#if !selectedPage&&optionalOriginal}<section aria-label="Saved original answer"><p role="status">{optionalOriginal.label}</p>{#if optionalAssessment}<ReportUpdateView update={optionalAssessment} />{/if}{#if optionalRefutation}<ArchivedRefutationView result={optionalRefutation} />{/if}{#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else if optionalProof}<SavedProofView projectId={project.id} proof={optionalProof} onmap={showCitationOnMap}/>{/if}</section>{/if}
-          {#if project.schemaVersion===3&&project.researchLoopVersion==='4.0'}{#key project.id}<KnowledgeUpdates onmaintenance={()=>navigate('maintenance')} onreports={rows=>{reportUpdates=rows;}} projectId={project.id} epochs={project.epochs.map(e=>({id:e.snapshot.id,number:e.snapshot.number}))}/>{/key}{/if}
+          {#if !selectedPage&&optionalOriginal}<section aria-label="Saved original answer"><p role="status">{optionalOriginal.label}</p>{#if optionalAssessment}<ReportUpdateView update={optionalAssessment} />{/if}{#if optionalRefutation}<ArchivedRefutationView result={optionalRefutation} />{/if}{#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else if optionalProof}{@render savedReport(optionalProof,project.id)}{/if}</section>{/if}
+          {#if project.schemaVersion===3&&project.researchLoopVersion==='4.0'}{#key project.id}<KnowledgeUpdates onmaintenance={()=>navigate('maintenance')} onreports={(rows,items)=>{reportUpdates=rows;publications=items;}} projectId={project.id} epochs={project.epochs.map(e=>({id:e.snapshot.id,number:e.snapshot.number}))}/>{/key}{/if}
           {#if project.lastError}<p class="notice error" role="alert">{project.lastError}</p>{/if}
           {#if !active && !recoveryPending && !project.summary && !selectedPage}<div class="start-hint"><BrandMark size={22} /><p>{modelReady ? 'Ready when you are.' : 'Connect a model to begin.'}</p></div>{/if}
           {#if project.schemaVersion === 2 && project.reconstructionProposals?.length}<ReconstructionProposals {project} {commands} disabled={busy || !workspaceReady} onaccept={acceptProposal} />{/if}
@@ -987,8 +992,9 @@
   {#if project}<aside id="workspace-inspector" class={`right-pane min-[901px]:relative bg-linear-to-b ${sessionView && !$currentTheme.dark ? 'from-surface via-surface to-rail' : 'from-rail/95 via-tint/75 to-surface/85'} ${hiddenSidebarScrollbar} ring-1 ring-line/40 [@media(max-width:900px)]:top-[var(--topbar-height)] [&_.graph-node.chosen]:outline-accent`} inert={!rightShown} aria-label="Research inspector">
     <header class="inspector-header sticky top-0 z-10 border-line/60 bg-surface px-3 py-2"><InspectorViewSwitch value={inspectorView} onselect={view => inspectorView = view} /></header>
     {#if inspectorView === 'monitor' && loopView && diagramView}<div class="min-w-0 px-3 pt-3 pb-4">{#key project.id}<div class="mb-3"><ModifiedHypothesisHistory bind:this={modifiedHistory} {project} {commandHistory} activity={monitorActivity} connected={connection === 'connected' && !snapshotStale} /></div>{#each (monitorActivity?.operations ?? []).filter(operation => !operation.toolName && operation.softDeadline && !['waiting','disabled'].includes(operation.softDeadline.status)) as operation (operation.sessionId)}<p class="muted small" role="status">{operation.role}: {operation.softDeadline?.status === 'delivered' ? 'Wrap-up requested; still running.' : 'Time target reached; wrap-up notice pending delivery.'}</p>{/each}{#each (monitorActivity?.operations ?? []).filter(operation => !operation.toolName && operation.budget?.capacityPolicy) as operation (operation.sessionId)}<p class="muted small" role="status">{operation.role}: calls {operation.counters?.turns ?? 0}{operation.budget?.capacityPolicy?.controlsEnabled ? ` / ${operation.budget.maxTurns}` : ' (budget OFF)'}, tools {operation.counters?.toolCalls ?? 0}{operation.budget?.capacityPolicy?.controlsEnabled ? ` / ${operation.budget.maxToolCalls}` : ''}. Tokens {operation.counters?.tokens ?? 'unavailable'}{operation.budget?.maxTokens !== undefined ? ` / ${operation.budget.maxTokens}` : ''}; cost USD {operation.counters?.costUsd ?? 'unavailable'}{operation.budget?.maxCostUsd !== undefined ? ` / ${operation.budget.maxCostUsd}` : ''}.</p>{/each}<LoopMonitor learning={workspaceReady && learningTasks.some(task=>task.projectId===project?.id && task.status==='running')} background={monitorActivity?.background} view={loopView} diagram={diagramView} />{/key}</div>{:else}
+    {#if screen==='research'&&readingColumn&&transcript}{#key [project.id,selectedPage?.id??'',optionalOriginalKey??''].join('/')}<ReportOutline column={readingColumn} scrollport={transcript} sticky={hypothesisBlock} onnavigate={()=>{if(smallScreen)closePanel('right')}}/>{/key}{/if}
     {#if project.researchLoopVersion!=='4.0' || (project.presentation?.hypothesisRevision===project.hypothesisRevision && project.presentation?.conditions?.length && project.presentation.claim?.trim() && project.presentation.claim.trim()!==project.hypothesis.trim())}<HypothesisInspector {project} />{/if}
-    {#if project.schemaVersion === 4}{#key project.id}<ResearchWaysV0 {project} />{/key}{:else if project.schemaVersion === 3}{#key project.id}<ResearchTreeV21 {project} {reportUpdates} onmap={showCitationOnMap} />{/key}{:else if project.schemaVersion === 2}<HypothesisTreeV2 {project} onopen={openDocument} />{:else}<HypothesisTree {project} onopen={openDocument} />{/if}<ResearchDirections {project} onmonitor={() => openMonitor()} />
+    {#if project.schemaVersion === 4}{#key project.id}<ResearchWaysV0 {project} />{/key}{:else if project.schemaVersion === 3}{#key project.id}<ResearchTreeV21 {project} {reportUpdates} {publications} onmap={showCitationOnMap} />{/key}{:else if project.schemaVersion === 2}<HypothesisTreeV2 {project} onopen={openDocument} />{:else}<HypothesisTree {project} onopen={openDocument} />{/if}<ResearchDirections {project} onmonitor={() => openMonitor()} />
     {/if}
   </aside>{/if}
   {#if smallScreen && (sidebarOpen || rightShown)}<button class="panel-backdrop top-[var(--topbar-height)] h-auto" tabindex="-1" aria-label="Close open panel" onclick={() => closePanel(sidebarOpen ? 'left' : 'right')}></button>{/if}
@@ -1063,5 +1069,6 @@
 .sidebar-sections :global(.session-row .project-button){width:auto;border-radius:6px 0 0 6px;background:transparent}
 .sidebar-sections :global(.session-row .session-action-trigger){align-self:center;width:28px;border-radius:5px}
 .sidebar-sections :global(.session-row:has(.chosen)){background:var(--color-selected)}
+@media screen and (min-width:901px){.conversation.fluid-reader{width:clamp(min(100%,420px),var(--reader-share,96%),100%);max-width:none;margin-inline:auto}}
 .sidebar-footer .nav-action,.sidebar-sections :global(.session-outline button){border-radius:6px;max-width:100%}
 </style>

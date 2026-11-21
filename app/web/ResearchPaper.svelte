@@ -16,7 +16,7 @@
     <section class="paper-section paper-summary" aria-label="Saved response"><MarkdownView content={paper.original} paperMath {citationKeys} /></section>
   {:else}
   {#each paper.sections as section (section.id)}
-    <details class={`paper-section paper-${section.id} group/section [scroll-margin-top:var(--hypothesis-scroll-offset,145px)]`} aria-label={section.title} open>
+    <details class={`paper-section paper-${section.id} group/section [scroll-margin-top:var(--hypothesis-scroll-offset,145px)]`} aria-label={section.title} data-empty-section={!section.content||undefined} open>
       <summary class="flex cursor-pointer list-none items-center justify-between gap-3 mb-4 text-2xl leading-snug font-normal text-[color:var(--color-title)] [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
         <h2 class="m-0 text-2xl leading-snug font-normal">{section.title}</h2><span class="shrink-0 text-muted transition-transform group-open/section:rotate-180 motion-reduce:transition-none"><Icon name="chevronDown" size={14} /></span>
       </summary>
@@ -26,5 +26,8 @@
   {/if}
 </div>
 <style>
+  .paper-section>summary{padding:.35rem .65rem;margin-inline:-.65rem;border-radius:4px;background:color-mix(in srgb,var(--color-accent) 5%,var(--color-surface));}
+  .paper-section :global(.markdown-view h2){background:color-mix(in srgb,var(--color-accent) 6%,var(--color-surface));padding:.25em .48em;margin-inline:-.48em;border-radius:3px;color:var(--color-title)}
+  .paper-section :global(.markdown-view h3){color:var(--color-title);font-weight:600}
   .research-paper :global(.math-block) { padding: 0 .375rem; margin: 1.25rem 0; background: transparent; }
 </style>

@@ -679,7 +679,8 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     if(project.schemaVersion===3)for(const epoch of project.epochs){
       if(epoch.calls.some(c=>c.systemChangeSkipped))referrals.push({id:epoch.id,origin:'Research',epochId:epoch.id});
     }
-    return {referrals,updates:updates.map(u=>{
+    const publications=project.schemaVersion===3?await store.library.reportPublications(project):[];
+    return {referrals,publications,updates:updates.map(u=>{
       if(u.status!=='conditional'||!u.condition)return u;
       const current=store.library.reportAssessment(project.id,u.artifactId);
       return {...u,foundationChoice:current?.id===u.id&&current.revision===u.revision?(accepted.has(stableHash(u.condition))?'accepted':'available'):undefined};
