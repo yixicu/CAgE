@@ -94,7 +94,8 @@ export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocati
   // Reconcile a completely received terminal declaration locally, never synthesize science or resend the provider.
   const last=rows.findLast(row=>row.kind==='v3-original-message'),intent=rows.find(row=>row.kind==='v21-optional-save-intent');
   const bounds='brief'in spec.context?spec.context.brief:spec.context.snapshot;
-  const supplement=last?.correction&&bounds.inquiryGuidance==='theorist-prior-v3'&&journal.state.corrections===1;
+  const declarationThenPatch=journal.state.corrections===2&&rows.some(r=>r.kind==='v4-missing-declaration')&&rows.some(r=>r.kind==='v4-declaration-supplement');
+  const supplement=last?.correction&&bounds.inquiryGuidance==='theorist-prior-v3'&&(journal.state.corrections===1||declarationThenPatch);
   if(!last?.message||last.dispatch!==journal.state.dispatches||last.correction&&!supplement||last.message.stopReason!=='toolUse'||!intent?.technical||intent.technical.completeness!=='complete'||intent.technical.executionStatus!=='completed'||!intent.text||rows.some(row=>row.kind==='v21-optional-cancelled'))return undefined;
   const calls=last.message.content.filter(p=>p.type==='toolCall');if(calls.length!==1||calls[0]!.name!==SUBMIT_RESULT)return undefined;
   const terminal=calls[0]!,terminalIndex=last.message.content.findIndex(p=>p.type==='toolCall'&&p.id===terminal.id);
@@ -115,7 +116,11 @@ export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocati
   if(supplement){
    if(last.message.content.some(p=>p.type==='text'&&p.text.length))return undefined;
    const messages=rows.filter(r=>r.kind==='v3-original-message'),previous=messages.at(-2);
-   if(!previous?.message||previous.correction||previous.dispatch!==last.dispatch!-1)return undefined;
+   if(!previous?.message||!!previous.correction!==declarationThenPatch||previous.dispatch!==last.dispatch!-1)return undefined;
+   if(declarationThenPatch){
+    const bodyMessage=messages.at(-3);
+    if(!bodyMessage?.message||bodyMessage.correction||bodyMessage.dispatch!==previous.dispatch!-1||bodyMessage.message.stopReason!=='stop'||bodyMessage.message.content.some(p=>p.type==='toolCall'))return undefined;
+   }
    const priorCalls=previous.message.content.filter(p=>p.type==='toolCall');
    if(priorCalls.length===1&&priorCalls[0]!.name===SUBMIT_RESULT){
     if(previous.message.stopReason!=='toolUse'||previous.message.content.slice(previous.message.content.indexOf(priorCalls[0]!)+1).some(p=>p.type!=='thinking'))return undefined;
@@ -127,7 +132,7 @@ export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocati
      if(!(error instanceof DeclarationSupplementError))return undefined;
      effective=error.restore(first,declaration);
     }
-   }else if(priorCalls.length||previous.message.stopReason!=='stop'||!rows.some(r=>r.kind==='v4-missing-declaration')||savedDeclaration!==undefined&&!isDeepStrictEqual(savedDeclaration,declaration))return undefined;
+   }else if(declarationThenPatch||priorCalls.length||previous.message.stopReason!=='stop'||!rows.some(r=>r.kind==='v4-missing-declaration')||savedDeclaration!==undefined&&!isDeepStrictEqual(savedDeclaration,declaration))return undefined;
   }
   const result={...retained,control:operation.prepare(effective),v3Execution:execution,mapKnowledge};
   await validateOptionalResultV21(spec,invocation,result,raw,resources,deliveries,mapKnowledge,mapWriteReads);

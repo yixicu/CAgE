@@ -1,3 +1,5 @@
+import type { MapRef, NodeReviewStatus } from '../src/learning/knowledge-map';
+import type { KnowledgeMapStore } from '../src/learning/knowledge-map-store';
 import type { SearchProvider } from '../src/shared/search-providers';
 import type { MonitorActivitySnapshot } from '../src/server/monitor-activity';
 import type { InheritedResearchView } from '../src/research/contracts/lineage';
@@ -66,19 +68,30 @@ async function request<T>(path: string, method = 'GET', body?: unknown, signal?:
 }
 
 export type ReportUpdate = import('../src/learning/report-assessment').ReportUpdate & {foundationChoice?:'accepted'|'available'};
+export interface SavedProof {
+  body: string;
+  displayBody?: string;
+  citations?: import('../src/learning/knowledge-map').MapOpenResult[];
+  presentationIssues?: string[];
+}
 export type ReviewedPremiseOrigin=import('../src/server/knowledge-map-routes').ReviewedPremiseOrigin;
 export interface DomainRequest {
  taskId:string;proposalHash:string;fields:string[];premises?:{field:string;statement:string;accepted:boolean}[];sourceDecision?:'conditional'|'unsupported';acceptedFields?:string[];reason:string;revisionNote?:string;revisionTaskId?:string;revisionStatus?:string;decision?:'approve'|'decline';status:string;question?:string;alternative?:string;
 }
 import type {PublicMaintenanceHistory as MaintenanceHistory,MaintenanceInput} from '../src/server/maintenance-session';
 export const api = {
+  coreMapStatus: () => request<{currentVersion:number; keptLocal:number}>('/core-map/update'),
+  checkCoreMap: (token?:string) => request<{currentVersion:number; keptLocal:number; available:boolean; release:{version:number;sha256:string}}>('/core-map/update/check','POST',{token}),
+  installCoreMap: (version:number,sha256:string,token?:string) => request<{currentVersion:number;keptLocal:number}>('/core-map/update/install','POST',{version,sha256,token}),
   checkDesktopUpdate: (token?: string) => request<{currentVersion:string; latestVersion:string; available:boolean}>('/desktop/update/check', 'POST', { token }),
   installDesktopUpdate: (version: string, token?: string) => request<{status:string}>('/desktop/update/install', 'POST', { version, token }),
   saveStorage:(locations:StorageLocations)=>request<StorageSettings>('/workspace/storage','PUT',locations),
   pickStorageFolder:()=>request<{path:string|null}>('/workspace/pick-folder','POST'),
   openStorage:()=>request<void>('/workspace/open-storage','POST'),
-  coreMap:()=>request<{entries:(import('../src/learning/knowledge-map').MapEntry & {suppliedProof?:{argument:string};supports?:{status:string;argument:string}[]})[];relations:import('../src/learning/knowledge-map').MapRelation[]}>('/research/core-map'),
+  coreMap:()=>request<{entries:(import('../src/learning/knowledge-map').MapEntry & {qualification?:import('../src/learning/knowledge-map').MapQualification;suppliedProof?:{argument:string};supports?:{status:string;argument:string}[]})[];relations:import('../src/learning/knowledge-map').MapRelation[]}>('/research/core-map'),
   cageMap:(id:string)=>request<{entries:import('../src/learning/knowledge-map').MapEntry[];relations:import('../src/learning/knowledge-map').MapRelation[]}>(`/research/knowledge-map?projectId=${segment(id)}`),
+  nodeReview:(projectId:string,ref:MapRef)=>request<Awaited<ReturnType<KnowledgeMapStore['nodeReview']>>>('/research/knowledge-map/review-status','POST',{projectId,ref}),
+  setNodeReview:(projectId:string,ref:MapRef,expected:string,status:NodeReviewStatus,argument?:string)=>request<Awaited<ReturnType<KnowledgeMapStore['nodeReview']>>>('/research/knowledge-map/review-status','PUT',{projectId,ref,expected,status,argument}),
   maintenanceSession:()=>request<MaintenanceHistory>('/maintenance/session'),
   stopMaintenance:(requestId:string)=>request<MaintenanceHistory>('/maintenance/session/stop','POST',{requestId}),
   sendMaintenance:(input:MaintenanceInput)=>request<MaintenanceHistory>('/maintenance/session/turns','POST',input),
@@ -105,15 +118,16 @@ export const api = {
   forkProject: (id: string, checkpointId: string, expectedRevision: string, operationId: string) => request<ResearchProject>(`/projects/${segment(id)}/fork`, 'POST', { checkpointId, expectedRevision, operationId }),
   forkContext: (id: string) => request<InheritedResearchView | null>(`/projects/${segment(id)}/inherited`),
   async createProject(name: string, hypothesis: string, researchLoopVersion: ResearchMode = DEFAULT_RESEARCH_MODE): Promise<ResearchProject> {
-    const input = { name, hypothesis, researchLoopVersion }, token = await projectRequests.begin(input);
+    const input = { name: name || 'New research', hypothesis, researchLoopVersion, ...(name === 'New research' ? { nameSource: 'user' as const } : {}) };
+    const token = await projectRequests.begin(input);
     const project = await request<ResearchProject>('/projects', 'POST', { ...input, requestId: token.requestId });
     projectRequests.confirm(token);
     return project;
   },
   selectResearchMode: (id: string, version: ResearchMode, expectedRevision: string) => request<ResearchProject>(`/projects/${segment(id)}/research-loop`, 'PUT', { version, expectedRevision }),
   project: (id: string) => request<ResearchProject>(`/projects/${segment(id)}`),
-  wayArchive: (id: string, operationId: string) => request<{ operationId: string; body: string; assessment?:ReportUpdate; refutation?:import('../src/learning/research-data').ArchivedRefutation }>(`/projects/${segment(id)}/archives/${segment(operationId)}`),
-  rawAnswer: (id: string, answerId: string) => request<{ answerId: string; body: string }>(`/projects/${segment(id)}/answers/${segment(answerId)}`),
+  wayArchive: (id: string, operationId: string) => request<SavedProof & { operationId: string; assessment?:ReportUpdate; refutation?:import('../src/learning/research-data').ArchivedRefutation }>(`/projects/${segment(id)}/archives/${segment(operationId)}`),
+  rawAnswer: (id: string, answerId: string) => request<SavedProof & { answerId: string }>(`/projects/${segment(id)}/answers/${segment(answerId)}`),
   monitorActivity: (id: string) => request<MonitorActivitySnapshot>(`/projects/${segment(id)}/activity`),
   start: (id: string, recoveryOnly = false) => request<ResearchProject>(`/projects/${segment(id)}/start`, 'POST', recoveryOnly ? { recoveryOnly: true } : {}),
   commands: (id: string) => request<UserCommand[]>(`/projects/${segment(id)}/commands`),

@@ -1,3 +1,4 @@
+import {loadProofNotes} from '../../../storage/proof-notes.js';
 import {registerScientificSource} from './scientific-map-write.js';
 import type {ResearchLibrary} from '../../../learning/research-library.js';
 import type {OptionalProofArtifactV21} from '../v21/optional-types.js';
@@ -21,10 +22,28 @@ import {knowledgeRefKey,type KnowledgeRef} from '../../../learning/knowledge-net
 
 export function reportMapSource(report:ReportEvidenceV45):MapSource{return {ref:{kind:'proof-report',id:report.artifactId,version:1,bodyHash:report.bodyHash,ownerId:'local-user',projectId:report.scope.projectId},body:report.body,status:'active',origin:structuredClone(report)};}
 
-export async function registerReportMapSource(library:ResearchLibrary,snapshot:InFlightEpochV21['snapshot'],artifact:OptionalProofArtifactV21,report:ReportEvidenceV45){
+export async function registerReportMapSource(library:ResearchLibrary,snapshot:InFlightEpochV21['snapshot'],artifact:OptionalProofArtifactV21,report:ReportEvidenceV45,dataRoot?:string){
  const source=reportMapSource(report);
- if(snapshot.scientificMapWrites)return registerScientificSource(library,source,artifact.control.mapChanges,artifact.mapWriteReads??[],snapshot.resultContract?true:undefined);
- await library.knowledgeMap.admit([source],'local-user',report.scope.projectId,snapshot.modelDirectedKnowledge,snapshot.resultContract?true:undefined,snapshot.mapGapPolicy?true:undefined);
+ if(snapshot.scientificMapWrites)await registerScientificSource(library,source,artifact.control.mapChanges,artifact.mapWriteReads??[],snapshot.resultContract?true:undefined);
+ else await library.knowledgeMap.admit([source],'local-user',report.scope.projectId,snapshot.modelDirectedKnowledge,snapshot.resultContract?true:undefined,snapshot.mapGapPolicy?true:undefined);
+ if(!dataRoot||!artifact.acceptanceCommitted||artifact.authorRole!=='theorist'||!artifact.publicReport||
+    artifact.technical.executionStatus!=='completed'||artifact.publicReport.body!==report.body||artifact.originalRef.bodyHash!==digestV21(report.body))return;
+ // These optional notes may be absent or unreadable after recovery. The accepted report is independent.
+ const saved=await loadProofNotes(dataRoot,artifact.originalRef).catch(()=>undefined);
+ if(!Array.isArray(saved?.confirmations))return;
+ const opened=artifact.mapKnowledge??[],lines=report.body.split('\n');
+ for(const confirmation of saved.confirmations){
+  if(!confirmation||typeof confirmation!=='object')continue;
+  const {selection,first,last,useLine,prerequisites,excerpt}=confirmation;
+  const node=opened.find(n=>n.selection===selection);
+  if(!node||![first,last,useLine].every(Number.isSafeInteger)||first<0||first>last||last>=lines.length||useLine<0||useLine>=lines.length||
+    lines.slice(first,last+1).join('\n')!==excerpt||!Array.isArray(prerequisites))continue;
+  const parents=opened.filter(n=>prerequisites.includes(n.selection));
+  if(parents.length!==prerequisites.length)continue;
+  if(await library.knowledgeMap.pendingTheoristReview(report.scope.projectId,node))
+   await library.knowledgeMap.confirmTheoristProof(report.scope.projectId,node,source.ref,excerpt,parents,
+    artifact.acceptedOutcome?.conditions??artifact.control.outcome.conditions??[]);
+ }
 }
 
 /** Reuse the accepted-public-report and source revocation boundary, never private drafts. */
@@ -91,7 +110,7 @@ export class MapSources {
  async theoryBody(ref:MapRef){const card=(await this.canonicalCards(c=>stableHash(reportKnowledgeRef(c))===stableHash(ref))).find(c=>c.kind==='theory'&&stableHash(reportKnowledgeRef(c))===stableHash(ref));if(!card)throw Error('Canonical theory unavailable');return card.body;}
  async reconcile(projectId:string){const p=await this.composition.v4SourceProject?.(projectId);if(!p)return;
   await reconcileReportReviews(this.store.dataRoot,this.store.library,projectId);
-  for(const epoch of [...p.epochs,...(p.activeEpoch?[p.activeEpoch]:[])])if(epoch.snapshot.knowledgeMapRevision)for(const a of epoch.optionalFlow?.artifacts??[])if(a.publicReport&&a.authorRole==='theorist'&&a.acceptanceCommitted){const report:ReportEvidenceV45={scope:{projectId:p.id,epochId:epoch.snapshot.id,rootId:a.root.revision},artifactId:a.id,...a.publicReport,...reportOutcomeV45(a)};if(await this.authorizeReport(report))await registerReportMapSource(this.store.library,epoch.snapshot,a,report);}
+  for(const epoch of [...p.epochs,...(p.activeEpoch?[p.activeEpoch]:[])])if(epoch.snapshot.knowledgeMapRevision)for(const a of epoch.optionalFlow?.artifacts??[])if(a.publicReport&&a.authorRole==='theorist'&&a.acceptanceCommitted){const report:ReportEvidenceV45={scope:{projectId:p.id,epochId:epoch.snapshot.id,rootId:a.root.revision},artifactId:a.id,...a.publicReport,...reportOutcomeV45(a)};if(await this.authorizeReport(report))await registerReportMapSource(this.store.library,epoch.snapshot,a,report,this.store.dataRoot);}
   const research=new MapResearch(this.store.dataRoot,this.store.library);for(const study of await getV4Coordinator(this.store.dataRoot).researchReports())if(study.map&&study.report.scope.projectId===projectId&&await this.authorizeReport(study.report))await research.reconcile(study);
   await this.theories.reconcileMapIntents(this.store.library,projectId);
   const legacy:MapSource[]=[];for(const ref of Object.values(this.store.library.snapshot().knowledgeV3?.supports??{})){if(!this.store.library.isProofValid(ref))continue;const document=await this.store.library.readFinalProof(ref,{role:'theorist',sessionId:ref.sessionId}),body=JSON.stringify(document);legacy.push({ref:{kind:'library-proof',id:ref.caseId,version:ref.revision,bodyHash:stableHash(body),ownerId:'local-user',projectId:ref.sessionId},body,status:'active',origin:document.meta.logicalRelation==='empirical-exclusion'?{...ref,empiricalEvidence:true}:ref});}

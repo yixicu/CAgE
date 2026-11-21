@@ -107,6 +107,7 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
   exact(schema,value);const result=structuredClone(value as OptionalControlV21),issues:string[]=[];
   if(['v3-operation-3','v3-operation-4','v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(revision)){result.workers??=[];result.adoptions??=[];}
   let supplement:DeclarationSupplementError['fields']|undefined;
+  const invalidCitations:import('../../../runtime/declaration-supplement.js').MetadataField[]=[];
   const fail=(message:string)=>{if(issues.length<32)issues.push(message);};
   if(result.mapChanges){
    if(!['complete','pause'].includes(result.action))fail('Attach map changes only when releasing the public report.');
@@ -143,7 +144,7 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
       const matches=mapReads.filter(read=>{
         const ref=read.ref;
         if(!ref||read.selection.startsWith('map_basis_'))return false;
-        if(ref.id===id)return true;
+        if(ref.id===id||refinedInquiry&&read.title===id)return true;
         if(!refinedInquiry||read.kind!=='observation')return false;
         const versioned=`${ref.store}:${ref.id}:${ref.version}`;
         return id===versioned||id===`${versioned}:${ref.bodyHash}`;
@@ -161,7 +162,14 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
      }
      if(target&&(outcome.refutationKind!==target.control.outcome.refutationKind||(outcome.resultKind==='empirical-exclusion'||outcome.resultKind==='valid-refutation')&&outcome.reason!==target.control.outcome.reason))fail('Adoption must preserve the declared refutation and its original scope, comparison and reasoning.');
     }
-    for(const id of outcome.knowledgeRefs??[]){if(mapEnabled&&mapReads.some(read=>read.selection===id))continue;const node=knowledge?.nodes.find(n=>n.id===id)??materials.find(m=>m.node.id===id)?.node;if(!node||node.status!=='active')fail('Used knowledge requires an active frozen exact node grant.');
+    for(const [index,id] of (outcome.knowledgeRefs??[]).entries()){if(mapEnabled&&mapReads.some(read=>read.selection===id))continue;const node=knowledge?.nodes.find(n=>n.id===id)??materials.find(m=>m.node.id===id)?.node;if(!node||node.status!=='active'){
+      const path=outcomeIndex?['adoptions',String(outcomeIndex-1),'outcome','knowledgeRefs',String(index)]:['outcome','knowledgeRefs',String(index)];
+      const message=path.join('.')+' contains '+JSON.stringify(id)+'. Expected the exact selection of the opened node used in this step.';
+      if(refinedInquiry&&mapReads.length){
+        const choices=mapReads.map(r=>r.selection);
+        invalidCitations.push({path,message:message+' Opened nodes: '+mapReads.map(r=>r.title+' = '+r.selection).join(', '),schema:Type.String({enum:choices})});
+      }else fail(message);
+    }
     if(catalogContext?.catalogPin&&node){const catalogMember=catalogContext.catalogNodeIds?.includes(id)||materials.some(m=>m.node.id===id);const exactResource=node.authorityRef&&id===`resource:${node.authorityRef.id}:${node.authorityRef.version}`;
       if(catalogMember&&!knowledgeReads.includes(id)&&!(exactResource&&loaded.some(ref=>isDeepStrictEqual(ref,node.authorityRef))))fail('Used catalog knowledge requires actual exact full delivery.');
       if(node.authorityRef&&!loaded.some(ref=>isDeepStrictEqual(ref,node.authorityRef)))fail('Used knowledge authority requires exact delivered resource body.');
@@ -213,6 +221,8 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
    }
    if(result.action==='complete'&&result.publicStage?.remainingObligations.length)fail('Root completion retains declared original obligations.');
   }
+  // A corrected citation still passes the full scientific gate on reassembly.
+  if(invalidCitations.length)throw new DeclarationSupplementError(invalidCitations.map(c=>c.message),'map-metadata',invalidCitations);
   if(issues.length&&boundary?.inquiryGuidance==='theorist-prior-v3'&&scopedResults&&['pause','complete'].includes(result.action)){
     if(result.action==='complete'&&issues[0]===openCompletionIssue)supplement='action';
     if(supplement&&issues.length===1)throw new DeclarationSupplementError(issues,supplement);

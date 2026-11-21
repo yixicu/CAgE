@@ -36,6 +36,12 @@ The desktop app reads GitHub's latest stable release when requested. Private rep
 
 Version 0.2.5 predates the update controls. To enable them, fully exit that version and run the 0.2.6 setup once. Later supported releases can be installed from Settings.
 
+## Publish a Core map revision
+
+Edit `app/web/core-preview.json`. Keep each existing node's key stable so updates preserve references. Stage the revised map, then run `node app/scripts/prepare-core-map-release.mjs 2` from the repository root, substituting the next Core map version. The script computes the Git blob ID from the staged bytes and the SHA-256 digest from the parsed seed records. Build the app, run `node app/scripts/check-core-map-updates.mjs`, and commit the map and its generated manifest together to main.
+
+Settings → Plugins & general → Core map updates checks that manifest on demand. Installation verifies the immutable blob and applies one local transaction. The installer retains manually reviewed, edited and withdrawn node families when an upstream revision changes. Existing projects keep their own foundation selections. A map publication can ship independently of a desktop release.
+
 ## Linux amd64 preview
 
 Build the system-Node tarball described in the [project README](../README.md) with `bash desktop-packaging/build/linux-portable.sh` after building the application. The tarball includes the Codex session host, its client and their setup guide. The optional self-contained Debian build below requires a Linux Node distribution and Linux production packages.

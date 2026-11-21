@@ -11,11 +11,14 @@ import { eventPayload } from './event-payload.js';
 import { createV21Composition } from '../learning/v21-checkpoint.js';
 import { pendingSynthesis } from '../research/versions/v2/synthesis-recovery.js';
 import { completeArchivedProof } from '../research/versions/v2/completion.js';
-import { applyPresentation } from '../presentation/session-presentation.js';
+import { applyRecordedSessionTitle } from '../presentation/session-presentation.js';
 import { commandStateProjection } from '../research/user-commands.js';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { lstat, readFile, readdir, realpath, stat, rm } from 'node:fs/promises';
+import { annotateProof } from '../presentation/proof-annotations.js';
+import { loadProofNotes,saveProofNotes } from '../storage/proof-notes.js';
+import type { OptionalTheoristResultV21 } from '../research/versions/v21/optional-types.js';
 import { atomicWrite, exists } from '../storage/atomic.js';
 import { searchProviders, type SearchProvider } from '../shared/search-providers.js';
 import { isFirecrawlTool, providerKeyFile } from '../plugins/firecrawl.js';
@@ -54,14 +57,15 @@ import { PluginHost, PluginError, type PluginGrant } from '../plugins/index.js';
 import { readPreferences, writePreferences, parsePreferences, researchDefaults, applyPreferences } from './preferences.js';
 import { registerLibraryCapabilityRoutes } from './library-capabilities.js';
 import {registerKnowledgeMapRoutes,publicResearchTask} from './knowledge-map-routes.js';
-import {CORE_MAP_ID, type MapSeedInput} from '../learning/knowledge-map-store.js';
+import {loadBundledCore,registerCoreUpdates} from './core-map-updates.js';
+import {CORE_MAP_ID} from '../learning/knowledge-map-store.js';
 import {MapError} from '../learning/knowledge-map.js';
 import {admitMapMaintenance,startMapMaintenance,waitMapMaintenance,isMapMaintenanceRunning} from '../research/versions/v4/map-maintenance.js';
 import {MapReader} from '../research/versions/v4/map-reader.js';
 import {MapSources} from '../research/versions/v4/map-sources.js';
 import type {TheoryRequestV4} from '../research/versions/v4/moderator.js';
 import {stableHash} from '../learning/research-hash.js';
-import type {MapView,MapOpenResult,MapRef} from '../learning/knowledge-map.js';
+import {sameMapRef,type MapView,type MapOpenResult,type MapRef} from '../learning/knowledge-map.js';
 import { MaintenanceSession, MaintenanceConflict, type MaintenanceInput } from './maintenance-session.js';
 import { maintenanceDiagnostics } from './maintenance-diagnostics.js';
 import { maintenanceNodeTools } from '../learning/maintenance-node-tools.js';
@@ -74,6 +78,7 @@ import { openProviderBrowser } from './provider-browser.js';
 export interface ApplicationRuntime extends AnyAgentRuntime, Partial<LearningRuntime> { runMaintenance?(request:MaintenanceRequest):Promise<string>; auth: Pick<CAgEAuthManager, 'listProviders' | 'listModels' | 'refreshModelCatalog' | 'saveApiKey' | 'startLogin' | 'getLogin' | 'answerLogin' | 'cancelLogin' | 'logout'>; invokeTheoryV4?(request:TheoryRequestV4):Promise<unknown>; hasForegroundInvocation?(): boolean; canQueueBackgroundLearning?(): boolean; shutdown(): Promise<void> }
 export interface AppOptions {
   desktopVersion?: string;
+  coreUpdateFetch?: typeof fetch;
   openProviderBrowser?: (url: string) => Promise<void>;
   dataRoot?: string; sourceRoot?: string; staticRoot?: string;
   /** Deterministic tests may inject adapters; normal startup always constructs official Pi. */
@@ -143,6 +148,23 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
   let learning: LearningService;
   let plugins: PluginHost;
   let runtime: ApplicationRuntime;
+  async function proofPresentation(body:string,artifact?:OptionalTheoristResultV21){
+    if(!artifact)return {};
+    try{
+      const notes=await loadProofNotes(dataRoot,artifact.originalRef);
+      const {view}=await annotateProof(body,artifact.mapKnowledge??[],artifact.control.outcome.knowledgeRefs??[],notes);
+      // A supplied derivation is readable as a document, even when the evidence receipt correctly omits it as a proof basis.
+      const candidates=view.citations?.filter(r=>r.kind==='theorem'&&!r.suppliedProof&&r.ref&&r.sources.some(s=>s.kind==='user-seed'));
+      if(candidates?.length){
+        const {entries}=await store.library.knowledgeMap.inspect({purpose:'map-user',ownerId:'local-user',projectId:artifact.originalRef.projectId},candidates.map(r=>r.ref!));
+        for(const read of candidates){
+          const proof=entries.find(e=>sameMapRef(e.ref,read.ref!))?.suppliedProof;
+          if(proof&&read.sources.some(s=>stableHash(s)===stableHash(proof.source)))read.suppliedProof=proof;
+        }
+      }
+      return view;
+    }catch{return {presentationIssues:['The saved display annotations could not be read. The original proof is available.']};}
+  }
   const activity = new MonitorActivity();
   const knownProjectIds = new Set<string>();
   const projectNames = new Map<string, string>();
@@ -167,22 +189,12 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     endedAttempts: project => project.schemaVersion === 1 ? endedV1Attempts(project) : project.schemaVersion === 2 ? endedV2Attempts(project) : [], onUnavailable: markUnavailable,
   });
   try {
-    // Older Windows installations store the optional data as a JSON literal in an ES module.
-    // Parse it as data. Never execute code from an installed map.
-    const webRoot=options.staticRoot ?? join(sourceRoot,'dist','web');
-    for(const file of [join(webRoot,'basic-physics-map.mjs'),join(sourceRoot,'web','core-preview.json'),join(webRoot,'core-preview.json')]){
-      let contents:string;
-      try{contents=await readFile(file,'utf8');}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')continue;throw error;}
-      if(!await store.library.knowledgeMap.hasCoreMap()){
-        const entries:MapSeedInput['entries']=JSON.parse(contents.trim().replace(/^export default /,'').replace(/;$/,''));
-        await store.library.knowledgeMap.importSeeds({projectId:CORE_MAP_ID,requestId:'bundled-core-v1',expectedProfileVersion:0,entries},
-          {purpose:'map-user',ownerId:'local-user',projectId:CORE_MAP_ID});
-      }
-      break;
-    }
+    await loadBundledCore(store.library.knowledgeMap,sourceRoot,options.staticRoot??join(sourceRoot,'dist','web'));
     plugins = options.plugins ?? await PluginHost.open(dataRoot, firecrawlKeyFile);
     runtime = options.runtime ?? await CAgERuntimeAdapter.create({ appDataDir: join(dataRoot, 'pi'), authRoot: join(anchor, 'pi'), recordsRoot: join(active.system, 'pi'), rawAnswers: store.rawAnswers, rawAnswersV0: store.rawAnswersV0,
       onProgress: progress => activity.observe(progress),
+      saveProofNotes:(ref,notes,confirmations)=>saveProofNotes(dataRoot,ref,notes,confirmations),
+      pendingTheoristReview:(projectId,node)=>store.library.knowledgeMap.pendingTheoristReview(projectId,node),
       resolveKnowledgeMap:async spec=>{
         const allowedRefs:MapRef[]=[];
         const savedRead=async(taskId:string)=>{
@@ -381,8 +393,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     }
     // Legacy untitled sessions can use the existing Theorist topic without a
     // model call or storage migration. Explicit user names remain authoritative.
-    const topic = current.schemaVersion === 4 ? current.epochs[0]?.selection?.candidates[0]?.direction : current.schemaVersion === 3 ? current.ways[0]?.direction : current.schemaVersion === 2 ? current.epochs[0]?.tasks[0]?.way.question || current.epochs.at(-1)?.snapshot.routingStrategy?.domains.slice(0, 2).map(domain => domain.label).join(' · ') : current.graph.find(node => node.parentId)?.question;
-    applyPresentation(current, undefined, topic);
+    applyRecordedSessionTitle(current);
     return current;
   };
   const summaries = async () => (await Promise.all((await availableProjects()).filter(project => sessionStates.get(project.id) !== 'deleted').map(async project => {
@@ -467,6 +478,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
       return {taskId:t.id,...t.domainRequest,premises:t.domainRequest?.premises?.map(p=>({...p,accepted:accepted.has(stableHash(p.statement))})),status:t.status,revisionStatus:allTasks.find(child=>child.id===t.domainRequest?.revisionTaskId)?.status,question:origin?.question??t.alternateRoute?.question,epochIds:origin?.epochIds,alternative:t.alternateRoute?.result};
     })};
   });
+  registerCoreUpdates(app,store.library.knowledgeMap,options.coreUpdateFetch);
   registerKnowledgeMapRoutes(app,{library:store.library,loadProject:snapshot,
     acceptPremise:async(actor,statement,origin)=>{
       let guard:(()=>void)|undefined;
@@ -575,13 +587,13 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     return state === 'deleted' ? serial(`commands:${id}`, updateState, true) : updateState();
   }, true));
   app.get('/api/research-loops', async () => listResearchLoops());
-  app.post<{ Body: { name: string; hypothesis: string; researchLoopVersion?: string; requestId?: string } }>('/api/projects', { schema: { body: body({ name: string(200), hypothesis: string(1_000_000), researchLoopVersion: string(100), requestId: identifier }, ['name', 'hypothesis']) } }, async (request, reply) => {
+  app.post<{ Body: { name: string; nameSource?: 'user'; hypothesis: string; researchLoopVersion?: string; requestId?: string } }>('/api/projects', { schema: { body: body({ name: string(200), nameSource: { const: 'user' }, hypothesis: string(1_000_000), researchLoopVersion: string(100), requestId: identifier }, ['name', 'hypothesis']) } }, async (request, reply) => {
     // Validate the normal creation contract before resolving a retry identity.
     const created = createResearchProject({ id: randomUUID(), name: request.body.name.trim(), hypothesis: request.body.hypothesis, researchLoopVersion: request.body.researchLoopVersion });
-    const { requestId, name, hypothesis, researchLoopVersion } = request.body;
+    const { requestId, name, nameSource, hypothesis, researchLoopVersion } = request.body;
     // Bind every submitted field. A changed payload is a distinct creation,
     // while retries survive restart without a new journal or scientific field.
-    if (requestId) created.id = `project_${createHash('sha256').update(JSON.stringify(['create-v1', requestId, name, hypothesis, researchLoopVersion ?? null])).digest('hex')}`;
+    if (requestId) created.id = `project_${createHash('sha256').update(JSON.stringify(['create-v1', requestId, name, hypothesis, researchLoopVersion ?? null, ...(nameSource ? [nameSource] : [])])).digest('hex')}`;
     return serial(created.id, async () => {
       if (requestId) {
         const location = knownProjectIds.has(created.id) ? undefined : await lstat(join(store.dataRoot, 'projects', created.id)).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; return undefined; });
@@ -592,7 +604,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
           const existing = await snapshot(created.id); notifyProject(existing); return reply.status(200).send(existing);
         }
       }
-      if (created.name !== 'New research') created.nameSource = 'user';
+      if (nameSource || created.name !== 'New research') created.nameSource = 'user';
       applyPreferences(created, preferences);
       const project = await store.createProject(created);
       notifyProject(project); return reply.status(201).send(project);
@@ -687,7 +699,8 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     const document = await store.library.proofReader([receipt.proofRef]).read(receipt.proofRef);
     const refutation=archivedRefutation(document.meta);
     const assessment=document.meta.optionalProof&&store.library.reportAssessment(project.id,document.meta.optionalProof.artifactId);
-    return { operationId: receipt.operationId, body: document.proof, ...(refutation?{refutation}:{}),...(assessment?{assessment}:{}) };
+    const presentation=project.researchLoopVersion==='4.0'&&'artifact' in receipt.selection?await proofPresentation(document.proof,receipt.selection.artifact):{};
+    return { operationId: receipt.operationId, body: document.proof, ...presentation, ...(refutation?{refutation}:{}),...(assessment?{assessment}:{}) };
   });
   app.get<{ Params: { id: string; answerId: string } }>(`${projectPath}/answers/:answerId`, { schema: { params: body({ id: identifier, answerId: identifier }) } }, async request => {
     const project = await snapshot(request.params.id);
@@ -704,7 +717,8 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     const ref=answer?.answerRef??optionalRef;
     if (!ref) throw new ApiError(404, 'ANSWER_NOT_FOUND', 'This original answer is not available in this session.');
     const exactBody = await store.rawAnswers.read(ref, { readerProjectId: project.id, readerRole: 'theorist', purpose: 'review', ref });
-    return { answerId: ref.id, ref, body: exactBody };
+    const artifact=project.researchLoopVersion==='4.0'?optionalEpochs.flatMap(e=>e.optionalFlow?.artifacts??[]).find(a=>a.originalRef.id===ref.id):undefined;
+    return { answerId: ref.id, ref, body: exactBody, ...await proofPresentation(exactBody,artifact) };
   });
   app.get<{ Params: { id: string } }>(`${projectPath}/activity`, { schema: { params: idParams } }, async request => {
     // Do not load/recover scientific checkpoints from observation polling.

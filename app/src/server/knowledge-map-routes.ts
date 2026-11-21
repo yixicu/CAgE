@@ -4,8 +4,8 @@ import type {AnyResearchProject} from '../research/contracts/loop.js';
 import type {ResearchLibrary} from '../learning/research-library.js';
 import {MapObservationSchema} from '../learning/map-observation.js';
 import {mapNodeTypeSchema,authoredRelationKinds,observationRelationKinds} from '../learning/map-node-fields.js';
-import type {MapSeedInput} from '../learning/knowledge-map-store.js';
-import {MapError,type MapRef,type MapUser} from '../learning/knowledge-map.js';
+import {CORE_MAP_ID,type MapSeedInput} from '../learning/knowledge-map-store.js';
+import {MapError,type MapRef,type MapUser,type NodeReviewStatus} from '../learning/knowledge-map.js';
 
 export function publicResearchTask(task:unknown):unknown {
  if(!task||typeof task!=='object'||Array.isArray(task))return task;
@@ -27,7 +27,7 @@ export interface KnowledgeMapRouteOptions {
 const identifier=Type.String({pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$'});
 const text=Type.String({minLength:1});
 const ref=Type.Object({store:Type.Union([Type.Literal('map'),Type.Literal('theory')]),id:text,version:Type.Integer({minimum:1}),bodyHash:Type.String({pattern:'^[a-f0-9]{64}$'})},{additionalProperties:false});
-const seed=Type.Object({
+export const seedSchema=Type.Object({
  key:Type.Optional(text),summary:Type.Optional(text),nodeType:Type.Optional(mapNodeTypeSchema),
  relations:Type.Optional(Type.Array(Type.Object({target:text,kind:Type.Union([...authoredRelationKinds,...observationRelationKinds].map(v=>Type.Literal(v))),basis:text,direction:Type.Union([Type.Literal('forward'),Type.Literal('symmetric')])},{additionalProperties:false}))),
  observation:Type.Optional(MapObservationSchema),replaces:Type.Optional(ref),
@@ -36,7 +36,9 @@ const seed=Type.Object({
  body:text,assumptions:Type.Optional(Type.Array(Type.String())),proof:Type.Optional(text),
  acceptAsFoundation:Type.Optional(Type.Boolean()),
 },{additionalProperties:false});
-const seedInput=Type.Object({projectId:identifier,requestId:identifier,expectedProfileVersion:Type.Integer({minimum:0}),entries:Type.Array(seed,{minItems:1})},{additionalProperties:false});
+const seedInput=Type.Object({projectId:identifier,requestId:identifier,expectedProfileVersion:Type.Integer({minimum:0}),entries:Type.Array(seedSchema,{minItems:1})},{additionalProperties:false});
+const reviewTarget=Type.Object({projectId:identifier,ref},{additionalProperties:false});
+const reviewChange=Type.Object({...reviewTarget.properties,expected:text,status:Type.Union(['approved','pending','invalid'].map(v=>Type.Literal(v))),argument:Type.Optional(text)},{additionalProperties:false});
 const observationStatus=Type.Object({projectId:identifier,requestId:identifier,ref,status:Type.Union([Type.Literal('disputed'),Type.Literal('withdrawn')]),reason:text},{additionalProperties:false});
 const profileInput=Type.Object({projectId:identifier,requestId:identifier,expectedProfileVersion:Type.Integer({minimum:0}),accepted:Type.Array(ref)},{additionalProperties:false});
 const premiseInput=Type.Object({projectId:identifier,statement:text,origin:Type.Union([
@@ -69,6 +71,13 @@ export function registerKnowledgeMapRoutes(app:FastifyInstance,options:Knowledge
   return {purpose:'map-user',ownerId:'local-user',projectId};
  };
 
+ const reviewActor=async(projectId:string)=>{if(projectId!==CORE_MAP_ID)await actor(projectId);};
+ app.post<{Body:{projectId:string;ref:MapRef}}>('/api/research/knowledge-map/review-status',{schema:{body:reviewTarget}},async(request,reply)=>mapResponse(reply,async()=>{
+  const {projectId,ref}=request.body;await reviewActor(projectId);return options.library.knowledgeMap.nodeReview(projectId,ref);
+ }));
+ app.put<{Body:{projectId:string;ref:MapRef;expected:string;status:NodeReviewStatus;argument?:string}}>('/api/research/knowledge-map/review-status',{schema:{body:reviewChange}},async(request,reply)=>mapResponse(reply,async()=>{
+  const {projectId,ref,expected,status,argument}=request.body;await reviewActor(projectId);return options.library.knowledgeMap.setNodeReview(projectId,ref,expected,status,argument);
+ }));
  app.post<{Body:{projectId:string;statement:string;origin:ReviewedPremiseOrigin}}>('/api/research/knowledge-map/reviewed-premises',{schema:{body:premiseInput}},async(request,reply)=>mapResponse(reply,async()=>{
   const {projectId,statement,origin}=request.body,authority=await actor(projectId);
   if(!options.acceptPremise)return reply.code(503).send({error:'PREMISE_ACCEPTANCE_UNAVAILABLE'});

@@ -33,10 +33,10 @@ async function removePackage(folder: string, filename: string) {
 interface Asset { id: number; name: string; size: number; digest: string }
 interface Release { tag_name: string; draft: boolean; prerelease: boolean; assets: Asset[] }
 
-async function readLimited(response: Response, limit: number, consume: (chunk: Uint8Array) => Promise<void>) {
+export async function readLimited(response: Response, limit: number, consume: (chunk: Uint8Array) => Promise<void>, invalidResponse = invalid) {
   if (!response.body || Number(response.headers.get('content-length')) > limit) {
     await response.body?.cancel();
-    throw invalid();
+    throw invalidResponse();
   }
   const reader = response.body.getReader();
   let size = 0;
@@ -45,7 +45,7 @@ async function readLimited(response: Response, limit: number, consume: (chunk: U
       const { value, done } = await reader.read();
       if (done) return size;
       size += value.byteLength;
-      if (size > limit) throw invalid();
+      if (size > limit) throw invalidResponse();
       await consume(value);
     }
   } finally { await reader.cancel(); }

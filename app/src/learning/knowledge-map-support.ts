@@ -1,4 +1,4 @@
-import {MapError,observationQualification,mapRefKey,sameMapRef,type FoundationProfile,type MapEntry,type KnowledgeMapState,type MapOpenResult,type MapPrerequisite,type MapQualification,type MapProofBasis,type MapRef,type MapReviewedProposal,type MapSourceRef,type MapSupport} from './knowledge-map.js';
+import {MapError,reviewHold,observationQualification,mapRefKey,sameMapRef,type FoundationProfile,type MapEntry,type KnowledgeMapState,type MapOpenResult,type MapPrerequisite,type MapQualification,type MapProofBasis,type MapRef,type MapReviewedProposal,type MapSourceRef,type MapSupport} from './knowledge-map.js';
 import {stableHash} from './research-hash.js';
 
 export const mapBasisHandle=(basis:MapProofBasis)=>'map_basis_'+stableHash(basis);
@@ -13,7 +13,7 @@ export function mapProofBases(state:KnowledgeMapState,ref:MapRef,sourceAllowed:(
  const resolved=new Map<string,MapProofBasis>();
  function visit(target:MapRef,path:Set<string>,limit?:MapProofBasis,rootVia?:string,firstOnly=false):MapProofBasis[]{
   const key=mapRefKey(target),entry=entries.get(key);
-  if(!entry||entry.kind==='observation'||entry.status!=='active'||!entryAllowed(target)||path.has(key))return [];
+  if(!entry||entry.kind==='observation'||entry.status!=='active'||reviewHold(entry)||!entryAllowed(target)||path.has(key))return [];
   const cachedKey=firstOnly?JSON.stringify([key,rootVia,limit&&stableHash(limit)]):undefined,cached=cachedKey&&resolved.get(cachedKey);
   if(cached&&cached.steps.every(step=>!path.has(mapRefKey(step.ref))))return [cached];
   const permits=(via:string)=>(!rootVia||via===rootVia)&&(!limit||limit.steps.some(step=>sameMapRef(step.ref,target)&&step.via===via));
@@ -26,7 +26,7 @@ export function mapProofBases(state:KnowledgeMapState,ref:MapRef,sourceAllowed:(
    let complete=true;
    for(const premise of support.prerequisites){
     const parent=entries.get(mapRefKey(premise.ref));
-    if(!parent||parent.kind==='observation'||parent.status!=='active'||!entryAllowed(parent.ref)){complete=false;break;}
+    if(!parent||parent.kind==='observation'||parent.status!=='active'||reviewHold(parent)==='disputed'||!entryAllowed(parent.ref)){complete=false;break;}
     if(premise.role==='assumption'){
      assumptions.add(parent.body??parent.title);
      for(const condition of parent.assumptions)assumptions.add(condition);
@@ -56,7 +56,7 @@ export function directedMapQualification(state:KnowledgeMapState,entry:MapEntry,
  const active=new Set(bases.map(b=>b.steps[0]!.via));
  const supports=state.supports.filter(s=>sameMapRef(s.statement,entry.ref)&&s.sources.every(sourceAllowed)&&
   s.prerequisites.every(p=>entryAllowed(p.ref)&&(!p.basis||p.basis.steps.every(step=>entryAllowed(step.ref))))).map(s=>({...structuredClone(s),status:s.status==='proved'&&!active.has(s.id)?'pending' as const:s.status}));
- const qualification:MapQualification=entry.status==='withdrawn'?'withdrawn':active.has('definition')?'definition':supports.some(s=>s.status==='proved')?'proved':active.has('accepted')?'accepted':supports.some(s=>s.status==='disputed')?'disputed':'pending';
+ const qualification:MapQualification=entry.status==='withdrawn'?'withdrawn':reviewHold(entry)??(active.has('definition')?'definition':supports.some(s=>s.status==='proved')?'proved':active.has('accepted')?'accepted':supports.some(s=>s.status==='disputed')?'disputed':'pending');
  return {qualification,accepted:active.has('accepted'),supports,bases};
 }
 
@@ -77,6 +77,8 @@ export function retainMapOpenBases(prior:MapOpenResult,current:MapOpenResult):Ma
   const supports=current.supports.filter(s=>s.status==='observed'&&original.has(stableHash(s)));
   return {...current,qualification:supports.length?'observed' as const:'pending' as const,supports};
  }
+ // Keep the review revision actually witnessed, even if the same version returned to pending.
+ if(prior.reviewToken!==current.reviewToken)current={...current,reviewToken:prior.reviewToken};
  if(!prior?.bases||!current.bases)return current;
  if(!prior.separateCitations&&stableHash(prior.bases)===stableHash(current.bases))return current;
  const choices=mapBasisChoices(prior),keys=new Set(choices.map(c=>mapBasisHandle(c.basis)));

@@ -1,3 +1,5 @@
+import { proofFormulaAt } from '../shared/proof-latex.js';
+
 /** Reader-facing convention, with no dependency on a research loop or provider. */
 export const RESEARCH_PAPER_INSTRUCTION = String.raw`
 Required presentation convention for the summary string only: write a concise,
@@ -59,21 +61,23 @@ export function researchPaper(markdown: string): ResearchPaper {
   const preamble: string[] = [];
   let current: PaperSectionId | undefined;
   let fence = '';
-  let display = '';
+  const source = markdown.replaceAll('\r\n', '\n');
+  let offset = 0, displayEnd = 0;
   let recognized = false;
-  for (const line of markdown.replaceAll('\r\n', '\n').split('\n')) {
+  for (const line of source.split('\n')) {
     const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1];
-    const trimmed = line.trim();
-    const heading = !fence && !display && !marker ? sectionHeading(line) : undefined;
+    const start = offset;
+    offset += line.length + 1;
+    const inDisplay = start < displayEnd;
+    const heading = !fence && !inDisplay && !marker ? sectionHeading(line) : undefined;
     if (heading) { current = heading; recognized = true; continue; }
     (current ? content[current] : preamble).push(line);
-    if (marker && !display) {
+    if (marker && !inDisplay) {
       if (!fence) fence = marker;
       else if (marker[0] === fence[0] && marker.length >= fence.length && /^\s*(?:`+|~+)\s*$/.test(line)) fence = '';
-    } else if (!fence) {
-      if (display && trimmed.endsWith(display)) display = '';
-      else if (!display && trimmed.startsWith('$$') && !trimmed.slice(2).trimEnd().endsWith('$$')) display = '$$';
-      else if (!display && trimmed.startsWith('\\[') && !trimmed.slice(2).trimEnd().endsWith('\\]')) display = '\\]';
+    } else if (!fence && !inDisplay && /^ {0,3}(?:\$\$|\\\[)/.test(line)) {
+      const formula = proofFormulaAt(source, start + line.length - line.trimStart().length);
+      if (formula) displayEnd = formula.end;
     }
   }
   const original = !recognized && markdown.trim() ? markdown : undefined;

@@ -16,7 +16,9 @@ export interface MapGrant {refutationEvidence?:true;purpose:MapPurpose;ownerId:s
 export interface MapUser {purpose:'map-user';ownerId:string;projectId:string}
 export interface MapSourceRef {kind:'proof-report'|'public-research'|'library-proof'|'theory'|'user-seed'|'maintenance-proof';id:string;version:number;bodyHash:string;ownerId:string;projectId:string}
 export interface MapSource {ref:MapSourceRef;body:string;canonicalTheory?:MapRef;origin?:unknown;status:'active'|'withdrawn';entryRefs?:MapRef[]}
-export interface MapEntry {nodeType?:MapNodeType;scientificWithdrawal?:{source:MapSourceRef;reason:string};maintenanceDraft?:{projectId:string;callId:string;parent?:MapRef;metadataOnly?:true};maintenanceWithdrawal?:{projectId:string;callId:string};observation?:MapObservation;observationChange?:{requestId:string;status:'disputed'|'withdrawn';reason:string};ref:MapRef;ownerId:string;kind:MapKind;title:string;summary?:string;aliases:string[];domain:string[];body?:string;assumptions:string[];definition:boolean;status:'active'|'withdrawn';theoryQualification?:'candidate'|'supported';createdFrom:MapSourceRef[]}
+export type NodeReviewStatus='approved'|'pending'|'invalid';
+export interface NodeReviewDecision {status:NodeReviewStatus;token:string;origin:'user'|'theorist'}
+export interface MapEntry {coreReview?:{version:number;key:string};reviewDecision?:NodeReviewDecision;nodeType?:MapNodeType;scientificWithdrawal?:{source:MapSourceRef;reason:string};maintenanceDraft?:{projectId:string;callId:string;parent?:MapRef;metadataOnly?:true};maintenanceWithdrawal?:{projectId:string;callId:string};observation?:MapObservation;observationChange?:{requestId:string;status:'disputed'|'withdrawn';reason:string};ref:MapRef;ownerId:string;kind:MapKind;title:string;summary?:string;aliases:string[];domain:string[];body?:string;assumptions:string[];definition:boolean;status:'active'|'withdrawn';theoryQualification?:'candidate'|'supported';createdFrom:MapSourceRef[]}
 export interface MapProofBasis {steps:{ref:MapRef;via:string}[];assumptions:string[]}
 export interface MapPrerequisite {ref:MapRef;role:'established'|'assumption';basis?:MapProofBasis;discharges?:{condition:string;argument:string}[]}
 export type MapDraftPrerequisite=Omit<MapPrerequisite,'ref'>&{ref:MapRef|string};
@@ -41,7 +43,7 @@ export interface FoundationProfile {id:string;ownerId:string;projectId:string;ve
 export interface MapRelation {id:string;from:MapRef;to:MapRef;kind:AuthoredRelationKind|'member-of';basis:string;direction:'forward'|'symmetric';status:'active'|'withdrawn';reviewId:string;sources?:MapSourceRef[]}
 export interface MapOutbox {singleAuthor?:true;authored?:import('../research/versions/v4/map-maintenance.js').AuthoredMapWrite;domainAdmission?:true;projection?:{entry:MapEntry;intentId:string;decision?:{placement:import('../research/versions/v4/map-maintenance.js').MapPlacement;opened:MapOpenResult[]}};refutationEvidence?:true;modelDirectedKnowledge?:true;id:string;ownerId:string;projectId:string;sourceKeys:string[];recipe:typeof MAP_RECIPE;state:'pending'|'admitted'|'completed';taskId?:string}
 export interface MapConversion {sourceKey:string;state:'available'|'queued'|'pending'|'converted'|'unavailable';entryRefs:MapRef[];taskId?:string}
-export interface KnowledgeMapState {recipe:typeof MAP_RECIPE;version:number;entries:MapEntry[];supports:MapSupport[];relations:MapRelation[];profiles:FoundationProfile[];sources:MapSource[];outbox:MapOutbox[];conversions:MapConversion[];receipts:Record<string,string>;publicationReceipts?:Record<string,MapPublicationReceipt>}
+export interface KnowledgeMapState {corePackage?:import('./core-package.js').CoreInstallation;recipe:typeof MAP_RECIPE;version:number;entries:MapEntry[];supports:MapSupport[];relations:MapRelation[];profiles:FoundationProfile[];sources:MapSource[];outbox:MapOutbox[];conversions:MapConversion[];receipts:Record<string,string>;publicationReceipts?:Record<string,MapPublicationReceipt>}
 export interface MapView {modelDirectedKnowledge?:true;presentation?:'layered-map-v1';recipe:typeof MAP_RECIPE;revision:string;mapVersion:number;profile:FoundationProfile;grant:MapGrant;refs:MapRef[];sourceRefs:MapSourceRef[]}
 export type MapNavigationKind=MapRelation['kind']|'prerequisite';
 export type MapNavigationDirection='outgoing'|'incoming'|'symmetric';
@@ -50,7 +52,7 @@ export interface MapQuery {query?:string;domain?:string[];mode?:'exact'|'candida
 export interface MapReadCall {detail?:'proof';toolCallId:string;action:'lookup'|'open'|'refresh';query?:MapQuery;selection?:string}
 export interface MapCandidate {nodeType?:MapNodeType;summary?:string;paths?:MapNavigationPath[];statementPreview?:string;selection:string;ref:MapRef;kind:MapKind;title:string;aliases:string[];domain:string[];assumptions:string[];qualification:MapQualification;accepted:boolean;reason:'exact'|'alias'|'lexical'|'neighbor'|'branch'|'relation';score:number}
 export interface MapSelection {mode?:MapQuery['mode'];directory?:{selection:string;title:string;count:number}[];recipe:typeof MAP_RECIPE;revision:string;outcome:'exact'|'candidates'|'partial'|'miss'|'incomplete';entries:MapCandidate[];evidence:{selection:string;source:MapSourceRef;conversion:MapConversion['state']}[];total:number;nextOffset?:number;truncated:boolean;coverage:{available:number;converted:number;pending:number};notice:string}
-export interface MapOpenResult {suppliedProof?:{argument:string;source:MapSourceRef};nodeType?:MapNodeType;empiricalSource?:true;observation?:MapObservation;selection:string;ref?:MapRef;kind:MapKind|'source-evidence';title?:string;aliases?:string[];domain?:string[];body:string;assumptions:string[];qualification:MapQualification|'evidence';accepted:boolean;supports:MapSupport[];bases?:MapProofBasis[];separateCitations?:true;basis?:MapProofBasis;sources:MapSourceRef[];theoryQualification?:'candidate'|'supported'}
+export interface MapOpenResult {coreReview?:{version:number;key:string};reviewToken?:string;suppliedProof?:{argument:string;source:MapSourceRef};nodeType?:MapNodeType;empiricalSource?:true;observation?:MapObservation;selection:string;ref?:MapRef;kind:MapKind|'source-evidence';title?:string;aliases?:string[];domain?:string[];body:string;assumptions:string[];qualification:MapQualification|'evidence';accepted:boolean;supports:MapSupport[];bases?:MapProofBasis[];separateCitations?:true;basis?:MapProofBasis;sources:MapSourceRef[];theoryQualification?:'candidate'|'supported'}
 export interface MapCandidateDraft {nodeType?:MapNodeType;observation?:MapObservation;id:string;kind:'concept'|'theorem'|'observation';title:string;summary?:string;aliases:string[];domain:string[];body:string;assumptions:string[];definition:boolean;existing?:MapRef;sources:MapSourceRef[];argument:string;supportAssumptions?:string[];prerequisites:MapDraftPrerequisite[];requestedStatus:'proved'|'pending'|'observed';memberships:(MapRef|string)[];relations?:AuthoredRelation<MapRef|string>[]}
 export interface MapReviewDecision {anchor?:{ref:MapRef;basis:string};candidateId:string;candidateHash:string;status:'definition'|'proved'|'observed'|'pending'|'reject'|'revise';body:string}
 export interface MapReviewedProposal {authored?:true;exactReview?:true;priorEntries?:{candidate:MapCandidateDraft;decision:MapReviewDecision;ref:MapRef;reviewId:string}[];withheldCandidateIds?:string[];refutationEvidence?:true;modelDirectedKnowledge?:true;id:string;ownerId:string;projectId:string;expectedVersion:number;candidates:MapCandidateDraft[];decisions:MapReviewDecision[];reviewId:string;sourceKeys:string[];relations?:Omit<MapRelation,'id'|'reviewId'|'status'>[]}
@@ -79,6 +81,7 @@ export function validateKnowledgeMap(state:KnowledgeMapState):void {
  check([state.entries,state.supports,state.relations,state.profiles,state.sources,state.outbox,state.conversions].every(Array.isArray),'Map collections');
  const seen=new Set<string>();for(const entry of state.entries){
   check(validMapRef(entry.ref)&&nonblank(entry.ownerId)&&nonblank(entry.title)&&['concept','theorem','theory','observation'].includes(entry.kind),'Map entry');
+  if(entry.reviewDecision)check(['approved','pending','invalid'].includes(entry.reviewDecision.status)&&['user','theorist'].includes(entry.reviewDecision.origin)&&nonblank(entry.reviewDecision.token),'Invalid node review');
   check(!entry.nodeType||validNodeType(entry.kind,entry.nodeType),'Node type outside its scientific kind');
   check(entry.kind==='observation'?validMapObservation(entry.observation)&&!entry.definition:entry.observation===undefined,'Map observation fields');
   check((entry.kind==='theory')===(entry.ref.store==='theory')&&strings(entry.aliases)&&strings(entry.domain)&&strings(entry.assumptions),'Map membership');
@@ -143,12 +146,16 @@ export function selectMapProfile(state:KnowledgeMapState,input:{requestId:string
  const next=structuredClone(state),profile={...current,version:current.version+1,accepted:structuredClone(input.accepted),authorization:input.requestId};next.profiles=next.profiles.filter(p=>p.id!==profile.id);next.profiles.push(profile);next.receipts[receipt]=hash;next.version++;return next;
 }
 
+export function reviewHold(entry:MapEntry):'pending'|'disputed'|undefined {
+ return entry.reviewDecision?.status==='invalid'?'disputed':entry.reviewDecision?.status==='pending'?'pending':undefined;
+}
 export function activeMapSupports(state:KnowledgeMapState,ref:MapRef,sourceAllowed:(ref:MapSourceRef)=>boolean):MapSupport[]{
  const sourceValid=(support:MapSupport)=>support.sources.every(sourceAllowed);
- const candidates=state.supports.filter(s=>s.status==='proved'&&sourceValid(s));
+ const held=new Set(state.entries.filter(reviewHold).map(e=>mapRefKey(e.ref)));
+ const candidates=state.supports.filter(s=>s.status==='proved'&&!held.has(mapRefKey(s.statement))&&sourceValid(s));
  const active=new Set<string>();let changed=true;
  // This invalidates recorded withdrawn prerequisites, not unrecorded mathematical assumptions.
- while(changed){changed=false;for(const s of candidates){if(active.has(s.id))continue;if(s.prerequisites.every(p=>{if(p.role==='assumption')return true;const entry=state.entries.find(e=>sameMapRef(e.ref,p.ref));if(p.basis)return !!entry&&p.basis.steps.every(step=>state.entries.some(e=>sameMapRef(e.ref,step.ref)&&e.status==='active'&&(step.via==='definition'?e.definition:active.has(step.via))));return !!entry&&entry.status==='active'&&(entry.definition||candidates.some(t=>sameMapRef(t.statement,p.ref)&&active.has(t.id)));})){active.add(s.id);changed=true;}}}
+ while(changed){changed=false;for(const s of candidates){if(active.has(s.id))continue;if(s.prerequisites.every(p=>{if(p.role==='assumption')return !state.entries.some(e=>sameMapRef(e.ref,p.ref)&&reviewHold(e)==='disputed');const entry=state.entries.find(e=>sameMapRef(e.ref,p.ref));if(p.basis)return !!entry&&p.basis.steps.every(step=>state.entries.some(e=>sameMapRef(e.ref,step.ref)&&e.status==='active'&&!reviewHold(e)&&(step.via==='definition'?e.definition:active.has(step.via))));return !!entry&&entry.status==='active'&&!reviewHold(entry)&&(entry.definition||candidates.some(t=>sameMapRef(t.statement,p.ref)&&active.has(t.id)));})){active.add(s.id);changed=true;}}}
  return state.supports.filter(s=>sameMapRef(s.statement,ref)&&sourceValid(s)).map(s=>({...structuredClone(s),status:s.status==='proved'&&!active.has(s.id)?'pending':s.status}));
 }
 /** Source text is readable independently of its scientific review and never creates a support. */
@@ -166,14 +173,14 @@ export function suppliedSeedProof(state:KnowledgeMapState,entry:MapEntry,support
 }
 export function mapQualification(state:KnowledgeMapState,entry:MapEntry,profile:FoundationProfile,sourceAllowed:(ref:MapSourceRef)=>boolean):{qualification:MapQualification;accepted:boolean;supports:MapSupport[]} {
  if(entry.kind==='observation')return observationQualification(state,entry,sourceAllowed);
- const accepted=profile.accepted.some(ref=>sameMapRef(ref,entry.ref)),supports=activeMapSupports(state,entry.ref,sourceAllowed);
- const qualification=entry.status==='withdrawn'?'withdrawn':entry.definition?'definition':supports.some(s=>s.status==='proved')?'proved':accepted?'accepted':supports.some(s=>s.status==='disputed')?'disputed':'pending';
+ const accepted=!reviewHold(entry)&&profile.accepted.some(ref=>sameMapRef(ref,entry.ref)),supports=activeMapSupports(state,entry.ref,sourceAllowed);
+ const qualification=entry.status==='withdrawn'?'withdrawn':reviewHold(entry)??(entry.definition?'definition':supports.some(s=>s.status==='proved')?'proved':accepted?'accepted':supports.some(s=>s.status==='disputed')?'disputed':'pending');
  return {qualification,accepted,supports};
 }
 export function observationQualification(state:KnowledgeMapState,entry:MapEntry,sourceAllowed:(ref:MapSourceRef)=>boolean){
- const supports=state.supports.filter(s=>sameMapRef(s.statement,entry.ref)&&s.sources.every(sourceAllowed)).map(s=>structuredClone(s));
- const qualification:MapQualification=entry.status==='withdrawn'?'withdrawn':entry.observationChange?.status==='disputed'?'disputed':
-  supports.some(s=>s.status==='disputed')?'disputed':supports.some(s=>s.status==='observed'&&s.review)?'observed':'pending';
+ const supports=state.supports.filter(s=>sameMapRef(s.statement,entry.ref)&&s.sources.every(sourceAllowed)).map(s=>s.status==='observed'&&reviewHold(entry)?{...s,status:'pending' as const}:structuredClone(s));
+ const qualification:MapQualification=entry.status==='withdrawn'?'withdrawn':entry.observationChange?.status==='disputed'?'disputed':reviewHold(entry)??(
+  supports.some(s=>s.status==='disputed')?'disputed':supports.some(s=>s.status==='observed'&&s.review)?'observed':'pending');
  return {qualification,accepted:false,supports};
 }
 export function observationSeed(source:MapSource):MapObservation|undefined{

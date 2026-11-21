@@ -29,6 +29,7 @@ import { RawAnswerStore } from './raw-answers.js';
 import { validateV21Transition } from './v21-codec.js';
 import type { ResearchProjectV21, InFlightEpochV21 } from '../research/contracts/v21.js';
 import { ResearchLibrary } from '../learning/research-library.js';
+import { applyRecordedSessionTitle } from '../presentation/session-presentation.js';
 
 class SupersededOptionalCheckpoint extends Error {}
 interface Pointer { schemaVersion: 1; revision: string; previousRevision?: string; planningRevision?: string }
@@ -335,6 +336,7 @@ export class FileResearchStore implements ResearchStore {
       if (prior.schemaVersion !== project.schemaVersion && !selectUnstarted) throw new ResearchVersionError();
     }
     const saved = structuredClone(project);
+    applyRecordedSessionTitle(saved);
     if (saved.schemaVersion === 2 || saved.schemaVersion === 3 || saved.schemaVersion === 4) delete saved.activeEpoch;
     saved.processedCommandIds = [...new Set(saved.processedCommandIds)];
     if (saved.schemaVersion !== 3 && saved.schemaVersion !== 4) saved.hypothesisRevision = hypothesisBlobId(saved.hypothesis);

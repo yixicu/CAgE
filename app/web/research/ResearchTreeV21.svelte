@@ -2,13 +2,15 @@
   import type { ResearchProjectV21 } from '../../src/research/contracts/v21';
   import { v21LatestReview, v21OptionalEpochs, v21DefaultOptionalOriginal } from '../research-view-v21';
   import { api } from '../api';
-  import MarkdownView from '../MarkdownView.svelte';
+  import SavedProofView from './SavedProofView.svelte';
+  import type { SavedProof } from '../api';
+  import type { MapOpenResult } from '../../src/learning/knowledge-map';
   import ArchivedRefutationView from './ArchivedRefutationView.svelte';
   import type { ArchivedRefutation } from '../../src/learning/research-data';
   import V3Evidence from './V3Evidence.svelte';
   import ResearchTag from './ResearchTag.svelte';
   import { agentTag, proofTerms, statusTag } from './research-tags';
-  let { project,reportUpdates=[] }: { project: ResearchProjectV21;reportUpdates?:ReportUpdate[] } = $props();
+  let { project,reportUpdates=[],onmap }: { project: ResearchProjectV21;reportUpdates?:ReportUpdate[];onmap:(read:MapOpenResult)=>void } = $props();
   let selectionLabel = $state('Original answer');
   import ReportUpdateView from './ReportUpdateView.svelte';
   import type {ReportUpdate} from '../api';
@@ -22,7 +24,7 @@
     return loadedAssessment;
   });
   let refutation=$state<ArchivedRefutation>();
-  let selected = $state(''), original = $state(''), error = $state(''), loading = $state(false);
+  let selected = $state(''), original = $state<SavedProof>(), error = $state(''), loading = $state(false);
   let answers = $derived([...project.answers, ...(project.activeEpoch?.answers ?? [])].filter((answer, index, all) => all.findIndex(other => other.id === answer.id) === index));
   let request = 0;
   let optionalEpochs=$derived(v21OptionalEpochs(project));
@@ -39,20 +41,20 @@
   $effect(()=>{const choice=v21DefaultOptionalOriginal(project);if(!['3.0','4.0'].includes(project.researchLoopVersion)&&choice&&defaultKey!==choice.key){defaultKey=choice.key;if(choice.kind==='archive')void readArchive(choice.id,choice.label);else void readAnswer(choice.id,choice.label);}else if(choice&&selected===choice.id)selectionLabel=choice.label;});
   // A project switch invalidates in-flight fetches before any other project's text can appear.
   let displayProject=$state('');
-  $effect(()=>{if(displayProject!==project.id){displayProject=project.id;++request;selected='';original='';error='';loading=false;defaultKey='';}});
+  $effect(()=>{if(displayProject!==project.id){displayProject=project.id;++request;selected='';original=undefined;error='';loading=false;defaultKey='';}});
   async function readAnswer(answerId: string, label = 'Original answer · completion not inferred') {
     refutation=undefined;loadedAssessment=undefined;
     const token = ++request, projectId = project.id;
-    selectionLabel = label; selected = answerId; original = ''; error = ''; loading = true;
-    try { const value = await api.rawAnswer(projectId, answerId); if (token === request && project.id === projectId) original = value.body; }
+    selectionLabel = label; selected = answerId; original = undefined; error = ''; loading = true;
+    try { const value = await api.rawAnswer(projectId, answerId); if (token === request && project.id === projectId) original = value; }
     catch (cause) { if (token === request && project.id === projectId) error = cause instanceof Error ? cause.message : 'Original answer unavailable.'; }
     finally { if (token === request && project.id === projectId) loading = false; }
   }
   async function readArchive(operationId: string, label = 'Archived original · current qualification shown above') {
     refutation=undefined;loadedAssessment=undefined;
     const token = ++request, projectId = project.id;
-    selectionLabel = label; selected = operationId; original = ''; error = ''; loading = true;
-    try { const value = await api.wayArchive(projectId, operationId); if (token === request && project.id === projectId) { original = value.body; refutation=value.refutation;loadedAssessment=value.assessment; } }
+    selectionLabel = label; selected = operationId; original = undefined; error = ''; loading = true;
+    try { const value = await api.wayArchive(projectId, operationId); if (token === request && project.id === projectId) { original = value; refutation=value.refutation;loadedAssessment=value.assessment; } }
     catch (cause) { if (token === request && project.id === projectId) error = cause instanceof Error ? cause.message : 'Archive unavailable.'; }
     finally { if (token === request && project.id === projectId) loading = false; }
   }
@@ -151,6 +153,6 @@
     <h4>{selectionLabel}</h4>
     {#if assessment}<ReportUpdateView update={assessment} />{/if}
     {#if refutation}<ArchivedRefutationView result={refutation} />{/if}
-    {#if loading}<p role="status">Loading original…</p>{:else if error}<p role="alert">{error}</p>{:else}<MarkdownView content={original} />{/if}
+    {#if loading}<p role="status">Loading original…</p>{:else if error}<p role="alert">{error}</p>{:else if original}<SavedProofView projectId={project.id} proof={original} paper={false} {onmap}/>{/if}
   </section>{/if}
 </section>

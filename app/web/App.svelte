@@ -62,7 +62,19 @@
   import RoundRibbon from './RoundRibbon.svelte';
   import { checkpointPages, selectedCheckpoint } from './checkpoint-view';
   import KnowledgeCanvas from './KnowledgeCanvas.svelte';
+  import SavedProofView from './research/SavedProofView.svelte';
+  import type { SavedProof } from './api';
+  import type { MapOpenResult } from '../src/learning/knowledge-map';
   let mapOpen = $state(false);
+  let mapCitation = $state<{projectId:string;read:MapOpenResult}>();
+  function showCitationOnMap(read:MapOpenResult) {
+    if (!project || !read.ref) return;
+    openCapability('knowledge');
+    if (screen === 'knowledge') {
+      mapCitation = {projectId:project.id,read};
+      mapOpen = true;
+    }
+  }
 
   import CapabilitiesPage from './CapabilitiesPage.svelte';
   import LearningStatus from './LearningStatus.svelte';
@@ -117,7 +129,8 @@
   let selectedPage = $derived(selectedCheckpoint(pages, selectedPageId));
   let optionalOriginal = $derived(project?.schemaVersion===3&&!selectedPage?.inheritedSessionId?v21DefaultOptionalOriginal(project,selectedPage?.number):undefined);
   let optionalOriginalKey=$derived(optionalOriginal?.key);
-  let optionalBody=$state(''),optionalBodyError=$state(''),optionalBodyLoading=$state(false);
+  let optionalProof=$state<SavedProof>(),optionalBodyError=$state(''),optionalBodyLoading=$state(false);
+  let optionalBody=$derived(optionalProof?.body ?? '');
   let reportUpdates=$state<ReportUpdate[]>([]);
   let loadedAssessment=$state<ReportUpdate>();
   let optionalAssessment=$derived(reportUpdates.findLast(row=>row.projectId===project?.id&&row.epochId===optionalOriginal?.epochId&&row.artifactId===optionalOriginal?.artifactId&&row.status!=='queued')??loadedAssessment);
@@ -127,10 +140,10 @@
   $effect(()=>{
     const key=optionalOriginalKey,choice=untrack(()=>optionalOriginal),id=untrack(()=>project?.id);
     let current=true;
-    optionalBody='';loadedAssessment=undefined;optionalRefutation=undefined;optionalBodyKey=undefined;optionalBodyError='';optionalBodyLoading=!!choice;
+    optionalProof=undefined;loadedAssessment=undefined;optionalRefutation=undefined;optionalBodyKey=undefined;optionalBodyError='';optionalBodyLoading=!!choice;
     if(key&&choice&&id){
       const pending=choice.kind==='archive'?api.wayArchive(id,choice.id):api.rawAnswer(id,choice.id);
-      void pending.then(value=>{if(current){optionalBody=value.body;loadedAssessment='operationId' in value?value.assessment:undefined;optionalRefutation='operationId' in value?value.refutation:undefined;optionalBodyKey=key;}},cause=>{if(current)optionalBodyError=cause instanceof Error?cause.message:'Original unavailable.';}).finally(()=>{if(current)optionalBodyLoading=false;});
+      void pending.then(value=>{if(current){optionalProof=value;loadedAssessment='operationId' in value?value.assessment:undefined;optionalRefutation='operationId' in value?value.refutation:undefined;optionalBodyKey=key;}},cause=>{if(current)optionalBodyError=cause instanceof Error?cause.message:'Original unavailable.';}).finally(()=>{if(current)optionalBodyLoading=false;});
     }
     return ()=>{current=false;};
   });
@@ -551,7 +564,7 @@
       const submitted = hypothesis, submittedName = projectName, mode = $developerMode ? draftMode : DEFAULT_RESEARCH_MODE;
       const files = [...homeFiles], shouldStart = modelReady, submittedSelection = selectionSerial;
       await run(async () => {
-        const created = await api.createProject(submittedName.trim() || 'New research', submitted.trim(), mode);
+        const created = await api.createProject(submittedName.trim(), submitted.trim(), mode);
         sessionFiles[created.id] = files;
         homeFiles = homeFiles.filter(file => !files.includes(file));
         // Persisted draft owns the text/files once creation succeeds, including hydration failures.
@@ -876,7 +889,7 @@
     <button class="nav-action new-project bg-surface/90 border-line/60 text-control" onclick={home} disabled={busy || !bootstrap}><Icon name="plus" />New research</button>
     <button class="nav-action" class:chosen={screen === 'maintenance'} onclick={() => { navigate('maintenance'); closeNavigation(); }}><Icon name="settings" size={17} />Maintenance Assistant</button>
     <div class="cages-row"><button class="nav-action" class:chosen={screen==='knowledge'} onclick={()=>openCapability('knowledge')}><Icon name="tree" size={17}/>cages</button>
-      <button class="map-switch" role="switch" aria-label="Knowledge map" aria-checked={mapOpen} onclick={()=>{openCapability('knowledge');if(screen==='knowledge')mapOpen=!mapOpen}}><span>Skill</span><span>Knowledge</span></button></div>
+      <button class="map-switch" role="switch" aria-label="Knowledge map" aria-checked={mapOpen} onclick={()=>{openCapability('knowledge');if(screen==='knowledge'){mapCitation=undefined;mapOpen=!mapOpen}}}><span>Skill</span><span>Knowledge</span></button></div>
     <label class="search-field"><Icon name="search" size={15} /><input aria-label="Search projects" bind:value={search} placeholder="Search history" /></label>
     <div class={`sidebar-sections ${hiddenSidebarScrollbar}`}><details class="contents-nav disclosure-list" open><summary ondragover={e=>{if(e.dataTransfer?.types.includes('application/x-carnot-session'))e.preventDefault()}} ondrop={startGroup}>Contents</summary>
       {#if groupingSession}<form class="new-group" onsubmit={async e=>{e.preventDefault();if(newGroup.trim()){const id=groupingSession;groupingSession='';await moveSession(id,newGroup.trim())}}}>
@@ -918,7 +931,7 @@
       {#if loading}<p class="loading-message" role="status">Opening workspace…</p>
       {:else if screen === 'maintenance' && bootstrap}<MaintenancePage {bootstrap} onsettings={openModelSettings} onmodel={async model=>{if(bootstrap){await api.preferences({...bootstrap.preferences,maintenanceModel:model});await refresh()}}}/>
       {:else if screen === 'settings' && bootstrap}<SystemSettings {bootstrap} onchange={refresh} />
-      {:else if screen === 'knowledge' || screen === 'fast' || screen === 'slow'}{#key `knowledge:${project?.id || ''}`}{#if mapOpen}<KnowledgeCanvas/>{:else}<CapabilitiesPage projects={bootstrap?.projects??[]} kind="knowledge" projectId={project?.id} onchange={refresh} />{/if}{/key}
+      {:else if screen === 'knowledge' || screen === 'fast' || screen === 'slow'}{#key `knowledge:${project?.id || ''}`}{#if mapOpen}<KnowledgeCanvas citation={mapCitation?.projectId===project?.id ? mapCitation : undefined}/>{:else}<CapabilitiesPage projects={bootstrap?.projects??[]} kind="knowledge" projectId={project?.id} onchange={refresh} />{/if}{/key}
       {:else if !project}
         <HypothesisEntry {hypothesis} showSubtitle={true}>{@render researchComposer()}</HypothesisEntry>
       {:else if project && screen === 'document'}
@@ -952,14 +965,14 @@
               {#if optionalOriginal}
                 <p role="status">{optionalOriginal.label}</p>
                 {#if optionalAssessment}<ReportUpdateView update={optionalAssessment} />{/if}{#if optionalRefutation}<ArchivedRefutationView result={optionalRefutation} />{/if}
-                {#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else}<ResearchPaper content={optionalBody} />{/if}
+                {#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else if optionalProof}<SavedProofView projectId={project.id} proof={optionalProof} onmap={showCitationOnMap}/>{/if}
               {:else}<ResearchPaper content={selectedPage.content} />{/if}
               <div class="message-footer"><span>{selectedPage.time ? new Date(selectedPage.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Saved output'}</span></div>
           <ResponseActions actions={responseActions} />
             </div>
           {/if}
 
-          {#if !selectedPage&&optionalOriginal}<section aria-label="Saved original answer"><p role="status">{optionalOriginal.label}</p>{#if optionalAssessment}<ReportUpdateView update={optionalAssessment} />{/if}{#if optionalRefutation}<ArchivedRefutationView result={optionalRefutation} />{/if}{#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else}<ResearchPaper content={optionalBody} />{/if}</section>{/if}
+          {#if !selectedPage&&optionalOriginal}<section aria-label="Saved original answer"><p role="status">{optionalOriginal.label}</p>{#if optionalAssessment}<ReportUpdateView update={optionalAssessment} />{/if}{#if optionalRefutation}<ArchivedRefutationView result={optionalRefutation} />{/if}{#if optionalBodyLoading}<p role="status">Loading saved original…</p>{:else if optionalBodyError}<p role="alert">{optionalBodyError}</p>{:else if optionalProof}<SavedProofView projectId={project.id} proof={optionalProof} onmap={showCitationOnMap}/>{/if}</section>{/if}
           {#if project.schemaVersion===3&&project.researchLoopVersion==='4.0'}{#key project.id}<KnowledgeUpdates onmaintenance={()=>navigate('maintenance')} onreports={rows=>{reportUpdates=rows;}} projectId={project.id} epochs={project.epochs.map(e=>({id:e.snapshot.id,number:e.snapshot.number}))}/>{/key}{/if}
           {#if project.lastError}<p class="notice error" role="alert">{project.lastError}</p>{/if}
           {#if !active && !recoveryPending && !project.summary && !selectedPage}<div class="start-hint"><BrandMark size={22} /><p>{modelReady ? 'Ready when you are.' : 'Connect a model to begin.'}</p></div>{/if}
@@ -975,7 +988,7 @@
     <header class="inspector-header sticky top-0 z-10 border-line/60 bg-surface px-3 py-2"><InspectorViewSwitch value={inspectorView} onselect={view => inspectorView = view} /></header>
     {#if inspectorView === 'monitor' && loopView && diagramView}<div class="min-w-0 px-3 pt-3 pb-4">{#key project.id}<div class="mb-3"><ModifiedHypothesisHistory bind:this={modifiedHistory} {project} {commandHistory} activity={monitorActivity} connected={connection === 'connected' && !snapshotStale} /></div>{#each (monitorActivity?.operations ?? []).filter(operation => !operation.toolName && operation.softDeadline && !['waiting','disabled'].includes(operation.softDeadline.status)) as operation (operation.sessionId)}<p class="muted small" role="status">{operation.role}: {operation.softDeadline?.status === 'delivered' ? 'Wrap-up requested; still running.' : 'Time target reached; wrap-up notice pending delivery.'}</p>{/each}{#each (monitorActivity?.operations ?? []).filter(operation => !operation.toolName && operation.budget?.capacityPolicy) as operation (operation.sessionId)}<p class="muted small" role="status">{operation.role}: calls {operation.counters?.turns ?? 0}{operation.budget?.capacityPolicy?.controlsEnabled ? ` / ${operation.budget.maxTurns}` : ' (budget OFF)'}, tools {operation.counters?.toolCalls ?? 0}{operation.budget?.capacityPolicy?.controlsEnabled ? ` / ${operation.budget.maxToolCalls}` : ''}. Tokens {operation.counters?.tokens ?? 'unavailable'}{operation.budget?.maxTokens !== undefined ? ` / ${operation.budget.maxTokens}` : ''}; cost USD {operation.counters?.costUsd ?? 'unavailable'}{operation.budget?.maxCostUsd !== undefined ? ` / ${operation.budget.maxCostUsd}` : ''}.</p>{/each}<LoopMonitor learning={workspaceReady && learningTasks.some(task=>task.projectId===project?.id && task.status==='running')} background={monitorActivity?.background} view={loopView} diagram={diagramView} />{/key}</div>{:else}
     {#if project.researchLoopVersion!=='4.0' || (project.presentation?.hypothesisRevision===project.hypothesisRevision && project.presentation?.conditions?.length && project.presentation.claim?.trim() && project.presentation.claim.trim()!==project.hypothesis.trim())}<HypothesisInspector {project} />{/if}
-    {#if project.schemaVersion === 4}{#key project.id}<ResearchWaysV0 {project} />{/key}{:else if project.schemaVersion === 3}{#key project.id}<ResearchTreeV21 {project} {reportUpdates} />{/key}{:else if project.schemaVersion === 2}<HypothesisTreeV2 {project} onopen={openDocument} />{:else}<HypothesisTree {project} onopen={openDocument} />{/if}<ResearchDirections {project} onmonitor={() => openMonitor()} />
+    {#if project.schemaVersion === 4}{#key project.id}<ResearchWaysV0 {project} />{/key}{:else if project.schemaVersion === 3}{#key project.id}<ResearchTreeV21 {project} {reportUpdates} onmap={showCitationOnMap} />{/key}{:else if project.schemaVersion === 2}<HypothesisTreeV2 {project} onopen={openDocument} />{:else}<HypothesisTree {project} onopen={openDocument} />{/if}<ResearchDirections {project} onmonitor={() => openMonitor()} />
     {/if}
   </aside>{/if}
   {#if smallScreen && (sidebarOpen || rightShown)}<button class="panel-backdrop top-[var(--topbar-height)] h-auto" tabindex="-1" aria-label="Close open panel" onclick={() => closePanel(sidebarOpen ? 'left' : 'right')}></button>{/if}

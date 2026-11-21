@@ -7,20 +7,21 @@ const preview=(text:string)=>text.length>280?text.slice(0,280)+'…':text;
 
 /** Presentation is deliberately separate from full host evidence and immutable body hashes. */
 export function mapOpenPresentation(read:MapOpenResult,detail?:MapDetail){
+ const {reviewToken:_hostReviewToken,...visible}=read;
  const nodeType=read.nodeType??(read.qualification==='definition'?'definition':read.kind);
  const choices=mapBasisChoices(read).map(({selection,basis})=>({selection,conditions:basis.assumptions,argument:basis.steps[0]?.via}));
  const citations=read.bases?.length?{citations:choices,citationInstruction:choices.some(c=>c.selection!==read.selection)?'Cite the selection for the argument whose conditions you establish.':'Cite the statement selection after showing its conditions hold.'}:{};
  if(read.kind==='observation')return {
-  ...structuredClone(read),nodeType,level:detail==='proof'?'proof' as const:'statement' as const,statementAvailable:true,
+  ...structuredClone(visible),nodeType,level:detail==='proof'?'proof' as const:'statement' as const,statementAvailable:true,
   statement:read.body,notice:read.qualification==='observed'?'Cite this exact observation for empirical comparison after checking its source, measurement conditions and uncertainty.':'This measurement has no current independent transcription review qualifying it for empirical comparison.'
  };
- if(detail==='proof')return {...structuredClone(read),nodeType,...citations,level:'proof' as const,...(read.empiricalSource?{notice:'Open and cite the reviewed observation entry for an empirical comparison.'}:{})};
+ if(detail==='proof')return {...structuredClone(visible),nodeType,...citations,level:'proof' as const,...(read.empiricalSource?{notice:'Open and cite the reviewed observation entry for an empirical comparison.'}:{})};
  const statementAvailable=read.kind!=='source-evidence'&&read.kind!=='theory';
  return {level:'statement' as const,selection:read.selection,ref:read.ref,kind:read.kind,nodeType,title:read.title,domain:read.domain,
-  qualification:read.qualification,accepted:read.accepted,theoryQualification:read.theoryQualification,
+  ...(read.coreReview?{corePublication:read.coreReview}:{}),qualification:read.qualification,accepted:read.accepted,theoryQualification:read.theoryQualification,
   statementAvailable,...(statementAvailable?{statement:read.body}:{}),assumptions:read.assumptions,
   ...(read.suppliedProof?{suppliedProofAvailable:true}:{}),...citations,supports:read.supports.map(s=>({id:s.id,status:s.status,assumptions:s.assumptions,prerequisites:read.bases?s.prerequisites.map(p=>({ref:p.ref,role:p.role})):s.prerequisites})),
-  notice:statementAvailable?'Apply only after checking all conditions. Proof arguments are available with detail="proof".':
+  notice:read.coreReview&&nodeType==='basic-knowledge'&&read.reviewToken==='initial'&&read.qualification==='pending'?'Publisher-reviewed background law. State it as an assumption if you use it as a premise.':statementAvailable?'Apply only after checking all conditions. Proof arguments are available with detail="proof".':
    'No separate statement is stored for this source or theory. This card does not establish a claim. Request detail="proof" only if its full source is needed.'};
 }
 

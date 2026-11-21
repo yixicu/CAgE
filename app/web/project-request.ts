@@ -1,6 +1,6 @@
 import type { ResearchMode } from './research-mode';
 
-export interface ProjectRequestInput { name: string; hypothesis: string; researchLoopVersion: ResearchMode }
+export interface ProjectRequestInput { name: string; hypothesis: string; researchLoopVersion: ResearchMode; nameSource?: 'user' }
 export interface ProjectRequestToken { key: string; requestId: string }
 const storageKey = 'cage.pending-project-requests.v1';
 
@@ -19,7 +19,7 @@ export class ProjectRequestTracker {
   }
   private save() { try { this.storage?.setItem(storageKey, JSON.stringify(Object.fromEntries(this.pending))); } catch { /* Keep in-memory identity. */ } }
   async begin(input: ProjectRequestInput): Promise<ProjectRequestToken> {
-    const bytes = new TextEncoder().encode(JSON.stringify([input.name, input.hypothesis, input.researchLoopVersion]));
+    const bytes = new TextEncoder().encode(JSON.stringify([input.name, input.hypothesis, input.researchLoopVersion, ...(input.nameSource ? [input.nameSource] : [])]));
     const key = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
     let requestId = this.pending.get(key);
     if (!requestId) { requestId = crypto.randomUUID(); this.pending.set(key, requestId); this.save(); }

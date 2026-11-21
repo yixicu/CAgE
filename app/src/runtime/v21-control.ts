@@ -48,6 +48,7 @@ export class V21Control {
   private declarationSeen = false;
   private supplement?:DeclarationSupplementError;
   private missingDeclaration=false;
+  get declarationDispatchLimit(){return this.missingDeclaration&&this.supplement?2:1;}
   get supplementPrompt():string|undefined {
     if(this.supplement)return 'The original manuscript and all other fields are saved. Check that the saved manuscript supports the correction. Submit only the fields in the refreshed tool schema. If the manuscript itself needs revision, leave the declaration unsubmitted. Use the terminal tool once with no prose. ';
     if(this.missingDeclaration)return 'The original manuscript is saved. Supply its missing declaration once through the terminal tool. Use only the saved argument and evidence. Write no new prose. ';
@@ -140,7 +141,8 @@ export class V21Control {
         await this.rejectScientificStep(error.message);
         return;
       }
-      if(error instanceof DeclarationSupplementError&&this.options.declarationSupplement&&!this.correction&&this.canRequestFormatCorrection()&&this.declarationSeen){
+      if(error instanceof DeclarationSupplementError&&this.options.declarationSupplement&&this.declarationSeen&&!this.supplement&&
+        (!this.correction&&this.canRequestFormatCorrection()||this.missingDeclaration&&this.journal.state.corrections===1)){
         this.supplement=error;
         this.codecs.set(SUBMIT_RESULT,canonicalCodec(error.schema));
         this.feedback=error.message;

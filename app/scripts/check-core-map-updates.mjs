@@ -1,0 +1,141 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {mkdir,mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {createApp} from '../dist/server/app.js';
+import {KnowledgeMapStore} from '../dist/learning/knowledge-map-store.js';
+import {emptyKnowledgeMap,mapHandle,mapProfile} from '../dist/learning/knowledge-map.js';
+import {stableHash} from '../dist/learning/research-hash.js';
+import {coreActor,legacyCore} from '../dist/learning/core-package.js';
+import {CoreMapUpdates,loadBundledCore} from '../dist/server/core-map-updates.js';
+
+const currentData=JSON.parse(await readFile(new URL('../web/core-preview.json',import.meta.url)));
+const manifest=JSON.parse(await readFile(new URL('../src/shared/core-map-release.json',import.meta.url)));
+assert.equal(manifest.sha256,stableHash(currentData));
+const data=manifest.sha256===legacyCore.sha256?currentData:JSON.parse(execFileSync('git',['cat-file','blob',legacyCore.blob],{cwd:fileURLToPath(new URL('../../',import.meta.url)),maxBuffer:8*1024*1024}));
+const managedBytes=Buffer.from((await readFile(new URL('../web/core-preview.json',import.meta.url),'utf8')).replaceAll('\r\n','\n'));
+const gitBlob=bytes=>createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
+assert.equal(manifest.blob,gitBlob(managedBytes));
+const fixture=()=>{
+ let state=emptyKnowledgeMap();
+ const map=new KnowledgeMapStore({snapshot:async()=>({state:structuredClone(state),revision:'test'}),historical:async()=>structuredClone(state),sourceValid:async()=>true,edit:async edit=>{
+   const result=await edit(structuredClone(state));state=result.state;return result.value;
+ }});
+ return {map,state:()=>state};
+};
+const legacy=fixture();
+const imported=await legacy.map.importSeeds({projectId:coreActor.projectId,requestId:'bundled-core-v1',expectedProfileVersion:0,entries:data},coreActor);
+const oldRefs=imported.entries.map(e=>e.ref);
+await loadBundledCore(legacy.map,'missing','missing');
+const migrated=legacy.state();
+assert.deepEqual(migrated.entries.map(e=>e.ref),oldRefs);
+assert.equal(migrated.entries.length,77);
+assert.equal(migrated.corePackage.version,1);
+assert.deepEqual(migrated.profiles.flatMap(p=>p.accepted),[]);
+assert.equal(migrated.supports.filter(s=>s.status==='proved').length,42);
+assert.equal(migrated.supports.filter(s=>s.status==='observed').length,3);
+const projectId='physics-fixture';
+const grant={purpose:'map-proof',ownerId:coreActor.ownerId,projectId,taskId:'example',profileId:mapProfile(migrated,coreActor.ownerId,projectId).id,refutationEvidence:true};
+const view={...await legacy.map.freeze(grant),modelDirectedKnowledge:true};
+const theorem=migrated.entries.find(e=>e.kind==='theorem'&&e.nodeType==='theorem');
+const opened=await legacy.map.open(view,mapHandle(theorem.ref),grant);
+assert.equal(opened.qualification,'proved');
+assert.equal(opened.coreReview.version,1);
+assert.ok(opened.supports[0].argument.length>100);
+assert.ok(opened.bases.length);
+for(const e of migrated.entries)assert.equal((await legacy.map.nodeReview(projectId,e.ref)).status,'approved',e.title);
+const before=stableHash(migrated);
+await legacy.map.installCorePackage(legacyCore,data);
+assert.equal(stableHash(legacy.state()),before);
+// Unknown seed packages do not gain a publication review or collide with the official version.
+const custom=fixture(),different=[{...data[0],key:'my-law',title:'My law',relations:[]}];
+await custom.map.importSeeds({projectId:coreActor.projectId,requestId:'bundled-core-v1',expectedProfileVersion:0,entries:different},coreActor);
+await loadBundledCore(custom.map,'missing','missing');
+assert.equal(custom.state().corePackage,undefined);
+await custom.map.installCorePackage(legacyCore,data);
+assert.equal(custom.state().entries.length,78);
+assert.equal(custom.state().entries.find(e=>e.title==='My law').coreReview,undefined);
+assert.equal(new Set(custom.state().sources.map(e=>e.ref.id)).size,78);
+console.log('PASS pristine legacy migration, 77 approvals, exact theorem basis, private custom import and idempotence');
+
+const dir=await mkdtemp(join(tmpdir(),'cage-core-update-'));
+process.env.PI_CODING_AGENT_DIR=join(dir,'agent');
+const revised=structuredClone(data);
+const first=revised[0],missing=revised.pop(),added={...first,key:'new-local-fixture',title:'New Core publication',relations:[]};
+first.body+=' Additional published condition.';
+const local=revised[1];local.body+=' New publisher revision of a locally reviewed node.';
+for(const s of revised)s.relations=s.relations.filter(r=>r.target!==missing.key);
+revised.push(added);
+const bytes=Buffer.from(JSON.stringify(revised)),release={version:2,blob:gitBlob(bytes),sha256:stableHash(revised)};
+let calls=0,bad=false,app,browser;
+const request=async(url,options)=>{
+ calls++;
+ assert.ok(url.startsWith('https://api.github.com/repos/yixicu/CAgE/'));assert.equal(options.redirect,'error');
+ if(url.endsWith('core-map-release.json?ref=main'))return Response.json(release);
+ assert.ok(url.endsWith('/git/blobs/'+release.blob));
+ return new Response(bad?managedBytes:bytes);
+};
+const options={dataRoot:dir,coreUpdateFetch:request};
+if(manifest.version!==legacyCore.version){
+ options.sourceRoot=join(dir,'test-bundle');options.staticRoot=fileURLToPath(new URL('../dist/web',import.meta.url));
+ await mkdir(join(options.sourceRoot,'web'),{recursive:true});await writeFile(join(options.sourceRoot,'web','core-preview.json'),JSON.stringify(data));
+}
+try{
+ app=await createApp(options);
+ assert.equal(calls,0);
+ const inject=(method,url,payload)=>app.inject({method,url,payload,headers:{'x-carnot-token':app.carnot.requestToken}});
+ const current=()=>inject('GET','/api/core-map/update').then(r=>r.json());
+ assert.equal((await current()).currentVersion,1);
+ const map=app.carnot.store.library.knowledgeMap;
+ const detail=await map.inspect(coreActor);
+ const edited=detail.entries.find(e=>e.coreReview.key===local.key);
+ const before=await map.nodeReview(projectId,edited.ref);
+ await map.setNodeReview(projectId,edited.ref,before.token,'pending');
+ const check=await inject('POST','/api/core-map/update/check',{});
+ assert.equal(check.statusCode,200,check.body);assert.equal(check.json().available,true);
+ const install=()=>inject('POST','/api/core-map/update/install',{version:2,sha256:release.sha256});
+ bad=true;
+ assert.equal((await install()).statusCode,502);assert.equal((await current()).currentVersion,1);
+ bad=false;
+ if(process.argv.includes('--browser')){
+  const {chromium}=await import('playwright');
+  await app.listen({host:'127.0.0.1',port:0});
+  browser=await chromium.launch({headless:true,executablePath:process.env.CITATION_TEST_BROWSER,env:{...process.env,LOCALAPPDATA:dir,APPDATA:dir,USERPROFILE:dir}});
+  const page=await browser.newPage({viewport:{width:1340,height:900}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+new URL(r.url()).pathname);});
+  await page.goto('http://127.0.0.1:'+app.server.address().port);
+  await page.getByRole('button',{name:'Toggle sidebar'}).waitFor({timeout:8000}).catch(async e=>{throw Error([e.message,(await page.locator('body').innerText()).slice(0,400),...errors].join(' / '));});
+  const sidebar=page.getByRole('button',{name:'Toggle sidebar'});
+  if(await sidebar.getAttribute('aria-expanded')==='false')await sidebar.click();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Plugins & general'}).click();
+  const panel=page.getByRole('region',{name:'Core map updates'});
+  await panel.getByRole('button',{name:'Check for map updates'}).click();
+  await panel.getByText('Version 2 is available.').waitFor();
+  await panel.getByRole('button',{name:'Update Core map'}).click();
+  await panel.getByText('Core map updated.').waitFor();
+  await panel.getByText(/Preserved local edits on 1 node/).waitFor();
+  await browser.close();browser=undefined;
+  console.log('PASS real settings check and install buttons');
+ }else{
+  const done=await install();assert.equal(done.statusCode,200,done.body);
+ }
+ assert.deepEqual(await current(),{currentVersion:2,keptLocal:1});
+ assert.equal((await install()).statusCode,409);
+ const updated=await map.inspect(coreActor);
+ assert.ok(updated.entries.some(e=>e.coreReview?.key===added.key&&e.status==='active'));
+ assert.ok(updated.entries.some(e=>e.coreReview?.key===missing.key&&e.status==='withdrawn'));
+ assert.ok(updated.entries.some(e=>e.coreReview?.key===first.key&&e.ref.version===2));
+ assert.equal((await map.nodeReview(projectId,edited.ref)).status,'pending');
+ assert.equal(updated.entries.find(e=>e.ref.id===edited.ref.id).body,edited.body);
+ const rev=await map.corePackageStatus();
+ const refused=new CoreMapUpdates(map,async()=>Response.json({...release,sha256:'a'.repeat(64)}));
+ await assert.rejects(()=>refused.check(),/verifiable/);
+ assert.deepEqual(await map.corePackageStatus(),rev);
+ const previousCalls=calls;await app.carnot.shutdown();app=await createApp(options);
+ assert.equal(calls,previousCalls);assert.deepEqual(await current(),{currentVersion:2,keptLocal:1});
+ console.log('PASS update routes, exact blob checks, conflict, local review preservation, additions, retirement, restart without network');
+}finally{await browser?.close();await app?.carnot.shutdown();await rm(dir,{recursive:true,force:true,maxRetries:5});}

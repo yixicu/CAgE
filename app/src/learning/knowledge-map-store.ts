@@ -1,12 +1,15 @@
+import {randomUUID} from 'node:crypto';
 import {isEmpiricalMapSource} from './map-source-role.js';
-import {validMapObservation,observationSourceBody,observationSummary,type MapObservation} from './map-observation.js';
+import {validMapObservation,observationSourceBody,type MapObservation} from './map-observation.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {directedMapQuery} from './directed-map-query.js';
 import {stableHash} from './research-hash.js';
 import {directedMapQualification,mapBasisHandle,mapProofBases} from './knowledge-map-support.js';
-import {MAP_RECIPE,MapError,MapReadError,suppliedSeedProof,admitMapSources,assertMapGrant,assertMapUser,mapEvidenceHandle,mapHandle,mapProfile,mapQualification,mapRefKey,mapSourceKey,prepareKnowledgeMap,publishMapProposal,retainedMaintenanceVersions,supersedesMaintenanceVersions,queryKnowledgeMap,sameMapRef,selectMapProfile,validateKnowledgeMap,type KnowledgeMapState,type MapEntry,type MapGrant,type MapOpenResult,type MapPrerequisite,type MapQuery,type MapRef,type MapReviewedProposal,type MapSource,type MapSourceRef,type MapUser,type MapView} from './knowledge-map.js';
+import {MAP_RECIPE,MapError,MapReadError,reviewHold,type NodeReviewStatus,suppliedSeedProof,admitMapSources,assertMapGrant,assertMapUser,mapEvidenceHandle,mapHandle,mapProfile,mapQualification,mapRefKey,mapSourceKey,prepareKnowledgeMap,publishMapProposal,retainedMaintenanceVersions,supersedesMaintenanceVersions,queryKnowledgeMap,sameMapRef,selectMapProfile,validateKnowledgeMap,type KnowledgeMapState,type MapEntry,type MapGrant,type MapOpenResult,type MapPrerequisite,type MapQuery,type MapRef,type MapReviewedProposal,type MapSource,type MapSourceRef,type MapUser,type MapView} from './knowledge-map.js';
 
 import {type AuthoredRelation,type MapNodeType} from './map-node-fields.js';
+
+import {applyCorePackage, seedRecord, recoverCoreSeeds, type CoreRelease} from './core-package.js';
 
 export const CORE_MAP_ID = 'shared-core-map';
 export interface MapSeedInput {projectId:string;requestId:string;expectedProfileVersion:number;entries:{key?:string;summary?:string;nodeType?:MapNodeType;relations?:AuthoredRelation<string>[];kind:'concept'|'theorem'|'observation';observation?:MapObservation;replaces?:MapRef;title:string;aliases?:string[];domain?:string[];body:string;assumptions?:string[];proof?:string;acceptAsFoundation?:boolean}[]}
@@ -27,6 +30,19 @@ export interface MapStoragePort {
  sourceValid(source:MapSource):Promise<boolean>;
  theoryBody?(ref:MapRef):Promise<string>;
 }
+function publishedReviewSources(state:KnowledgeMapState,projectId:string){
+ const owned=new Set(state.entries.filter(e=>maintenanceMapScope(e,projectId)).map(e=>mapRefKey(e.ref)));
+ return new Set(state.supports.filter(s=>s.review?.id.startsWith('theorist_review_')&&owned.has(mapRefKey(s.statement))).flatMap(s=>s.sources.map(mapSourceKey)));
+}
+function visibleFoundationProfile(state:KnowledgeMapState,ownerId:string,projectId:string){
+ const profile=mapProfile(state,ownerId,projectId);
+ profile.accepted=profile.accepted.filter(ref=>!state.entries.some(e=>sameMapRef(e.ref,ref)&&reviewHold(e)));
+ return profile;
+}
+function pendingReviewToken(state:KnowledgeMapState,entry:MapEntry){
+ const supports=state.supports.filter(s=>sameMapRef(s.statement,entry.ref)).map(s=>[s.id,s.status,s.review?.id]);
+ return !supports.length?(entry.reviewDecision?.token??'initial'):stableHash([entry.reviewDecision?.token,supports]);
+}
 const uniqueRefs=(refs:MapRef[])=>[...new Map(refs.map(r=>[mapRefKey(r),r])).values()];
 export class KnowledgeMapStore {
  constructor(private readonly port:MapStoragePort){}
@@ -43,12 +59,19 @@ export class KnowledgeMapStore {
    if(!entry||entry.maintenanceDraft&&entry.maintenanceDraft.projectId!==projectId&&entry.maintenanceDraft.projectId!==CORE_MAP_ID||entry.status!=='active'||stableHash(read.body)!==entry.ref.bodyHash)return false;
    if(read.kind==='observation'||entry.kind==='observation'){
     if(entry.kind!=='observation'||read.kind!=='observation'||read.accepted||read.basis||read.bases?.length||read.qualification!=='observed'
-      ||entry.observationChange||!validMapObservation(read.observation)||read.selection!==mapHandle(entry.ref)||stableHash(read.observation)!==stableHash(entry.observation))return false;
+      ||entry.observationChange||reviewHold(entry)||!validMapObservation(read.observation)||read.selection!==mapHandle(entry.ref)||stableHash(read.observation)!==stableHash(entry.observation))return false;
     const original=new Set(read.supports.filter(s=>s.status==='observed').map(s=>stableHash(s)));
     for(const support of state.supports.filter(s=>sameMapRef(s.statement,entry.ref)&&s.status==='observed'&&original.has(stableHash(s)))){
      if(support.sources.every(s=>read.sources.some(r=>mapSourceKey(r)===mapSourceKey(s)))&&(await Promise.all(support.sources.map(allowedSource))).every(Boolean))return true;
     }
     return false;
+   }
+   if(read.qualification==='definition'&&(!entry.definition||reviewHold(entry)))return false;
+   if(read.qualification==='pending'&&reviewHold(entry)==='disputed')return false;
+   if(entry.maintenanceDraft&&entry.kind==='theorem'&&!entry.createdFrom.length&&read.kind==='theorem'&&read.qualification==='pending'&&!read.basis&&!read.bases?.length&&!read.accepted&&!read.sources.length&&!read.supports.length){
+    // A scoped draft can supply the statement to derive. This receipt grants no proof basis.
+    return read.selection===mapHandle(entry.ref)&&stableHash(read.assumptions)===stableHash(entry.assumptions)&&
+     (entry.reviewDecision?.status!=='pending'||pendingReviewToken(state,entry)===(read.reviewToken??'initial'));
    }
    if(read.basis){
     if(![mapHandle(entry.ref),mapBasisHandle(read.basis)].includes(read.selection))return false;
@@ -80,7 +103,7 @@ export class KnowledgeMapStore {
   });
  }
 
- private async validSources(state:KnowledgeMapState,ownerId:string,projectId?:string){const valid=new Set<string>();for(const s of state.sources)if(s.ref.ownerId===ownerId&&(s.ref.kind!=='maintenance-proof'||projectId===undefined||s.ref.projectId===projectId||s.ref.projectId===CORE_MAP_ID)&&s.status==='active'&&await this.port.sourceValid(s))valid.add(mapSourceKey(s.ref));return valid;}
+ private async validSources(state:KnowledgeMapState,ownerId:string,projectId?:string,needed?:Set<string>){const valid=new Set<string>();for(const s of state.sources)if((!needed||needed.has(mapSourceKey(s.ref)))&&s.ref.ownerId===ownerId&&(s.ref.kind!=='maintenance-proof'||projectId===undefined||s.ref.projectId===projectId||s.ref.projectId===CORE_MAP_ID)&&s.status==='active'&&await this.port.sourceValid(s))valid.add(mapSourceKey(s.ref));return valid;}
  private eligible(entry:MapEntry,sources:Set<string>,state:KnowledgeMapState){return entry.status==='active'&&(entry.createdFrom.some(s=>sources.has(mapSourceKey(s)))||state.supports.some(s=>sameMapRef(s.statement,entry.ref)&&s.status!=='withdrawn'&&s.sources.every(r=>sources.has(mapSourceKey(r)))));}
  private readable(entry:MapEntry,sources:Set<string>,state:KnowledgeMapState,grant:MapGrant){
   if(!entry.maintenanceDraft)return this.eligible(entry,sources,state);
@@ -95,22 +118,22 @@ export class KnowledgeMapStore {
   const refs=new Set(grant.allowedRefs.map(mapRefKey));return new Set([...state.entries.filter(e=>refs.has(mapRefKey(e.ref))).flatMap(e=>e.createdFrom),...state.supports.filter(s=>refs.has(mapRefKey(s.statement))).flatMap(s=>s.sources)].map(mapSourceKey).filter(k=>valid.has(k)));
  }
  async freeze(grant:MapGrant):Promise<MapView>{
-  assertMapGrant(grant);const {state,revision}=await this.port.snapshot(),profile=mapProfile(state,grant.ownerId,grant.projectId);if(profile.id!==grant.profileId)throw new MapError('FORBIDDEN','Profile outside task grant');
+  assertMapGrant(grant);const {state,revision}=await this.port.snapshot(),profile=visibleFoundationProfile(state,grant.ownerId,grant.projectId);if(profile.id!==grant.profileId)throw new MapError('FORBIDDEN','Profile outside task grant');
   const sources=this.scopedSources(state,grant,await this.validSources(state,grant.ownerId,grant.projectId)),allowed=grant.allowedRefs&&new Set(grant.allowedRefs.map(mapRefKey)),latest=new Map<string,number>();
   for(const e of state.entries)if(e.ownerId===grant.ownerId&&this.readable(e,sources,state,grant))latest.set(e.ref.store+e.ref.id,Math.max(latest.get(e.ref.store+e.ref.id)??0,e.ref.version));
   return {presentation:'layered-map-v1',recipe:MAP_RECIPE,revision,mapVersion:state.version,profile,grant:structuredClone(grant),refs:state.entries.filter(e=>e.ownerId===grant.ownerId&&(e.kind!=='observation'||grant.refutationEvidence)&&this.readable(e,sources,state,grant)&&(allowed||e.ref.version===latest.get(e.ref.store+e.ref.id)||profile.accepted.some(ref=>sameMapRef(ref,e.ref)))&&(!allowed||allowed.has(mapRefKey(e.ref)))).map(e=>e.ref),sourceRefs:state.sources.filter(s=>sources.has(mapSourceKey(s.ref))).map(s=>s.ref)};
  }
  private async readView(view:MapView,grant:MapGrant){
   assertMapGrant(grant);if(view.recipe!==MAP_RECIPE||stableHash(view.grant)!==stableHash(grant))throw new MapError('FORBIDDEN','Map view grant changed');
-  const frozen=await this.port.historical(view.revision);validateKnowledgeMap(frozen);const original=mapProfile(frozen,grant.ownerId,grant.projectId);
+  const frozen=await this.port.historical(view.revision);validateKnowledgeMap(frozen);const original=visibleFoundationProfile(frozen,grant.ownerId,grant.projectId);
   if(frozen.version!==view.mapVersion||stableHash(original)!==stableHash(view.profile))throw new MapError('FORBIDDEN','Map view is not its exact checkpoint');
   if(grant.allowedRefs&&!view.refs.every(ref=>grant.allowedRefs!.some(allowed=>sameMapRef(ref,allowed))))throw new MapError('FORBIDDEN','Frozen refs exceed task scope');
   if(!view.refs.every(ref=>frozen.entries.some(e=>sameMapRef(ref,e.ref)&&e.ownerId===grant.ownerId))||!view.sourceRefs.every(ref=>frozen.sources.some(s=>mapSourceKey(s.ref)===mapSourceKey(ref)&&s.ref.ownerId===grant.ownerId)))throw new MapError('FORBIDDEN','Unknown frozen map selection');
-  const current=(await this.port.snapshot()).state,sources=this.scopedSources(current,grant,await this.validSources(current,grant.ownerId,grant.projectId)),currentProfile=mapProfile(current,grant.ownerId,grant.projectId);
+  const current=(await this.port.snapshot()).state,sources=this.scopedSources(current,grant,await this.validSources(current,grant.ownerId,grant.projectId)),currentProfile=visibleFoundationProfile(current,grant.ownerId,grant.projectId);
   if(view.modelDirectedKnowledge){const frozenKeys=new Set(view.sourceRefs.map(mapSourceKey));for(const key of sources)if(!frozenKeys.has(key))sources.delete(key);}
   const profile={...view.profile,accepted:view.profile.accepted.filter(ref=>currentProfile.accepted.some(now=>sameMapRef(ref,now)))};
   const authorized=new Set(view.refs.filter(ref=>current.entries.some(e=>sameMapRef(e.ref,ref)&&e.ownerId===grant.ownerId&&(e.kind!=='observation'||grant.refutationEvidence)&&this.readable(e,sources,current,grant))).map(mapRefKey));
-  const qualified={...frozen,entries:frozen.entries.map(e=>{const now=current.entries.find(row=>sameMapRef(row.ref,e.ref));return now?.status==='withdrawn'?{...e,status:'withdrawn' as const}:now?.observationChange?{...e,observationChange:now.observationChange}:e;}),supports:frozen.supports.map(s=>{const now=current.supports.find(row=>row.id===s.id);if(view.modelDirectedKnowledge&&(s.status==='proved'||s.status==='observed')&&(!now||stableHash(now)!==stableHash(s)))return {...s,status:now?.status==='disputed'?'disputed' as const:'withdrawn' as const};return now&&['withdrawn','disputed'].includes(now.status)?{...s,status:now.status}:s;})};
+  const qualified={...frozen,entries:frozen.entries.map(e=>{const now=current.entries.find(row=>sameMapRef(row.ref,e.ref));return now?.status==='withdrawn'?{...e,status:'withdrawn' as const}:now?.observationChange?{...e,observationChange:now.observationChange}:now&&reviewHold(now)?{...e,reviewDecision:now.reviewDecision}:e;}),supports:frozen.supports.map(s=>{const now=current.supports.find(row=>row.id===s.id);if(view.modelDirectedKnowledge&&(s.status==='proved'||s.status==='observed')&&(!now||stableHash(now)!==stableHash(s)))return {...s,status:now?.status==='disputed'?'disputed' as const:'withdrawn' as const};return now&&['withdrawn','disputed'].includes(now.status)?{...s,status:now.status}:s;})};
   const entryAllowed=(target:MapRef)=>(!grant.allowedRefs||grant.allowedRefs.some(r=>sameMapRef(r,target)))&&[qualified,current].every(state=>state.entries.some(e=>sameMapRef(e.ref,target)&&e.ownerId===grant.ownerId&&this.readable(e,sources,state,grant)));
   return {state:qualified,current,sources,profile,authorized,entryAllowed};
  }
@@ -146,20 +169,28 @@ export class KnowledgeMapStore {
   const status=view.modelDirectedKnowledge?directedMapQualification(checked.state,entry,checked.profile,sourceAllowed,checked.entryAllowed):mapQualification(checked.state,entry,checked.profile,sourceAllowed);
   const body=entry.kind==='theory'?await this.port.theoryBody?.(entry.ref):entry.body;if(body===undefined||stableHash(body)!==entry.ref.bodyHash)throw new MapError('STALE_SOURCE','Exact canonical body unavailable');
   const suppliedProof=suppliedSeedProof(checked.state,entry,status.supports,sourceAllowed);
-  return {...(suppliedProof?{suppliedProof}:{}),selection,ref,kind:entry.kind,...(entry.nodeType?{nodeType:entry.nodeType}:{}),title:entry.title,aliases:entry.aliases,domain:entry.domain,body,assumptions:entry.assumptions,...(entry.observation?{observation:structuredClone(entry.observation)}:{}),...status,sources:entry.createdFrom.filter(r=>checked.sources.has(mapSourceKey(r))),...(entry.theoryQualification?{theoryQualification:entry.theoryQualification}:{})};
+  return {...(entry.kind==='theorem'&&status.qualification==='pending'?{reviewToken:pendingReviewToken(checked.state,entry)}:{}),...(entry.coreReview?{coreReview:entry.coreReview}:{}),...(suppliedProof?{suppliedProof}:{}),selection,ref,kind:entry.kind,...(entry.nodeType?{nodeType:entry.nodeType}:{}),title:entry.title,aliases:entry.aliases,domain:entry.domain,body,assumptions:entry.assumptions,...(entry.observation?{observation:structuredClone(entry.observation)}:{}),...status,sources:entry.createdFrom.filter(r=>checked.sources.has(mapSourceKey(r))),...(entry.theoryQualification?{theoryQualification:entry.theoryQualification}:{})};
  }
  async acceptedFoundationBodies(actor:MapUser){
   assertMapUser(actor,actor.ownerId,actor.projectId);
   const {state}=await this.port.snapshot();
   const accepted=new Set(mapProfile(state,actor.ownerId,actor.projectId).accepted.map(mapRefKey));
-  return new Set(state.entries.filter(entry=>accepted.has(mapRefKey(entry.ref))&&!entry.assumptions.length&&entry.status==='active').map(entry=>entry.ref.bodyHash));
+  return new Set(state.entries.filter(entry=>accepted.has(mapRefKey(entry.ref))&&!entry.assumptions.length&&entry.status==='active'&&!reviewHold(entry)).map(entry=>entry.ref.bodyHash));
  }
  async acceptReviewedPremise(statement:string,origin:string,actor:MapUser,guard?:()=>void){
   const input={projectId:actor.projectId,requestId:'premise_'+stableHash([actor.ownerId,actor.projectId,statement]),entries:[{kind:'theorem' as const,title:statement,body:statement,acceptAsFoundation:true}]};
   return this.saveSeeds(input,actor,{origin,guard});
  }
+ async corePackageStatus(){return (await this.port.snapshot()).state.corePackage;}
+ async installCorePackage(release:CoreRelease, entries?:MapSeedInput['entries']){
+  return this.port.edit(state=>{
+   const seeds=entries??recoverCoreSeeds(state);
+   const value=seeds?applyCorePackage(state,release,seeds):state.corePackage;
+   return {state,value};
+  });
+ }
  async hasCoreMap(){
-  return !!(await this.port.snapshot()).state.receipts['seed:bundled-core-v1'];
+  const {state}=await this.port.snapshot();return !!(state.corePackage||state.receipts['seed:bundled-core-v1']);
  }
  async importSeeds(input:MapSeedInput,actor:MapUser){return this.saveSeeds(input,actor);}
  private async saveSeeds(input:Omit<MapSeedInput,'expectedProfileVersion'>&{expectedProfileVersion?:number},actor:MapUser,consent?:{origin:string;guard?:()=>void}){
@@ -179,9 +210,8 @@ export class KnowledgeMapStore {
      if(state.entries.some(e=>e.ref.id===previous.ref.id&&e.ref.version>previous.ref.version)||entries.some(e=>e.ref.id===previous.ref.id))throw new MapError('CONFLICT','Observation correction parent changed');
     }
     const ref:MapRef={store:'map',id:seed.replaces?.id??'seed_'+stableHash([actor.ownerId,input.requestId,i]),version:(seed.replaces?.version??0)+1,bodyHash:stableHash(seed.body)};
-    const body=seed.observation?observationSourceBody(seed.body,seed.observation):seed.body+(seed.proof?'\n\nSupplied argument:\n'+seed.proof:''),sourceRef:MapSourceRef={kind:'user-seed',id:'seed_source_'+stableHash([actor.ownerId,input.requestId,i]),version:1,bodyHash:stableHash(body),ownerId:actor.ownerId,projectId:input.projectId};
-    entries.push({ref,ownerId:actor.ownerId,kind:seed.kind,title:seed.title,...(seed.nodeType?{nodeType:seed.nodeType}:{}),...(seed.summary?{summary:seed.summary}:{}),...(seed.observation?{observation:structuredClone(seed.observation),summary:seed.summary??observationSummary(seed.observation)}:{}),aliases:seed.aliases??[],domain:seed.domain??[],body:seed.body,assumptions:seed.assumptions??[],definition:seed.kind==='concept'&&(!seed.nodeType||seed.nodeType==='definition'),status:'active',createdFrom:[sourceRef]});
-    sources.push({ref:sourceRef,body,status:'active',entryRefs:[ref],origin:{requestId:input.requestId,seed:structuredClone(seed),...(consent?{reviewedPremise:consent.origin}:{})}});
+    const row=seedRecord(seed,ref,actor,input.requestId,i,consent?.origin);
+    entries.push(row.entry);sources.push(row.source);
    }
    if(consent&&state.receipts[receipt]&&!mapProfile(state,actor.ownerId,input.projectId).accepted.some(ref=>sameMapRef(ref,entries[0]!.ref)))throw new MapError('CONFLICT','This foundation was removed. Select its existing statement in the project foundation profile to accept it again.');
    if(state.receipts[receipt])return {state,value:{requestId:input.requestId,profile:mapProfile(state,actor.ownerId,input.projectId),entries:entries.map((e,i)=>({selection:i+1,ref:e.ref,kind:e.kind,title:e.title})),sourceKeys:sources.map(s=>mapSourceKey(s.ref))}};
@@ -322,10 +352,97 @@ export class KnowledgeMapStore {
    state.version++;validateKnowledgeMap(state);return {state,value:{status,revision:state.version,supportId:id}};
   });
  }
+ private reviewTarget(state:KnowledgeMapState,projectId:string,ref:MapRef){
+  const entry=state.entries.find(e=>sameMapRef(e.ref,ref)&&e.ownerId==='local-user');
+  if(!entry||projectId===CORE_MAP_ID&&!maintenanceMapScope(entry,CORE_MAP_ID)||entry.maintenanceDraft&&!maintenanceMapScope(entry,projectId)&&!maintenanceMapScope(entry,CORE_MAP_ID))throw new MapError('NOT_FOUND','This node version is unavailable.');
+  const editable=(maintenanceMapScope(entry,projectId)||maintenanceMapScope(entry,CORE_MAP_ID))&&entry.status==='active'&&!entry.observationChange&&!state.entries.some(e=>e.ownerId===entry.ownerId&&e.ref.store===ref.store&&e.ref.id===ref.id&&e.ref.version>ref.version);
+  return {entry,editable};
+ }
+ private async reviewInfo(state:KnowledgeMapState,projectId:string,ref:MapRef){
+  const {entry,editable}=this.reviewTarget(state,projectId,ref);
+  const needed=new Set<string>(),visited=new Set<string>();
+  function collect(target:MapRef){
+   const key=mapRefKey(target);if(visited.has(key))return;
+   visited.add(key);
+   const parent=state.entries.find(e=>sameMapRef(e.ref,target));
+   for(const source of parent?.createdFrom??[])needed.add(mapSourceKey(source));
+   for(const support of state.supports.filter(s=>sameMapRef(s.statement,target))){
+    for(const source of support.sources)needed.add(mapSourceKey(source));
+    for(const premise of support.prerequisites)collect(premise.ref);
+   }
+  }
+  collect(ref);
+  const valid=await this.validSources(state,entry.ownerId,projectId,needed);
+  const allowed=(source:MapSourceRef)=>valid.has(mapSourceKey(source));
+  const profile=mapProfile(state,entry.ownerId,projectId);
+  const {qualification}=directedMapQualification(state,entry,profile,allowed,r=>state.entries.some(e=>sameMapRef(e.ref,r)&&this.readable(e,valid,state,{purpose:'map-proof',ownerId:entry.ownerId,projectId,profileId:profile.id,taskId:'inspect'})));
+  const catalogReview=entry.reviewDecision?entry.reviewDecision.status==='approved':!!entry.coreReview;
+  const metadataOnly=(entry.kind!=='theorem'||entry.nodeType==='basic-knowledge')&&entry.kind!=='observation';
+  const status:NodeReviewStatus=qualification==='withdrawn'||qualification==='disputed'?'invalid':
+   qualification==='proved'||qualification==='observed'||qualification==='definition'||catalogReview&&metadataOnly?'approved':'pending';
+  return {status,qualification,token:stableHash([entry.ref,entry.reviewDecision,qualification,state.supports.filter(s=>sameMapRef(s.statement,entry.ref))]),editable,origin:entry.reviewDecision?.origin??(entry.coreReview?'core':undefined)};
+ }
+ async nodeReview(projectId:string,ref:MapRef){return this.reviewInfo((await this.port.snapshot()).state,projectId,ref);}
+ async setNodeReview(projectId:string,ref:MapRef,expected:string,status:NodeReviewStatus,argument?:string){
+  return this.port.edit(async state=>{
+   const {entry,editable}=this.reviewTarget(state,projectId,ref);
+   if(!editable)throw new MapError('CONFLICT','Only the current, active node version can be reviewed.');
+   const before=await this.reviewInfo(state,projectId,ref);
+   if(before.token!==expected)throw new MapError('CONFLICT','This review changed. Reopen the node to see its current status.');
+   if(before.status===status)return {state,value:before};
+   const token=randomUUID();entry.reviewDecision={status,token,origin:'user'};
+   if(status==='approved'&&(entry.kind==='theorem'&&entry.nodeType!=='basic-knowledge'||entry.kind==='observation')){
+    const unmasked=await this.reviewInfo(state,projectId,ref);
+    if(unmasked.qualification!=='proved'&&unmasked.qualification!=='observed'){
+     const evidence=importEvidence(state,entry);
+     let source:MapSourceRef,body:string;
+     const priorConditional=evidence&&state.supports.some(s=>sameMapRef(s.statement,ref)&&s.argument===evidence.argument&&(s.prerequisites.length||s.unresolvedPrerequisites?.length||s.assumptions.some(condition=>!entry.assumptions.includes(condition))));
+     if(evidence&&!priorConditional&&await this.port.sourceValid(evidence.source)){
+      source=evidence.source.ref;body=evidence.argument;
+     }else if(entry.kind==='theorem'&&argument?.trim()&&(!priorConditional||argument.trim()!==evidence?.argument.trim())){
+      body=argument.trim();source={kind:'user-seed',id:'manual_review_'+token,version:1,bodyHash:stableHash(body),ownerId:entry.ownerId,projectId:entry.maintenanceDraft?.projectId??entry.createdFrom[0]?.projectId??projectId};
+      state.sources.push({ref:source,body,status:'active',entryRefs:[ref],origin:{manualReview:token}});
+     }else throw new MapError('INVALID_INPUT',entry.kind==='theorem'?'Enter the independent argument you verified for this theorem.':'The original measurement provenance must be available to approve an observation.');
+     const id='manual_review_'+token;
+     state.supports.push({id,statement:ref,sources:[source],argument:body,assumptions:[...entry.assumptions],prerequisites:[],status:entry.kind==='theorem'?'proved':'observed',review:{id,body:'The user reviewed this exact node version and its supporting evidence.',candidateHash:stableHash(ref),sourceHashes:[source.bodyHash]}});
+    }
+   }
+   state.version++;validateKnowledgeMap(state);return {state,value:await this.reviewInfo(state,projectId,ref)};
+  });
+ }
+ private async pendingTarget(state:KnowledgeMapState,projectId:string,read:MapOpenResult){
+  if(read.kind!=='theorem'||read.qualification!=='pending'||!read.ref||read.selection!==mapHandle(read.ref)||stableHash(read.body)!==read.ref.bodyHash)return;
+  const found=state.entries.find(e=>sameMapRef(e.ref,read.ref!));
+  if(!found||found.kind!=='theorem'||found.nodeType==='basic-knowledge'||(!maintenanceMapScope(found,projectId)&&!maintenanceMapScope(found,CORE_MAP_ID)))return;
+  const info=await this.reviewInfo(state,projectId,read.ref);
+  if(!found.maintenanceDraft&&!await this.evidenceValid(read,found.ownerId,projectId,state))return;
+  if(info.editable&&info.status==='pending'&&info.qualification==='pending'&&pendingReviewToken(state,found)===(read.reviewToken??'initial'))return found;
+ }
+ async pendingTheoristReview(projectId:string,read:MapOpenResult){return !!await this.pendingTarget((await this.port.snapshot()).state,projectId,read);}
+ async confirmTheoristProof(projectId:string,read:MapOpenResult,report:MapSourceRef,excerpt:string,prerequisites:MapOpenResult[]=[],assumptions:string[]=[]){
+  return this.port.edit(async state=>{
+   const entry=await this.pendingTarget(state,projectId,read);
+   if(!entry||report.kind!=='proof-report'||report.projectId!==projectId||report.ownerId!==entry.ownerId||!excerpt.trim())return {state,value:false};
+   const source=state.sources.find(s=>mapSourceKey(s.ref)===mapSourceKey(report)&&s.status==='active');
+   if(!source||stableHash(source.body)!==report.bodyHash||!source.body.includes(excerpt)||!await this.port.sourceValid(source))return {state,value:false};
+   const conditions=new Set(entry.assumptions.map(s=>s.trim()));
+   if(assumptions.some(s=>!conditions.has(s.trim())))return {state,value:false};
+   const parents:MapPrerequisite[]=[];
+   for(const p of prerequisites){
+    if(!p.ref||!p.basis||!['definition','proved'].includes(p.qualification)||p.basis.assumptions.some(s=>!conditions.has(s.trim()))||p.basis.steps.some(s=>s.via==='accepted'||sameMapRef(s.ref,entry.ref))||!await this.evidenceValid(p,entry.ownerId,projectId,state))return {state,value:false};
+    parents.push({ref:p.ref,role:'established',basis:p.basis});
+   }
+   const id='theorist_review_'+stableHash([entry.ref,report,read.reviewToken??'initial']);
+   state.supports.push({id,statement:entry.ref,sources:[report],argument:excerpt,assumptions:[...entry.assumptions],prerequisites:parents,status:'proved',review:{id,body:'Theorist confirmed the cited derivation in the delivered report proves this node under its recorded conditions.',candidateHash:stableHash(entry.ref),sourceHashes:[report.bodyHash]}});
+   entry.reviewDecision={status:'approved',token:id,origin:'theorist'};
+   state.version++;validateKnowledgeMap(state);return {state,value:true};
+  });
+ }
  async inspectMaintenance(projectId:string){
   const {state,revision:checkpoint}=await this.port.snapshot(),profile=mapProfile(state,'local-user',projectId);
+  const proofReports=publishedReviewSources(state,projectId);
   const valid=new Set<string>();
-  for(const source of state.sources)if(source.ref.projectId===projectId&&source.ref.ownerId==='local-user'&&source.status==='active'&&await this.port.sourceValid(source))valid.add(mapSourceKey(source.ref));
+  for(const source of state.sources)if((source.ref.projectId===projectId||proofReports.has(mapSourceKey(source.ref)))&&source.ref.ownerId==='local-user'&&source.status==='active'&&await this.port.sourceValid(source))valid.add(mapSourceKey(source.ref));
   const allowed=(source:MapSourceRef)=>valid.has(mapSourceKey(source));
   const entries=state.entries.filter(entry=>maintenanceMapScope(entry,projectId)).map(entry=>{
    const status=mapQualification(state,entry,profile,allowed);
@@ -349,7 +466,8 @@ export class KnowledgeMapStore {
  private async maintenancePremises(state:KnowledgeMapState,projectId:string,content:MaintenanceStatement,replaces?:string){
   const prerequisites:MapPrerequisite[]=[],dependencies:MaintenanceProofSubmission['dependencies']=[];
   if(!content.dependencies?.length)return {prerequisites,dependencies};
-  const valid=await this.validSources(state,'local-user',projectId),sourceAllowed=(s:MapSourceRef)=>s.projectId===projectId&&valid.has(mapSourceKey(s));
+  const valid=await this.validSources(state,'local-user',projectId),reportSources=publishedReviewSources(state,projectId);
+  const sourceAllowed=(s:MapSourceRef)=>(s.projectId===projectId||reportSources.has(mapSourceKey(s)))&&valid.has(mapSourceKey(s));
   const eligible=(r:MapRef)=>state.entries.some(e=>sameMapRef(r,e.ref)&&maintenanceMapScope(e,projectId)&&e.status==='active'&&e.ref.id!==replaces&&this.eligible(e,valid,state));
   const accepted=mapProfile(state,'local-user',projectId).accepted;
   for(const dep of content.dependencies){
@@ -386,7 +504,8 @@ export class KnowledgeMapStore {
    if(content?.kind!=='theorem')return;
    if(prior&&prior.body===content.body&&stableHash(prior.assumptions)===stableHash(content.assumptions)){
     const valid=await this.validSources(state,'local-user',projectId);
-    const allowed=(r:MapSourceRef)=>r.projectId===projectId&&valid.has(mapSourceKey(r));
+    const reportSources=publishedReviewSources(state,projectId);
+    const allowed=(r:MapSourceRef)=>(r.projectId===projectId||reportSources.has(mapSourceKey(r)))&&valid.has(mapSourceKey(r));
     const eligible=(r:MapRef)=>state.entries.some(e=>sameMapRef(e.ref,r)&&maintenanceMapScope(e,projectId)&&this.eligible(e,valid,state));
     const bases=mapProofBases(state,prior.ref,allowed,[],eligible);
     const active=state.supports.filter(s=>sameMapRef(s.statement,prior.ref)&&bases.some(b=>b.steps[0]?.via===s.id));
@@ -469,9 +588,9 @@ export class KnowledgeMapStore {
    return {state,value:{scope:'project-map',ref,status:reviewed?'proved':content?'pending':'withdrawn',revision:state.version}};
   });
  }
- async inspect(actor:MapUser){
+ async inspect(actor:MapUser,refs?:MapRef[]){
   assertMapUser(actor,actor.ownerId,actor.projectId);const {state,revision}=await this.port.snapshot(),profile=mapProfile(state,actor.ownerId,actor.projectId),sources=await this.validSources(state,actor.ownerId,actor.projectId);
-  return {recipe:MAP_RECIPE,revision,version:state.version,profile,entries:state.entries.filter(e=>e.ownerId===actor.ownerId&&(!e.maintenanceDraft||e.maintenanceDraft.projectId===actor.projectId||e.maintenanceDraft.projectId===CORE_MAP_ID)).map(e=>{
+  return {recipe:MAP_RECIPE,revision,version:state.version,profile,entries:state.entries.filter(e=>(!refs||refs.some(ref=>sameMapRef(ref,e.ref)))&&e.ownerId===actor.ownerId&&(!e.maintenanceDraft||e.maintenanceDraft.projectId===actor.projectId||e.maintenanceDraft.projectId===CORE_MAP_ID)).map(e=>{
    const allowed=(ref:MapSourceRef)=>sources.has(mapSourceKey(ref)),status=mapQualification(state,e,profile,allowed);
    return {...structuredClone(e),nodeType:e.nodeType??(e.definition?'definition':e.kind),...status,suppliedProof:suppliedSeedProof(state,e,status.supports,allowed)};
   }),relations:state.relations.filter(r=>state.entries.some(e=>e.ownerId===actor.ownerId&&sameMapRef(e.ref,r.from))),coverage:state.conversions.filter(c=>state.sources.some(s=>s.ref.ownerId===actor.ownerId&&(s.ref.kind!=='maintenance-proof'||s.ref.projectId===actor.projectId)&&mapSourceKey(s.ref)===c.sourceKey)),outbox:state.outbox.filter(o=>o.ownerId===actor.ownerId&&o.projectId===actor.projectId)};

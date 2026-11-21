@@ -150,7 +150,7 @@ export class ProofBridgeV4 {
     if(!a.publicReport)return;
     const report={scope:this.scope(p,m),artifactId:a.id,...structuredClone(a.publicReport),...reportOutcomeV45(a)};
     await this.coordinator.submitReport(report,m.snapshot.nativeHandoff,m.snapshot.modelDirectedKnowledge,m.snapshot.resultContract?true:undefined,m.snapshot.mapGapPolicy?true:undefined,m.snapshot.scientificMapWrites,m.snapshot.mapNodeWriting,m.snapshot.contextCompaction);
-    if(m.snapshot.knowledgeMapRevision&&this.knowledgeLibrary)await registerReportMapSource(this.knowledgeLibrary,m.snapshot,a,report);
+    if(m.snapshot.knowledgeMapRevision&&this.knowledgeLibrary)await registerReportMapSource(this.knowledgeLibrary,m.snapshot,a,report,this.dataRoot);
   }
   async supplement(p:ResearchProjectV21,m:InFlightEpochV21,a:OptionalProofArtifactV21){
     if(m.snapshot.theoryRevision!=='v4-operation-5'||a.authorRole==='theorist')return;

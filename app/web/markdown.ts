@@ -1,4 +1,4 @@
-import { latexDisplay } from './latex-display';
+import { latexDisplay, proofFormulaAt } from '../src/shared/proof-latex';
 import { plainEquations } from './plain-equations';
 import MarkdownIt from 'markdown-it';
 import katex from 'katex';
@@ -30,29 +30,19 @@ const math = (source: string, displayMode: boolean) => {
   const html = katex.renderToString(renderedSource, {
     displayMode, throwOnError: false, trust: false, strict: 'warn', maxExpand: 500, maxSize: 20,
   });
-  return renderedSource === source ? html : `<span data-latex-repaired="true" data-original-latex="${md.utils.escapeHtml(source)}" title="Repeated LaTeX escapes corrected for display; the saved source is unchanged.">${html}</span>`;
+  return renderedSource === source ? html : `<span data-latex-repaired="true" data-original-latex="${md.utils.escapeHtml(source)}" title="LaTeX syntax corrected for display. The original formula is available in the saved source.">${html}</span>`;
 };
 
 md.inline.ruler.before('escape', 'carnot_math', (state, silent) => {
-  const start = state.pos;
-  const display = state.src.startsWith('$$', start) || state.src.startsWith('\\[', start);
-  const bracket = state.src.startsWith('\\(', start) || state.src.startsWith('\\[', start);
-  if (!bracket && state.src[start] !== '$') return false;
-  const open = bracket ? (display ? '\\[' : '\\(') : display ? '$$' : '$';
-  const close = bracket ? (display ? '\\]' : '\\)') : display ? '$$' : '$';
-  const from = start + open.length;
-  let end = state.src.indexOf(close, from);
-  while (end > from && state.src[end - 1] === '\\' && !bracket) end = state.src.indexOf(close, end + 1);
-  if (end < from || end >= state.posMax) return false;
-  const content = state.src.slice(from, end);
-  if (!content.trim() || (!display && (content.includes('\n') || (!bracket && /^\s|\s$/.test(content))))) return false;
-  const punctuation = state.src.slice(end + close.length).match(/^[,.;:!?，。；：！？、]+/)?.[0] || '';
+  const formula = proofFormulaAt(state.src, state.pos, state.posMax);
+  if (!formula) return false;
+  const punctuation = state.src.slice(formula.end, state.posMax).match(/^[,.;:!?，。；：！？、]+/)?.[0] || '';
   if (!silent) {
     const token = state.push('carnot_math_inline', 'math', 0);
-    token.content = content;
-    token.meta = { punctuation, display, paperMath: !!state.env.paperMath };
+    token.content = formula.body;
+    token.meta = { punctuation, display: formula.display, paperMath: !!state.env.paperMath };
   }
-  state.pos = end + close.length + punctuation.length;
+  state.pos = formula.end + punctuation.length;
   return true;
 });
 md.renderer.rules.carnot_math_inline = (tokens, index) => {
@@ -96,45 +86,35 @@ md.renderer.rules.carnot_plain_equation = (tokens, index) => {
 };
 md.block.ruler.before('fence', 'carnot_math_block', (state, startLine, endLine, silent) => {
   const start = state.bMarks[startLine]! + state.tShift[startLine]!;
-  const first = state.src.slice(start, state.eMarks[startLine]).trim();
-  const delimiter = first.startsWith('$$') ? '$$' : first.startsWith('\\[') ? '\\[' : '';
-  if (!delimiter) return false;
-  const close = delimiter === '$$' ? '$$' : '\\]';
-  const closing = first.indexOf(close, delimiter.length);
-  // A display followed by prose/punctuation belongs to the inline math rule.
-  // Do not consume subsequent paragraphs while searching for another closer.
-  if (closing >= 0 && closing !== first.length - close.length) return false;
-  if (silent) return true;
-  let content = first.slice(delimiter.length);
+  if (state.sCount[startLine]! - state.blkIndent >= 4 || !['$$', '\\['].includes(state.src.slice(start, start + 2))) return false;
+  const formula = proofFormulaAt(state.src, start, state.eMarks[endLine - 1]);
+  if (!formula) return false;
   let nextLine = startLine + 1;
-  if (content.endsWith(close)) content = content.slice(0, -close.length);
-  else {
-    let closed = false;
-    while (nextLine < endLine) {
-      const line = state.src.slice(state.bMarks[nextLine], state.eMarks[nextLine]);
-      nextLine += 1;
-      const closing = line.indexOf(close);
-      if (closing >= 0 && line.slice(closing + close.length).trim()) return false;
-      if (line.trimEnd().endsWith(close)) {
-        content += '\n' + line.trimEnd().slice(0, -close.length);
-        closed = true;
-        break;
-      }
-      content += '\n' + line;
-    }
-    if (!closed) return false;
-  }
+  while (nextLine < endLine && state.eMarks[nextLine - 1]! < formula.end) nextLine++;
+  const suffix = state.src.slice(formula.end, state.eMarks[nextLine - 1]).trim();
+  if (suffix && !/^[,.;:!?，。；：！？、]+$/.test(suffix)) return false;
+  if (silent) return true;
   const token = state.push('carnot_math_block', 'math', 0);
   token.block = true;
-  token.content = content.trim();
+  const lines = state.getLines(startLine, nextLine, state.blkIndent, false).trim();
+  const unquoted = proofFormulaAt(lines, 0);
+  token.content = (unquoted ?? formula).body.trim() + suffix;
   token.map = [startLine, nextLine];
   state.line = nextLine;
   return true;
-});
+}, { alt: ['paragraph', 'reference', 'blockquote'] });
 md.renderer.rules.carnot_math_block = (tokens, index) => `<div class="math-block">${math(tokens[index]!.content, true)}</div>\n`;
 md.renderer.rules.image = (tokens, index) => `<span class="image-placeholder">[Image: ${md.utils.escapeHtml(tokens[index]!.content)}]</span>`;
-md.renderer.rules.link_open = (tokens, index, options, _env, renderer) => {
+md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
   const href = tokens[index]!.attrGet('href');
+  if (typeof href === 'string' && href.startsWith('#cage-node-')) {
+    const selection = href.slice('#cage-node-'.length);
+    if (!(env?.citationKeys instanceof Set) || !env.citationKeys.has(selection)) return '<a>';
+    tokens[index]!.attrSet('data-map-citation', selection);
+    tokens[index]!.attrSet('aria-haspopup', 'dialog');
+    tokens[index]!.attrSet('aria-expanded', 'false');
+    return renderer.renderToken(tokens, index, options);
+  }
   const label = tokens[index + 1];
   if (typeof href === 'string' && /^https?:\/\//i.test(href)) {
     tokens[index]!.attrSet('title', tokens[index]!.attrGet('title') || href);
@@ -149,6 +129,6 @@ md.renderer.rules.link_open = (tokens, index, options, _env, renderer) => {
   return renderer.renderToken(tokens, index, options);
 };
 
-export function renderMarkdown(source: string, options: { paperMath?: boolean } = {}): string {
+export function renderMarkdown(source: string, options: { paperMath?: boolean; citationKeys?: ReadonlySet<string> } = {}): string {
   return md.render(source, options);
 }

@@ -2,7 +2,8 @@
   import CagesEmpty from './CagesEmpty.svelte';
  import {onDestroy,onMount,untrack} from "svelte";
  import {api} from './api';
- import type {MapEntry,MapRef} from '../src/learning/knowledge-map';
+ import type {MapEntry,MapRef,MapOpenResult} from '../src/learning/knowledge-map';
+ let {citation}:{citation?:{projectId:string;read:MapOpenResult}}=$props();
  import {classifyField,FIELD_CATALOG,canonicalFieldId} from '../src/shared/knowledge-fields';
  let ready=$state(false);
  import {sphericalLayout,fieldWashes,arrowPoints,globeRadius,planarLayout} from './capabilities/map-geometry';
@@ -12,11 +13,17 @@
  const strokes:Record<string,string>={prerequisite:'none','uses-definition':'2 4','upper-structure':'12 4',related:'1 6',specializes:'7 3 2 3',tests:'9 4 2 4',measures:'4 3','measured-in':'4 3 1 3','member-of':'12 3 3 3'};
  type FieldChoice=keyof typeof FIELD_CATALOG | '';
  let field=$state<FieldChoice>('');
+ import NodeReviewBadge from './NodeReviewBadge.svelte';
  import MarkdownView from './MarkdownView.svelte';
  import {containDialogFocus} from './capabilities/dialog-focus';
  let typesMenu=$state<HTMLDetailsElement>(), fieldsMenu=$state<HTMLDetailsElement>();
  let result=$state<Awaited<ReturnType<typeof api.coreMap>>>(), error=$state(''), selected=$state<CoreEntry>(), draft=$state(''), expanded=$state(false),sending=$state(false),notice=$state('');
- onMount(()=>{let live=true;api.coreMap().then(value=>{if(live)result=value}).catch(e=>{if(live)error=e.message}).finally(()=>{if(live)ready=true});return ()=>{live=false};});
+ onMount(()=>{
+   let live=true;
+   const request=citation?api.cageMap(citation.projectId):api.coreMap();
+   request.then(value=>{if(live)result=value}).catch(e=>{if(live)error=e.message}).finally(()=>{if(live)ready=true});
+   return ()=>{live=false};
+ });
  type CoreEntry=Awaited<ReturnType<typeof api.coreMap>>['entries'][number];
  const key=(ref:MapRef)=>ref.store+'/'+ref.id;
  let published=$derived.by(()=>{
@@ -24,9 +31,14 @@
    for(const e of result?.entries??[])if((!latest.has(key(e.ref)) || latest.get(key(e.ref))!.ref.version<e.ref.version))latest.set(key(e.ref),e);
    return [...latest.values()].filter(e=>e.status==='active');
  });
+ const citedEntry=$derived(result?.entries.find(e=>{
+   const ref=citation?.read.ref;
+   return ref && ref.store===e.ref.store && ref.id===e.ref.id && ref.version===e.ref.version && ref.bodyHash===e.ref.bodyHash;
+ }));
+ const historical=$derived(!!citedEntry && !published.includes(citedEntry));
 
  let editing=$state(false),filter=$state(''), offsets=$state<Record<string,{x:number;y:number}>>({});
- let inventory=$derived(published);
+ let inventory=$derived(citedEntry && historical ? [...published,citedEntry] : published);
  let nodes=$derived(inventory.filter(n=>(!filter||scientificType(n)===filter)&&(!field||discipline(n)===field))), edges=$derived(result?.relations??[]);
  const address=(ref:MapRef)=>key(ref)+'@'+ref.version;
  let base=$derived(planarLayout(nodes.map(n=>address(n.ref)),edges.filter(e=>e.status==='active').map(e=>({from:address(e.from),to:address(e.to)})),new Map(nodes.map(n=>[address(n.ref),discipline(n)]))));
@@ -108,7 +120,7 @@
  const currentMatch=$derived(matches[match%matches.length]);
  function center(px:number,py:number){x=width/2-scale*px;y=height/2-scale*py}
  function overview(){stopFlight();scale=Math.min(1,(width-24)/boardWidth,(height-24)/boardHeight);center(boardWidth/2,boardHeight/2)}
- $effect(()=>{const layout=base;if(width>24&&height>24&&layout.size)untrack(()=>{const n=currentMatch;if(n)aim(address(n.ref));else center(boardWidth/2,boardHeight/2)})});
+ $effect(()=>{const layout=base;if(width>24&&height>24&&layout.size)untrack(()=>{const n=currentMatch;if(n)aim(address(n.ref));else {const target=citedEntry && positions.get(address(citedEntry.ref));center(target?.x??boardWidth/2,target?.y??boardHeight/2)}})});
  $effect(()=>{const n=currentMatch;if(n)untrack(()=>aim(address(n.ref)));else stopFlight()});
  function next(step=1){if(matches.length){match=(match+step+matches.length)%matches.length;aim(address(matches[match]!.ref))}}
  function camera(node:HTMLElement){
@@ -122,7 +134,16 @@
    node.addEventListener('pointerdown',down);node.addEventListener('pointermove',move);node.addEventListener('lostpointercapture',end);node.addEventListener('wheel',wheel,{passive:false});
    return {destroy(){node.removeEventListener('pointerdown',down);node.removeEventListener('pointermove',move);node.removeEventListener('lostpointercapture',end);node.removeEventListener('wheel',wheel)}}
  }
- function open(n:CoreEntry){editing=false;selected=n;draft=n.body??'';expanded=false;notice=''}
+ function focusCited(node:HTMLButtonElement,cited:boolean){if(cited)node.focus({preventScroll:true})}
+ async function refreshReviewedNode(){
+   const target=selected?.ref;
+   try{
+     const next=citation?await api.cageMap(citation.projectId):await api.coreMap();
+     result=next;
+     if(target&&selected?.ref&&address(target)===address(selected.ref))selected=next.entries.find(e=>address(e.ref)===address(target));
+   }catch(e){notice=String(e)}
+ }
+ function open(n:CoreEntry){editing=false;selected=n;draft=n.body??(n===citedEntry?citation?.read.body:'')??'';expanded=false;notice=''}
  async function submit(){
    if(!selected||sending)return;
    sending=true;
@@ -130,18 +151,20 @@
  }
 </script>
 <svelte:window onpointerdown={e=>{for(const menu of [typesMenu,fieldsMenu])if(menu?.open&&!menu.contains(e.target as Node))menu.open=false}} onkeydown={e=>{if(e.key==='Escape')for(const menu of [typesMenu,fieldsMenu])if(menu?.open){menu.open=false;menu.querySelector('summary')?.focus()}}}/>
-<section class="map">{#if !ready}<p role="status">Loading map…</p>{:else if !published.length}<header><h1>Knowledge map</h1></header>{#if error}<p role="alert">{error}</p>{:else}<div class="map-empty-body"><CagesEmpty message="No basic physics knowledge map installed." /></div>{/if}{:else}<header><h1>Knowledge map</h1><button class="sphere-toggle" aria-label="Spherical view" aria-pressed={sphere} onclick={switchView}>{sphere?"Sphere":"Plane"} ⇄</button><input class="map-search" type="search" aria-label="Search node titles" placeholder="Search titles" bind:value={query} oninput={()=>match=0} onkeydown={e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();next(e.shiftKey?-1:1)}}}/>
+<section class="map">{#if citation && ready && !error}<p class="citation-location" role="status">{#if citedEntry}Cited {historical?'historical version':'version'} · {citedEntry.title} · v{citedEntry.ref.version}{citedEntry.status==='withdrawn'?' · withdrawn':''}{:else}The cited version is unavailable on this map.{/if}</p>{/if}{#if !ready}<p role="status">Loading map…</p>{:else if !inventory.length}<header><h1>Knowledge map</h1></header>{#if error}<p role="alert">{error}</p>{:else}<div class="map-empty-body"><CagesEmpty message="No basic physics knowledge map installed." /></div>{/if}{:else}<header><h1>Knowledge map</h1><button class="sphere-toggle" aria-label="Spherical view" aria-pressed={sphere} onclick={switchView}>{sphere?"Sphere":"Plane"} ⇄</button><input class="map-search" type="search" aria-label="Search node titles" placeholder="Search titles" bind:value={query} oninput={()=>match=0} onkeydown={e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();next(e.shiftKey?-1:1)}}}/>
 <details class="types" bind:this={typesMenu}><summary><i data-kind={filter}></i>{filter||'All types'} ▾</summary><div>{#each ['',...new Set(inventory.map(scientificType))] as kind}<button aria-pressed={filter===kind} onclick={e=>{filter=kind;match=0;e.currentTarget.closest('details')!.open=false}}><i data-kind={kind}></i>{kind||'All types'}</button>{/each}</div></details><details class="types fields" bind:this={fieldsMenu}><summary aria-label="Scientific field" style:--field-tone={field?fieldTone(field):'var(--color-selected)'}>{field?FIELD_CATALOG[field].label:'All fields'} ▾</summary><div>{#each fieldOptions as f}<button aria-pressed={field===f} style:--field-tone={f?fieldTone(f):'var(--color-selected)'} onclick={()=>{field=f;match=0;if(fieldsMenu)fieldsMenu.open=false}}>{f?FIELD_CATALOG[f].label:'All fields'}</button>{/each}</div></details>
-<span class="map-choice">Core map</span></header>
+<span class="map-choice">{citation?'Session map':'Core map'}</span></header>
 {#if error}<p role="alert">{error}</p>{:else}<div class="map-stage">{#if query.trim()}<div class="network-find-state"><span role="status">{matches.length?match%matches.length+1:0} of {matches.length} {matches.length===1?"match":"matches"}</span><button class="network-find-next" disabled={!matches.length} onclick={()=>next()}>Next match ↓</button></div>{/if}<div class="scroll" bind:clientWidth={width} bind:clientHeight={height} use:camera><div class="board" inert={!!selected} class:globe={sphere} style:transform={`translate(${x}px,${y}px) scale(${scale})`} style:width={boardWidth+'px'} style:height={boardHeight+'px'}>
 <svg width="100%" height="100%" aria-hidden="true">{#if sphere}<circle class="globe-disc" cx={radius} cy={radius} r={radius-1}/>{/if}<defs><radialGradient id="globe-surface" cx="36%" cy="27%" r="78%"><stop offset="0" stop-color="var(--color-surface)"/><stop offset=".72" stop-color="var(--color-canvas)"/><stop offset="1" stop-color="var(--color-selected)"/></radialGradient><clipPath id="sphere-wash-clip"><circle cx={radius} cy={radius} r={radius-1}/></clipPath>{#each washes as wash (wash.field)}<radialGradient id={'wash-'+wash.field}><stop stop-color={fieldTone(wash.field)} stop-opacity=".48"/><stop offset=".55" stop-color={fieldTone(wash.field)} stop-opacity=".26"/><stop offset="1" stop-color={fieldTone(wash.field)} stop-opacity="0"/></radialGradient>{/each}<marker id="map-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="currentColor"/></marker></defs><g clip-path={sphere?"url(#sphere-wash-clip)":undefined}>{#each washes as w (w.field)}<ellipse cx={w.x} cy={w.y} rx={w.rx} ry={w.ry} fill={"url(#wash-"+w.field+")"}/>{/each}</g>
 {#each edges as r}{@const a=positions.get(key(r.from)+'@'+r.from.version)}{@const b=positions.get(key(r.to)+'@'+r.to.version)}{#if a&&b&&front(address(r.from))&&front(address(r.to))&&r.status==='active'}<polyline data-relation={r.kind} points={arrowPoints(a,b,scale,r.direction==='forward')} fill="none" stroke-dasharray={strokes[r.kind]} class:incident={incident(r)} marker-mid={r.direction==='forward'?'url(#map-arrow)':undefined}/>{/if}{/each}</svg>
-{#each nodes as n}{@const pos=positions.get(address(n.ref))!}{#if front(address(n.ref))}<button class="node" style:--field-color={fieldTone(discipline(n))} data-kind={scientificType(n)} aria-label={scientificType(n)+": "+n.title} class:neighbor={neighbors.has(address(n.ref)) || n===currentMatch} use:dragNode={(dx,dy)=>{if(sphere){moveOnGlobe(address(n.ref),dx,dy);return}const k=address(n.ref),o=offsets[k];offsets[k]={x:(o?.x??0)+dx,y:(o?.y??0)+dy}}} style:left={pos.x+'px'} style:top={pos.y+'px'} onclick={()=>open(n)}><i aria-hidden="true"></i><span>{n.title}</span></button>{/if}{/each}</div></div>
+{#each nodes as n}{@const pos=positions.get(address(n.ref))!}{#if front(address(n.ref))}<button class="node" use:focusCited={n===citedEntry} data-cited={n===citedEntry || undefined} style:--field-color={fieldTone(discipline(n))} data-kind={scientificType(n)} aria-label={scientificType(n)+": "+n.title} class:neighbor={n===citedEntry || neighbors.has(address(n.ref)) || n===currentMatch} use:dragNode={(dx,dy)=>{if(sphere){moveOnGlobe(address(n.ref),dx,dy);return}const k=address(n.ref),o=offsets[k];offsets[k]={x:(o?.x??0)+dx,y:(o?.y??0)+dy}}} style:left={pos.x+'px'} style:top={pos.y+'px'} onclick={()=>open(n)}><i aria-hidden="true"></i><span>{n.title}{#if n===citedEntry} · v{n.ref.version}{/if}</span></button>{/if}{/each}</div></div>
 {#if edges.length}<aside class="edge-key" aria-label="Relations">{#each [...new Set(edges.filter(e=>e.status==="active").map(e=>e.kind))] as kind}<span><svg width="30" height="8" aria-hidden="true"><line x1="1" y1="4" x2="29" y2="4" stroke="currentColor" stroke-dasharray={strokes[kind]}/></svg>{kind}</span>{/each}</aside>{/if}<button class="network-minimap" aria-label="Fit knowledge map" onclick={overview}><svg viewBox={`0 0 ${boardWidth} ${boardHeight}`} aria-hidden="true">{#each edges as r}{@const a=positions.get(address(r.from))}{@const b=positions.get(address(r.to))}{#if a&&b&&front(address(r.from))&&front(address(r.to))&&r.status==='active'}<line stroke-dasharray={strokes[r.kind]} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="currentColor" stroke-width="4"/>{/if}{/each}{#each positions as [k,pos]}<circle cx={pos.x} cy={pos.y} r="14" opacity={front(k)?1:.2}/>{/each}<rect class="mini-window" x={-x/scale} y={-y/scale} width={width/scale} height={height/scale}/></svg></button></div>{/if}
 {#if selected}<div class="sheet" use:movable={'dialog'} class:expanded role="dialog" aria-modal="true" aria-labelledby="map-title" tabindex="-1" use:containDialogFocus={()=>{if(!sending)selected=undefined}}>
-<header><h2 id="map-title">{selected.title}</h2><button aria-label={editing?"Read document":"Edit node"} onclick={()=>editing=!editing}>{editing?"Read":"Edit"}</button><button aria-label="Toggle expanded editor" onclick={()=>expanded=!expanded}>⛶</button><button aria-label="Close node" disabled={sending} onclick={()=>selected=undefined}>×</button></header>
+<header><h2 id="map-title">{selected.title}</h2>{#if !citation}<button aria-label={editing?"Read document":"Edit node"} onclick={()=>editing=!editing}>{editing?"Read":"Edit"}</button>{/if}<button aria-label="Toggle expanded editor" onclick={()=>expanded=!expanded}>⛶</button><button aria-label="Close node" disabled={sending} onclick={()=>selected=undefined}>×</button></header>
+{#key address(selected.ref)}<NodeReviewBadge projectId={citation?.projectId??'shared-core-map'} ref={selected.ref} qualification={selected.qualification} kind={selected.kind} onchange={refreshReviewedNode}/>{/key}
 <div class:split={editing} class:reading={!editing}>{#if editing}<textarea aria-label="Node Markdown" bind:value={draft} disabled={sending||selected.body===undefined}></textarea>{/if}<article><MarkdownView content={draft}/>{#if !editing}{#each selected.assumptions as assumption}<MarkdownView content={assumption}/>{/each}{#each [...new Set([selected.suppliedProof?.argument,...(selected.supports??[]).filter(s=>s.status==='proved').map(s=>s.argument)].filter(Boolean))] as argument}<MarkdownView content={argument??''}/>{/each}{/if}</article></div><footer><span role="status">{notice}</span>{#if editing}<button disabled={sending||!draft.trim()||draft===selected.body} onclick={submit}>Submit for review</button>{/if}</footer></div>{/if}{/if}</section>
 <style>
+  .citation-location { font-size:.85rem; color:var(--color-muted); margin:.4rem .5rem }
 .map{font-family:"Times New Roman",serif}.scroll{flex:1;cursor:grab}.board{transform-origin:0 0}.sheet header{cursor:move}.sheet.expanded{translate:0 0!important}.map{position:relative;height:100%;min-height:0;padding:1rem;display:flex;flex-direction:column}.map header,.map footer{display:flex;align-items:center;gap:.6rem}.map h1,.map h2{margin:0 auto 0 0;font-size:1.15rem}.scroll,.split article{overflow:auto}.board{position:relative}.board svg{opacity:.5}.node,.sheet{background:var(--color-surface);color:inherit;border:1px solid var(--color-line);border-radius:12px}.node{position:absolute;display:grid;align-content:center;width:190px;height:62px;text-align:left;padding:.4rem .8rem;overflow:hidden}.sheet{position:absolute;inset:12% 5%;padding:1rem;display:flex;flex-direction:column;gap:1rem;box-shadow:0 12px 50px var(--color-scrim)}.expanded{inset:0}.split{display:grid;grid-template-columns:1fr 1fr;min-height:0;flex:1}.split>*{min-width:0;padding:1rem}.split textarea{color:inherit;background:transparent;resize:none}.map footer{justify-content:flex-end}@media(max-width:640px){.split{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
 
 .reading{overflow:auto;line-height:1.7}.sheet:not(.expanded):has(.reading){inset:8% 3% auto auto;width:min(440px,94%);max-height:82%}.sheet header{border-bottom:1px solid var(--color-line);padding-bottom:.75rem}.board svg{opacity:1}.node{display:flex;align-items:center;gap:9px}.types i,.node i{flex:none;width:12px;height:12px;background:var(--color-info);border-radius:50%}.types i[data-kind=theorem],.node[data-kind=theorem] i{border-radius:1px;transform:rotate(45deg);background:var(--color-accent)}.types i[data-kind=observation],.node[data-kind=observation] i{border-radius:2px;background:var(--color-success)}.types i[data-kind=theory],.node[data-kind=theory] i{background:var(--color-warning);clip-path:polygon(50% 0,100% 100%,0 100%)}.node.neighbor{box-shadow:0 0 0 2px var(--color-accent),0 4px 16px var(--color-scrim)}.scroll{border:1px solid var(--color-line);border-radius:14px;background:var(--color-canvas)}.map header{padding-bottom:.5rem}
