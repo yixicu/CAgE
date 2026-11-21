@@ -68,9 +68,12 @@ import type { MaintenanceRequest } from '../runtime/maintenance.js';
 import { MonitorActivity } from './monitor-activity.js';
 import { SessionStates, type SessionState } from './session-state.js';
 
+import { openProviderBrowser } from './provider-browser.js';
+
 export interface ApplicationRuntime extends AnyAgentRuntime, Partial<LearningRuntime> { runMaintenance?(request:MaintenanceRequest):Promise<string>; auth: Pick<CAgEAuthManager, 'listProviders' | 'listModels' | 'saveApiKey' | 'startLogin' | 'getLogin' | 'answerLogin' | 'cancelLogin' | 'logout'>; invokeTheoryV4?(request:TheoryRequestV4):Promise<unknown>; hasForegroundInvocation?(): boolean; canQueueBackgroundLearning?(): boolean; shutdown(): Promise<void> }
 export interface AppOptions {
   desktopVersion?: string;
+  openProviderBrowser?: (url: string) => Promise<void>;
   dataRoot?: string; sourceRoot?: string; staticRoot?: string;
   /** Deterministic tests may inject adapters; normal startup always constructs official Pi. */
   runtime?: ApplicationRuntime; store?: FileResearchStore; plugins?: PluginHost;
@@ -957,7 +960,20 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
   });
   app.post<{ Body: { provider: string; key: string } }>('/api/providers/key', { schema: { body: body({ provider: string(200), key: string(16384) }) } }, async request => { await runtime.auth.saveApiKey(request.body.provider, request.body.key); return providerViews(); });
   app.delete<{ Params: { provider: string } }>('/api/providers/:provider', async request => { await runtime.auth.logout(request.params.provider); return providerViews(); });
-  app.post<{ Body: { provider: string; type?: 'oauth' | 'api_key' } }>('/api/providers/oauth', { schema: { body: body({ provider: string(200), type: { enum: ['oauth', 'api_key'] } }, ['provider']) } }, request => runtime.auth.startLogin(request.body.provider, request.body.type ?? 'oauth'));
+  const desktopOpener = options.desktopVersion && process.platform === 'win32' ? options.openProviderBrowser ?? openProviderBrowser : undefined;
+  app.post<{ Body: { provider: string; type?: 'oauth' | 'api_key'; method?: 'browser' | 'device_code' } }>('/api/providers/oauth', {
+    schema: { body: body({ provider: string(200), type: { enum: ['oauth', 'api_key'] }, method: { enum: ['browser', 'device_code'] } }, ['provider']) },
+  }, request => runtime.auth.startLogin(request.body.provider, request.body.type ?? 'oauth',
+    desktopOpener ? { open: desktopOpener, method: request.body.method } : undefined));
+  app.post<{ Params: { id: string } }>('/api/providers/oauth/:id/open', { schema: { params: idParams, body: body({}) } }, async (request, reply) => {
+    const flow = runtime.auth.getLogin(request.params.id);
+    if (!desktopOpener || !flow.url || !['pending', 'awaiting_input'].includes(flow.status) || flow.expiresAt <= Date.now()) {
+      throw new ApiError(409, 'SIGN_IN_UNAVAILABLE', 'Start a new sign-in to open the provider page.');
+    }
+    try { await desktopOpener(flow.url); }
+    catch { throw new ApiError(503, 'BROWSER_UNAVAILABLE', 'Could not open your default browser. Copy the sign-in link and open it manually.'); }
+    return reply.code(204).send();
+  });
   app.get<{ Params: { id: string } }>('/api/providers/oauth/:id', { schema: { params: idParams } }, request => runtime.auth.getLogin(request.params.id));
   app.post<{ Params: { id: string }; Body: { value: string } }>('/api/providers/oauth/:id/respond', { schema: { params: idParams, body: body({ value: string(16384) }) } }, request => runtime.auth.answerLogin(request.params.id, request.body.value));
   app.delete<{ Params: { id: string } }>('/api/providers/oauth/:id', { schema: { params: idParams } }, request => { runtime.auth.cancelLogin(request.params.id); return { cancelled: true }; });

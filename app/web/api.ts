@@ -35,7 +35,7 @@ export interface Bootstrap { storage?: StorageSettings; unavailableProjects?: Un
 export interface DocumentEntry { path: string; title: string; kind: 'markdown' | 'pdf' | 'text'; sourceId?: string }
 export interface DocumentList { revision: string; documents: DocumentEntry[] }
 export interface DocumentContent { path: string; content: string; revision: string; kind: string }
-export interface OAuthFlow { id: string; status: string; url?: string; instructions?: string; prompt?: string | { type?: string; message?: string; placeholder?: string; options?: { id: string; label: string }[] }; userCode?: string; expiresAt?: number; error?: string }
+export interface OAuthFlow { browserFailed?: boolean; id: string; status: string; url?: string; instructions?: string; prompt?: string | { type?: string; message?: string; placeholder?: string; options?: { id: string; label: string }[] }; userCode?: string; expiresAt?: number; error?: string }
 export class ApiError extends Error { constructor(message: string, readonly status: number) { super(message); this.name = 'ApiError'; } }
 let requestToken = ''; // Never place the local nonce or credentials in storage or URLs.
 const projectRequests = new ProjectRequestTracker();
@@ -149,9 +149,10 @@ export const api = {
   },
   saveKey: (provider: string, key: string) => request<ProviderStatus[]>('/providers/key', 'POST', { provider, key }),
   disconnect: (provider: string) => request<ProviderStatus[]>(`/providers/${segment(provider)}`, 'DELETE'),
-  beginOAuth: (provider: string, type: 'oauth' | 'api_key' = 'oauth') => request<OAuthFlow>('/providers/oauth', 'POST', { provider, type }),
+  beginOAuth: (provider: string, type: 'oauth' | 'api_key' = 'oauth', method?: 'browser' | 'device_code') => request<OAuthFlow>('/providers/oauth', 'POST', { provider, type, method }),
   oauth: (id: string) => request<OAuthFlow>(`/providers/oauth/${segment(id)}`),
   answerOAuth: (id: string, value: string) => request<OAuthFlow>(`/providers/oauth/${segment(id)}/respond`, 'POST', { value }),
+  openOAuth: (id: string) => request<void>(`/providers/oauth/${segment(id)}/open`, 'POST', {}),
   cancelOAuth: (id: string) => request<void>(`/providers/oauth/${segment(id)}`, 'DELETE'),
   exit: (mode: 'background' | 'shutdown') => request<{ status: 'kept' | 'stopping' | 'closed'; activeProjectIds: string[] }>('/exit', 'POST', { mode }),
 };

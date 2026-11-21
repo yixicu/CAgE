@@ -12,7 +12,7 @@ export interface ModelView { provider: string; id: string; name: string; reasoni
 export interface LoginView {
   id: string; provider: string; type: AuthType;
   status: 'pending' | 'awaiting_input' | 'connected' | 'failed' | 'cancelled';
-  url?: string; userCode?: string; expiresAt: number;
+  browserFailed?: boolean; url?: string; userCode?: string; expiresAt: number;
   prompt?: { type: AuthPrompt['type']; message: string; options?: { id: string; label: string }[] };
   error?: string;
 }
@@ -60,7 +60,7 @@ export class CAgEAuthManager {
       await this.protectAuthFile();
     } catch (error) { throw error instanceof RuntimeError ? error : new RuntimeError('AUTH_FAILED'); }
   }
-  startLogin(provider: string, type: AuthType = 'oauth'): LoginView {
+  startLogin(provider: string, type: AuthType = 'oauth', desktop?: { open(url: string): Promise<void>; method?: 'browser' | 'device_code' }): LoginView {
     if (provider === 'cage-subagents') throw new RuntimeError('AUTH_UNSUPPORTED');
     this.assertMethod(provider, type);
     // One in-flight login per provider; never let repeated UI clicks create multiple callbacks.
@@ -71,12 +71,32 @@ export class CAgEAuthManager {
     record.timer.unref?.();
     this.logins.set(id, record);
     void this.models.login(provider, type, { signal: controller.signal,
-      notify: event => this.notify(record, event), prompt: prompt => this.prompt(record, prompt),
+      notify: event => {
+        const previous = record.view.url;
+        this.notify(record, event);
+        const url = record.view.url;
+        if (desktop && url && url !== previous) {
+          void desktop.open(url).catch(() => { if (record.view.url === url) record.view.browserFailed = true; });
+        }
+      },
+      prompt: prompt => {
+        if (desktop && provider === 'openai-codex' && type === 'oauth' && prompt.type === 'select' &&
+            prompt.options.some(o => o.id === 'browser') && prompt.options.some(o => o.id === 'device_code')) {
+          return Promise.resolve(desktop.method ?? 'browser');
+        }
+        return this.prompt(record, prompt);
+      },
     }, { agentName: 'CAgE', getDeviceId: () => this.deviceId }).then(async () => {
       if (controller.signal.aborted) return;
       await this.protectAuthFile();
       this.finish(record, 'connected');
-    }).catch(() => { if (!controller.signal.aborted) { this.finish(record, 'failed'); record.view.error = new RuntimeError('AUTH_FAILED').message; } });
+    }).catch(error => {
+      if (controller.signal.aborted) return;
+      this.finish(record, 'failed');
+      record.view.error = provider === 'openai' && error instanceof Error && error.message.startsWith('Port 1455 is in use')
+        ? 'Another sign-in is using callback port 1455. Finish or cancel it, then try again.'
+        : new RuntimeError('AUTH_FAILED').message;
+    });
     return copy(record.view);
   }
   getLogin(id: string): LoginView { const record = this.logins.get(id); if (!record) throw new RuntimeError('AUTH_CANCELLED'); return copy(record.view); }
@@ -117,7 +137,7 @@ export class CAgEAuthManager {
   private prompt(record: LoginRecord, prompt: AuthPrompt): Promise<string> {
     if (record.controller.signal.aborted || prompt.signal?.aborted) return Promise.reject(new RuntimeError('AUTH_CANCELLED'));
     record.view.status = 'awaiting_input';
-    record.view.prompt = { type: prompt.type, message: safePromptLabel(prompt), ...(prompt.type === 'select' ? { options: prompt.options.map(option => ({ id: option.id, label: option.label.slice(0, 160) })) } : {}) };
+    record.view.prompt = { type: prompt.type, message: safePromptLabel(prompt, record.view.provider), ...(prompt.type === 'select' ? { options: prompt.options.map(option => ({ id: option.id, label: option.label.slice(0, 160) })) } : {}) };
     return new Promise((resolve, reject) => {
       const abort = () => { record.pending = undefined; delete record.view.prompt; if (!record.controller.signal.aborted) record.view.status = 'pending'; cleanup(); reject(new RuntimeError('AUTH_CANCELLED')); };
       const cleanup = () => { record.controller.signal.removeEventListener('abort', abort); prompt.signal?.removeEventListener('abort', abort); };
@@ -131,8 +151,9 @@ function validateSecret(value: string): void {
   if (typeof value !== 'string' || !value.trim() || value.length > 16384 || value.trimStart().startsWith('!') || /[\r\n\0]/.test(value)) throw new RuntimeError('INVALID_CONFIGURATION');
 }
 function checkedLoginUrl(value: string): string { const url = new URL(value); if (url.protocol !== 'https:' || url.username || url.password || /(?:access_token|refresh_token)=/i.test(value)) throw new RuntimeError('AUTH_FAILED'); return url.href; }
-function safePromptLabel(prompt: AuthPrompt): string {
+function safePromptLabel(prompt: AuthPrompt, provider: string): string {
   if (prompt.type === 'secret') return 'Enter the credential requested by this provider. It is stored only by the backend.';
+  if (prompt.type === 'manual_code' && provider === 'openai') return 'Paste the full callback URL from the provider sign-in page.';
   if (prompt.type === 'manual_code') return 'Paste the authorization code or callback URL from the provider sign-in page.';
   // Official provider field prompts are required for multi-field API-key setup; never echo answers.
   return prompt.message.slice(0, 400);

@@ -175,8 +175,7 @@ internal static class Upgrade {
             if(current==Target)return;
             if(!File.Exists(Path.Combine(root,"uninstall.exe"))||!File.Exists(Path.Combine(root,"carnot-desktop.exe")))throw new IOException("The installed application files are missing.");
             WaitForShell(physicalRoot,status);
-            string node=Encoding.Unicode.GetString(File.ReadAllBytes(Path.Combine(root,"node-path.txt")));
-            if(!Path.IsPathRooted(node)||!SetupEnvironment.CompatibleNode(node))throw new IOException("The installed Node.js runtime is unavailable or incompatible with this release.");
+            string node=DependencyRecovery.Resolve(physicalRoot,true);
             var after=Begin(root);
             try{
                 status("Preparing Carnot "+Target+"…");

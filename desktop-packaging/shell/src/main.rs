@@ -35,6 +35,13 @@ fn set_taskbar_icon(window:&tauri::WebviewWindow)->Result<(),Box<dyn Error>> {
 fn open(app: &mut tauri::App) -> Result<(), Box<dyn Error>> {
     let dir = app.path().resource_dir()?;
     let data = std::env::var_os("CARNOT_DATA_DIR").map(PathBuf::from).or_else(||saved_path(&dir,"workspace-path.txt")).unwrap_or_else(||dir.join("workspace"));
+    // This native helper can locate Node even when the saved executable has moved.
+    let recovery = Command::new(dir.join("payload/app/scripts/carnot-recovery.exe"))
+        .current_dir(&dir).creation_flags(0x08000000).status()?;
+    if !recovery.success() {
+        app.handle().exit(if recovery.code() == Some(2) { 0 } else { 1 });
+        return Ok(());
+    }
     let version = app.package_info().version.to_string();
     let mut child = Command::new(chosen_node(&dir)).current_dir(dir.join("payload/app"))
         .args(["--input-type=module","-e",include_str!("../start.mjs")])

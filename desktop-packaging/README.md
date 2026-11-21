@@ -18,6 +18,12 @@ The script stages the application, builds the native shell and NSIS core, and em
 
 The installer offers separate choices for Node.js, production packages, the basic physics map, and the desktop shortcut. An exact local package tree can be shared. Mixed installations use an application-owned private tree and verify freshly downloaded packages against the release lockfile. Start the installed program from the Start menu. Windows Installed Apps can remove the application and its private runtime. User workspaces and external shared packages remain available.
 
+### Moved dependencies on Windows
+
+At startup, the desktop launcher checks the saved Node executable and the installed package tree. If either location is missing or incompatible, use **Detect on this device** or **Browse** in the recovery window, then confirm with **Use location**. For Node, choose the executable or its containing folder. For packages, choose the shared `node_modules` directory or its parent. Confirmed locations are saved for this installation. Cancelling exits without starting the backend.
+
+An upgrade checks dependencies before replacing program files and offers the same recovery window for moved locations, including upgrades from 0.2.9. The updater can reuse packages from the previous version and prepare any changed dependencies for the new release.
+
 ## Publish a desktop update
 
 1. Make the changes in a clean checkout of yixicu/CAgE. Set the next numeric desktop version (for example, 0.2.7) in the version field of desktop-packaging/shell/tauri.conf.json.

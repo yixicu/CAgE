@@ -10,6 +10,7 @@ $pack=Split-Path $PSScriptRoot
 & $node "$PSScriptRoot\stage.mjs"
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 & (Join-Path $PSScriptRoot "prepare-cleanup.ps1")
+& (Join-Path $PSScriptRoot "prepare-recovery.ps1")
 Push-Location "$pack\shell"
 try {
     Invoke-Tauri @('build','--no-bundle','--','--locked')
