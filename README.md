@@ -17,7 +17,7 @@ Most agents focuses on code-building, and their theoretical derivation is terrib
 - open an agent (e.g. ChatGPT/Claude Code).
 - paste below commands in texting window:
 ~~~
-I want to install this [[project url](https://github.com/yixicu/CAgE)], install for me, pause and ask me for advice if you cannot decide **Non-technical problems**; go to the project and read relavent documents for **technical problems**.
+I want to install this project(https://github.com/yixicu/CAgE), install for me, pause and ask me for advice if you cannot decide **Non-technical problems**; go to the project and read relavent documents for **technical problems**.
 ~~~
 
 ### other ways to download
@@ -52,7 +52,7 @@ As most other agents the providers and API keys configurations are in *Settings*
 
 In left pannel I equipped a "maintenance" agent specially for possible bug-identifying, it can look into logs and all other stuffs in case there is some problem. The maintenance agent also helps you input and modify skills/knowledges if you want to import existing ones (e.g. your studying notes).
 
-In settings-Plugin you can chose to give agent web-searching abilities for reading online papers (e.g. Arxiv), this might require extra API configuration.
+In *settings-Plugin* you can chose to give agent web-searching abilities for reading online papers (e.g. Arxiv), this might require extra API configuration.
 
 ### Cannot configure provider
 Unfortunately up to now I only tested my GPT subscription, for other model configuring issue please push an *Issue* to let me know.
@@ -61,6 +61,9 @@ Unfortunately up to now I only tested my GPT subscription, for other model confi
 Handle an *Issue* to this project.
 ### There is a bug...and I want to fix it now!
 Let other agents read relavent documents and fix it.
+
+### I want to build a plugin?
+Relavent documentations in *docs*. 
 
 ### I still want to use my old agents
 
