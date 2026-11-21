@@ -6,6 +6,8 @@
 
 CAgE is a desktop agent system specially designed to prove logical hypothesis (in natural science areas) and give report in human-understandable way. It start and trace back to "facts" that one admit, and prefer formating derivation with existing knowledge in ones own database.
 
+![CAgE start page with the sidebar open](docs/assets/readme/start-page.png)
+
 ## Why I made it
 
 Most of the agents are built for coding, and they are terrible in theoretical stuff and logics. They constantly introduce theorems and tools never seen and never necessary for the question I asked (yes GPT I am specially referring to you for all those damn eigenvector analyses). Most of my following-up question only makes the agent start proving deep mathmatical structures and basic concepts (which it could and should take as a "fact").
