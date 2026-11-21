@@ -39,7 +39,7 @@ export function diagnoseJsonSyntax(error: unknown, raw: string): JsonSyntaxDiagn
 
 export interface ToolArgumentEvidence {
   toolCallId: string; tool: string; api: string;
-  coverage: 'chat-argument-deltas' | 'response-argument-events' | 'anthropic-argument-events' | 'insufficient';
+  coverage: 'chat-argument-deltas' | 'response-argument-events' | 'anthropic-argument-events' | 'google-function-call' | 'insufficient';
   rawArguments?: string; sdkArguments: unknown; schema?: TSchema; remoteSchema?: TSchema; remoteSchemaHash?: string;
   jsonValid?: boolean; sdkMatchesRaw?: boolean; rawSchemaValid?: boolean; remoteSchemaValid?: boolean;
   schemaErrors?: { path: string; message: string }[];
@@ -68,6 +68,9 @@ export class ToolArgumentAudit {
   }
   private readonly calls = new Map<number,{id:string;name:string;arguments:unknown}>();
   private readonly native = new Map<string, NativeArguments>();
+  // Gemini delivers complete argument objects in candidate part order. Pi can
+  // assign the ID afterwards, so match the same ordered part to its SDK event.
+  private readonly googleCalls: { id?:string; name:string; raw:string }[] = [];
   private readonly indices = new Map<number, string>();
   private target?: AuditTarget;
   private readonly remoteSchemas = new Map<string, { schema: TSchema; strict: boolean }>();
@@ -80,6 +83,13 @@ export class ToolArgumentAudit {
   /** Observe only the final outgoing declarations, never messages, headers or credentials. */
   captureRemoteTools(payload: unknown): void {
     this.remoteSchemas.clear();
+    if (this.api === 'google-generative-ai') {
+      const config = (payload as {config?:{tools?:{functionDeclarations?:{name:string;parametersJsonSchema?:TSchema}[]}[]}})?.config;
+      for (const group of config?.tools ?? []) for (const decl of group.functionDeclarations ?? []) {
+        if (decl.parametersJsonSchema) this.remoteSchemas.set(decl.name,{schema:structuredClone(decl.parametersJsonSchema),strict:false});
+      }
+      return;
+    }
     const tools = (payload as { tools?: unknown[] } | null)?.tools;
     if (!Array.isArray(tools)) return;
     for (const tool of tools) {
@@ -92,6 +102,19 @@ export class ToolArgumentAudit {
   observeProvider(value: unknown): void {
     if (!value || typeof value !== 'object') return;
     const e = value as any;
+    if (this.api === 'google-generative-ai') {
+      for (const part of e.candidates?.[0]?.content?.parts ?? []) {
+        const call=part.functionCall;
+        if (!call) continue;
+        if (typeof call.name!=='string' || !call.name || (call.id!=null && typeof call.id!=='string') ||
+            call.partialArgs || call.willContinue || (call.args!==undefined && (!call.args || typeof call.args!=='object' || Array.isArray(call.args)))) {
+          this.failIdentity();
+          continue;
+        }
+        this.googleCalls.push({id:call.id,name:call.name,raw:JSON.stringify(call.args ?? {})});
+      }
+      return;
+    }
     if (this.api === 'openai-completions') {
       const choice = e.choices?.[0];
       for (const call of choice?.delta?.tool_calls ?? []) {
@@ -166,6 +189,7 @@ export class ToolArgumentAudit {
     });
     for(const [index,call] of this.calls)if(!this.chunks.has(index))remaining.push({toolCallId:call.id||`unfinished-${index}`,tool:call.name||'unknown',api:this.api,coverage:'insufficient',incomplete:true,identityValid:false,sdkArguments:undefined});
     const ids=new Set(remaining.map(r=>r.toolCallId));
+    for(const call of this.googleCalls.splice(0))remaining.push({toolCallId:call.id||'unfinished-google',tool:call.name,api:this.api,coverage:'insufficient',incomplete:true,identityValid:false,rawArguments:call.raw,sdkArguments:undefined});
     for(const row of this.native.values())if(!ids.has(row.id))remaining.push({toolCallId:row.id,tool:row.name,api:this.api,coverage:'insufficient',incomplete:true,identityValid:false,rawArguments:row.parts.join(''),sdkArguments:undefined});
     for(const row of this.chatNative.values())remaining.push({toolCallId:row.id||'unfinished-chat',tool:row.name||'unknown',api:this.api,coverage:'insufficient',incomplete:true,identityValid:false,rawArguments:row.parts.join(''),sdkArguments:undefined});
     if(this.identityIssue)remaining.push({toolCallId:'invalid-dispatch-identity',tool:'unknown',api:this.api,coverage:'insufficient',identityValid:false,identityIssue:this.identityIssue,issue:this.identityIssue,sdkArguments:undefined});
@@ -196,18 +220,20 @@ export class ToolArgumentAudit {
     }
     if (event.type !== 'toolcall_end') return;
     const call = event.toolCall, native = this.native.get(call.id), prior = this.calls.get(event.contentIndex);
+    const google=this.googleCalls.shift();
+    if(this.api==='google-generative-ai' && (!google || google.name!==call.name || (google.id && google.id!==call.id)))this.failIdentity();
     if (!call.id || !call.name || this.seenIds.has(call.id) || !prior || !this.seenIndices.has(event.contentIndex) ||
         (prior.id && prior.id !== call.id) || (prior.name && prior.name !== call.name) || (native && native.name !== call.name)) this.failIdentity();
     this.seenIds.add(call.id);
     if(native?.deltas && native.initial && Object.keys(native.initial as object).length)this.failIdentity();
     const chatIndex = this.chatIds.get(call.id), chat = chatIndex === undefined ? undefined : this.chatNative.get(chatIndex);
     if (this.chatNative.size && (!chat || !chat.complete || chat.name !== call.name)) this.failIdentity();
-    const raw = native?.parts.join('') ?? chat?.parts.join('') ?? this.chunks.get(event.contentIndex)?.join('');
+    const raw = google?.raw ?? native?.parts.join('') ?? chat?.parts.join('') ?? this.chunks.get(event.contentIndex)?.join('');
     if(chatIndex !== undefined)this.chatNative.delete(chatIndex);
     this.chunks.delete(event.contentIndex); this.calls.delete(event.contentIndex); this.native.delete(call.id);
     const schema = this.schemas.get(call.name);
     const remote = this.remoteSchemas.get(call.name);
-    const coverage:ToolArgumentEvidence['coverage']=native?.complete
+    const coverage:ToolArgumentEvidence['coverage']=google?'google-function-call':native?.complete
       ? this.api==='anthropic-messages'?'anthropic-argument-events':'response-argument-events'
       : this.api==='openai-completions' && raw!==undefined?'chat-argument-deltas':'insufficient';
     const evidence: ToolArgumentEvidence = {

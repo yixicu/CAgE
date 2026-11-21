@@ -24,6 +24,20 @@ export function strictProviderModel<T extends Target>(model:T,configured?:Strict
 }
 export function structuredOutputPayload(payload:unknown,model:Target,codecs:ReadonlyMap<string,SchemaCodec>,configured?:StrictCapability, version: import('./strict-schema.js').HandoffVersion = 'cage-native-2'):unknown {
   handoffVersion(version);
+  if(model.api==='google-generative-ai' && version==='cage-native-2'){
+    const request=payload as {config?:{tools?:{functionDeclarations?:{name:string;parametersJsonSchema?:unknown}[]}[]}};
+    const config=request?.config;
+    if(!Array.isArray(config?.tools)||!config.tools.length)throw new RuntimeError('STRICT_OUTPUT_UNSUPPORTED');
+    const tools=config.tools.map(group=>{
+      if(!Array.isArray(group.functionDeclarations)||!group.functionDeclarations.length)throw new RuntimeError('STRICT_SCHEMA_UNSUPPORTED');
+      return {...group,functionDeclarations:group.functionDeclarations.map(declaration=>{
+        const codec=codecs.get(declaration.name);
+        if(!codec||!declaration.parametersJsonSchema)throw new RuntimeError('STRICT_SCHEMA_UNSUPPORTED');
+        return {...declaration,parametersJsonSchema:codec.schema};
+      })};
+    });
+    return {...request,config:{...config,tools}};
+  }
   const protocol=model.api==='openai-completions'?'chat-tools':['openai-responses','azure-openai-responses','openai-codex-responses'].includes(model.api)?'response-tools':model.api==='anthropic-messages'?'anthropic-tools':undefined;
   if (!protocol) throw new RuntimeError('STRICT_OUTPUT_UNSUPPORTED');
   const capability=version==='cage-strict-1'?strictCapability(model,configured):{supported:true as const,protocol};

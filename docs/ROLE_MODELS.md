@@ -19,3 +19,22 @@ The Theorist produces the final report in the same response that concludes or pa
 An admitted map task keeps its original model when retried. The alternate field proposal after a declined field uses the source report's frozen Theorist when available. Learning fallback models retain their existing retry order and apply separately from the primary Learning selection.
 
 Removing an override restores the inheritance shown in the table, including the inherited thinking level. Settings from workspaces created before the stage selectors use these same inheritance rules.
+
+## Provider tool calls
+
+Select the Pi provider that matches the credential you obtained. For example, Moonshot API keys and Kimi Coding credentials use different connections. Choose a tool-capable model from that connection, save it as the Theorist, and start a new project to exercise the selection.
+
+| Model family | Pi provider | Representative model in the offline research test | Native tool protocol |
+| --- | --- | --- | --- |
+| GPT | `openai` | `gpt-6.1-sol` | OpenAI Responses |
+| Claude | `anthropic` | `claude-sonnet-4-6` | Anthropic Messages |
+| Grok | `xai` | `grok-4.7` | OpenAI Responses |
+| DeepSeek | `deepseek` | `deepseek-v4-pro` | OpenAI Chat Completions |
+| GLM | `zai` | `glm-5.3` | OpenAI Chat Completions |
+| Kimi | `moonshotai` | `kimi-k3` | OpenAI Chat Completions |
+| Kimi Coding | `kimi-coding` | `k3` | Anthropic Messages |
+| Gemini | `google` | `gemini-3.1-pro-preview` | Google Generative AI |
+
+These examples use the descriptors in the locked Pi catalog. The test sends a research request through CAgE and the provider SDK, supplies local HTTP fixtures, checks tool arguments, and verifies the archived manuscript. Account entitlements, model availability, quotas and model behavior on a real research problem require the corresponding live service. A refreshed catalog can list models outside this test matrix. Google Vertex AI uses a separate Pi adapter and is outside the verified Gemini API path.
+
+When diagnosing a failure, record the role, provider, model ID, research version, stage and displayed error. A 401 or 403 points to the credential or the account's access to that endpoint. A 429 indicates a service limit. For `STRICT_OUTPUT_UNSUPPORTED`, check the selected protocol and the project's handoff version. Older projects using `cage-strict-1` require an endpoint with explicit strict-schema support. For an invalid tool delivery, inspect the named tool and field in the round record. A missing field, an interrupted response and a provider rejection require different fixes. Remove keys, tokens and private research text before sharing a diagnostic.

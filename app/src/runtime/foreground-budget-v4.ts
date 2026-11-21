@@ -1,5 +1,6 @@
 import type { RoleBudget } from '../research/contracts/v1.js';
 import { RuntimeError } from './errors.js';
+import { copyProviderPayload } from './provider-transport.js';
 
 type Rates = { input:number; output:number; cacheRead:number; cacheWrite:number };
 type Cost = Rates & { tiers?: ReadonlyArray<Rates> };
@@ -29,9 +30,9 @@ export function proofOutputAllowanceV4(payload: unknown, budget: RoleBudget, spe
 /** Recheck the final SDK payload after wire schemas and provider thinking/output expansion. */
 export function limitProofPayloadV4(payload: unknown, budget: RoleBudget, spend: Spend, cost: Cost, contextWindow: number): unknown {
   const remaining=proofOutputAllowanceV4(payload,budget,spend,cost,contextWindow);
-  const body=structuredClone(payload) as Record<string,unknown>;
+  const body=copyProviderPayload(payload);
   const caps: {owner:Record<string,unknown>;field:string}[]=[];
-  for (const parent of [body,body.generationConfig,body.inferenceConfig]) {
+  for (const parent of [body,body.config,body.generationConfig,body.inferenceConfig]) {
     if (!parent||typeof parent!=='object') continue;
     const owner=parent as Record<string,unknown>;
     for (const field of ['max_tokens','max_completion_tokens','max_output_tokens','maxOutputTokens','maxTokens']) {
@@ -53,8 +54,8 @@ export function fitStagedWindow(payload:unknown,window:number,modelOutput:number
   const input=Math.ceil(Buffer.byteLength(JSON.stringify(payload),'utf8')/3)+1024;
   const available=window-input;
   if(available<stagedOutputReserve(window,modelOutput))throw new RuntimeError('CONTEXT_EXHAUSTED');
-  const body=structuredClone(payload) as Record<string,unknown>;
-  for(const config of [body,body.generationConfig,body.inferenceConfig]){
+  const body=copyProviderPayload(payload);
+  for(const config of [body,body.config,body.generationConfig,body.inferenceConfig]){
     if(!config||typeof config!=='object')continue;
     const values=config as Record<string,unknown>;
     for(const key of ['max_tokens','max_completion_tokens','max_output_tokens','maxOutputTokens','maxTokens']){

@@ -13,12 +13,7 @@ trap 'rm -rf -- "$stage"' EXIT
 image="$stage/image"
 app="$image/opt/carnot-agent-engine"
 mkdir -p "$app" "$image/usr/bin" "$image/usr/share/applications" "$image/usr/share/pixmaps" "$stage/control"
-cp -R "$root/app/dist" "$root/app/plugins" "$app/"
-cp "$root/app/package.json" "$root/app/package-lock.json" "$pack/linux/start.mjs" "$app/"
-mkdir -p "$app/docs" "$app/scripts"
-cp "$root/app/scripts/subagent-host.mjs" "$root/app/scripts/subagent-session.mjs" "$app/scripts/"
-cp "$root/docs/MAINTENANCE.md" "$root/docs/THIRD_PARTY_NOTICES.md" "$root/docs/SUBAGENTS.md" "$root/docs/ROLE_MODELS.md" "$app/docs/"
-cp "$root/docs/LICENSE" "$app/"
+bash "$pack/build/stage-linux.sh" "$app"
 cp "$(command -v node)" "$app/node"
 cp "${NODE_LICENSE:?Set NODE_LICENSE to the bundled Node distribution LICENSE}" "$app/NODE-LICENSE"
 npm ci --prefix "$app" --omit=dev --ignore-scripts --no-audit --no-fund

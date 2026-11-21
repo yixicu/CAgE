@@ -2,6 +2,7 @@ import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import {invokeModeratorV45} from './theory-v4-r5.js';
 import {invokeMapMaintenance} from './map-maintenance.js';
 import { Value } from 'typebox/value';
+import { withPiFetch } from './provider-transport.js';
 import type { TheoryRequestV4 } from '../research/versions/v4/moderator.js';
 import { theorySchemasV4 } from '../research/versions/v4/theory-trial.js';
 import { theorySchemasV42 } from '../research/versions/v4/theory-revision2.js';
@@ -68,15 +69,15 @@ export async function invokeModeratorV4(models: ModelRuntime, auth: CAgEAuthMana
     if (signal.aborted) throw new RuntimeError('BUDGET_EXHAUSTED');
     // Some Pi adapters add a thinking allowance up to model.maxTokens. Bound that ceiling too.
     let transportStarted = false;
-    const reply = await models.completeSimple({ ...model, maxTokens }, context, {
-      env: {}, signal, maxTokens, maxRetries: 0,
-      fetch: (input, init) => {
+    const guardedFetch:typeof fetch = (input, init) => {
         if (transportStarted || signal.aborted) throw new RuntimeError('BUDGET_EXHAUSTED');
         transportStarted = true;
         return globalThis.fetch(input, { ...init, redirect: 'error' });
-      },
+    };
+    const reply = await withPiFetch(model.api,guardedFetch,fetch => models.completeSimple({ ...model, maxTokens }, context, {
+      env: {}, signal, maxTokens, maxRetries: 0, fetch,
       reasoning: selection.thinkingLevel === 'off' ? undefined : selection.thinkingLevel ?? 'medium',
-    });
+    }));
     const tokens = reply.usage?.totalTokens, cost = reply.usage?.cost?.total;
     const tokensKnown = Number.isFinite(tokens) && tokens > 0;
     const costKnown = tokensKnown && hasRates && Number.isFinite(cost) && cost >= 0;

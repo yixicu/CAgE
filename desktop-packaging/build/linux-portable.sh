@@ -10,12 +10,7 @@ mkdir -p "$out/linux" "$out/release"
 stage=$(mktemp -d "$out/linux/portable-XXXXXX")
 trap 'rm -rf -- "$stage"' EXIT
 pkg="$stage/Carnot-$version"
-mkdir -p "$pkg/docs" "$pkg/scripts"
-cp -R "$root/app/dist" "$root/app/plugins" "$pkg/"
-cp "$root/app/web/core-preview.json" "$pkg/dist/web/core-preview.json"
-cp "$root/app/package.json" "$root/app/package-lock.json" "$root/desktop-packaging/linux/start.mjs" "$root/docs/LICENSE" "$pkg/"
-cp "$root/app/scripts/subagent-host.mjs" "$root/app/scripts/subagent-session.mjs" "$pkg/scripts/"
-cp "$root/docs/MAINTENANCE.md" "$root/docs/ROLE_MODELS.md" "$root/docs/SUBAGENTS.md" "$root/docs/THIRD_PARTY_NOTICES.md" "$pkg/docs/"
+bash "$root/desktop-packaging/build/stage-linux.sh" "$pkg"
 cat > "$pkg/README.txt" <<'EOF'
 CAgE for Linux — system Node edition
 
@@ -26,8 +21,12 @@ In this extracted directory, run:
   node start.mjs
 
 The first command installs locked production dependencies. The second opens the app
-in your browser. For headless use, run node start.mjs --no-browser.
-To drive research with a Codex session, follow docs/SUBAGENTS.md.
+in your browser. For headless use, run node start.mjs --no-browser and open the
+printed loopback address. Press Ctrl+C to stop. The default workspace is
+$XDG_DATA_HOME/cage or ~/.local/share/cage. Set CARNOT_DATA_DIR to choose another
+workspace. Use writable local storage that supports hard links, such as ext4.
+The basic physics map loads on first launch. To transfer a project map, follow
+docs/MAINTENANCE.md. To drive research with a Codex session, follow docs/SUBAGENTS.md.
 EOF
 name="Carnot-$version-linux-system-node.tar.gz"
 tar --owner=0 --group=0 --mode='u+rwX,go+rX,go-w' -C "$stage" -czf "$stage/$name" "Carnot-$version"

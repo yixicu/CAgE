@@ -40,6 +40,8 @@ pause and ask me.if a choice depends on my preferences,
 
 ### Other ways to install
 
+Choose a writable workspace on a filesystem that supports hard links, such as NTFS on Windows or ext4 on Linux. CAgE uses a hard link to lock the workspace at startup. [Installation notes](desktop-packaging/README.md#install-and-remove)
+
 **Windows desktop.** Download the x64 installer from [Releases](https://github.com/yixicu/CAgE/releases/latest). You can choose to use existing *Nodes and other dependencies*.
 
 **macOS.** ...I dont have a mac :(   will build in the future.

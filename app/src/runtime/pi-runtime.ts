@@ -74,7 +74,7 @@ import { decisionContext } from './task-context.js';
 import { strictProviderModel, structuredOutputPayload } from './structured-output.js';
 import { HANDOFF_VERSION, LEGACY_HANDOFF_VERSION, ContractValidationError } from './strict-schema.js';
 import { ToolArgumentAudit, type ToolArgumentEvidence } from './tool-argument-audit.js';
-import { contextRequestSize,isProviderContextRejection,observeHttpStatus,smallerContextRequest } from './provider-transport.js';
+import { contextRequestSize,copyProviderPayload,isProviderContextRejection,observeHttpStatus,providerTools,smallerContextRequest,withPiFetch } from './provider-transport.js';
 import type { TSchema } from 'typebox';
 import { StrictHandoff, terminalTools, chapterTool, STRICT_INSTRUCTIONS } from './strict-handoff.js';
 import { SUBMIT_RESULT, ROUTE_PLAN } from './stage-contract.js';
@@ -806,18 +806,18 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
           await options?.onResponse?.(response,target);
         }, onPayload: async (payload, target) => {
           try {
-            const before=record.v3Guidance?structuredClone(payload):undefined;
+            const before=record.v3Guidance?copyProviderPayload(payload):undefined;
             const original = await options?.onPayload?.(payload, target) ?? payload;
             if(record.v3Guidance&&(!isDeepStrictEqual(payload,before)||!isDeepStrictEqual(original,before)))throw new RuntimeError('INVALID_CONFIGURATION');
             if(record.v3Guidance&&(options?.signal?.aborted||this.shuttingDown||record.v21OptionalCancelled))throw new RuntimeError('BUDGET_EXHAUSTED');
-            const verifyToolBudget=(value:unknown)=>{if(pendingGuidance){const prose=schemaGuidanceProseV3((value as {tools?:unknown})?.tools);if(prose.reduce((sum,text)=>sum+guidanceCostV3(text),0)>(pendingGuidance.toolLines??0))throw new RuntimeError('INVALID_CONFIGURATION');}};
-            if (record.answerCollector || record.v21Control instanceof ProofControlV3 && record.v21Control.writingManuscript && !(original as {tools?:unknown[]}).tools?.length){verifyToolBudget(original);const limited=limitPayload(original);payloadAdmitted=true;return limited;}
+            const verifyToolBudget=(value:unknown)=>{if(pendingGuidance){const prose=schemaGuidanceProseV3(providerTools(value));if(prose.reduce((sum,text)=>sum+guidanceCostV3(text),0)>(pendingGuidance.toolLines??0))throw new RuntimeError('INVALID_CONFIGURATION');}};
+            if (record.answerCollector || record.v21Control instanceof ProofControlV3 && record.v21Control.writingManuscript && !providerTools(original)?.length){verifyToolBudget(original);const limited=limitPayload(original);payloadAdmitted=true;return limited;}
             const codecs = record.v0Control?.codecs ?? record.v21Control?.codecs ?? record.handoff!.codecs;
             const body=structuredOutputPayload(original, target, codecs,capability,record.handoff?.version ?? HANDOFF_VERSION);
             for(const [name,codec] of codecs)wireSchemas.set(name,structuredClone(codec.schema));
             audit.captureRemoteTools(body);
             verifyToolBudget(body);
-            if(record.learningContinuation&&record.learningDispatch)await record.learningContinuation.payload(record.learningDispatch.id,body);
+            if(record.learningContinuation&&record.learningDispatch)await record.learningContinuation.payload(record.learningDispatch.id,copyProviderPayload(body,false));
             try{admission?.assertCanAdmit();}catch(error){return rejectUnsent(error);}
             const limited=limitPayload(body);
             payloadAdmitted=true;
@@ -835,7 +835,8 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
           record.turns++;
         }
         // No await between the checked authority fence and handing off transport.
-        return stream(proofBudgetV4?{...targetModel,maxTokens}:targetModel,input,streamOptions);
+        return withPiFetch(targetModel.api,streamOptions.fetch!,fetch =>
+          stream(proofBudgetV4?{...targetModel,maxTokens}:targetModel,input,{...streamOptions,fetch}));
       };
       const dispatchCall=async()=>{
         try{return await call();}catch(error){

@@ -16,7 +16,7 @@ const app = join(stage, 'app');
 for (const file of ['package.json','scripts/launch.mjs','scripts/project-map.mjs','scripts/subagent-host.mjs','scripts/subagent-session.mjs','plugins']) {
   cpSync(join(source,file), join(app,file), {recursive:true});
 }
-for (const file of ['MAINTENANCE.md','THIRD_PARTY_NOTICES.md','SUBAGENTS.md','ROLE_MODELS.md']) {
+for (const file of ['MAINTENANCE.md','THIRD_PARTY_NOTICES.md','SUBAGENTS.md','ROLE_MODELS.md','assets/readme/core-map-plane.png']) {
   cpSync(join(root,'docs',file), join(app,'docs',file));
 }
 cpSync(join(root,'docs/LICENSE'), join(app,'LICENSE'));

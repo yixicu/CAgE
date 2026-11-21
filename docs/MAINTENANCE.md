@@ -64,6 +64,27 @@ node scripts/project-map.mjs export $origin $source $mapFolder
 node scripts/project-map.mjs import $origin $target $mapFolder $profileVersion
 ```
 
+On Linux, run the following in the extracted release directory. For a Debian installation, use `cd /opt/carnot-agent-engine` and replace `node` with `./node`. The first Node command lists the V4 project IDs and names. Substitute the chosen IDs, use an unused export path, and point `origin` at the destination instance before looking up its profile version for import.
+
+```sh
+origin=http://127.0.0.1:4327
+node --input-type=module -e 'const b = await (await fetch(process.argv[1] + "/api/bootstrap")).json(); console.table(b.projects.filter(p => p.researchLoopVersion === "4.0").map(({id, name}) => ({id, name})))' "$origin"
+source_id=SOURCE_PROJECT_ID
+target_id=DESTINATION_PROJECT_ID
+map_folder="$HOME/my-project-map"
+node scripts/project-map.mjs export "$origin" "$source_id" "$map_folder"
+profile_version=$(node --input-type=module -e '
+  const [origin, id] = process.argv.slice(1);
+  const {requestToken} = await (await fetch(origin + "/api/bootstrap")).json();
+  const url = new URL("/api/research/knowledge-map", origin);
+  url.searchParams.set("projectId", id);
+  const view = await fetch(url, {headers: {"X-Carnot-Token": requestToken, Origin: origin}});
+  if (!view.ok) throw Error("Map lookup failed: " + view.status);
+  console.log((await view.json()).profile.version);
+' "$origin" "$target_id")
+node scripts/project-map.mjs import "$origin" "$target_id" "$map_folder" "$profile_version"
+```
+
 The export contains `map.json`, `statements/` and `proofs/` with checksums for the text files. Import selects the latest eligible active project-local concepts, theorems and observations, and recreates eligible links between them. Historical versions and source decisions remain in the snapshot. The destination owns the new entries and reviews their evidence and foundation choices. Check imported and skipped counts and open representative proofs. For a retry of the same batch, use the original import arguments. To propose changes to an exported statement, attach its Markdown as a note. Editing the package files in place invalidates their checksums.
 
 If you separately have a **core map** package containing `core-map.mjs`, run the following from that package's directory, using the destination and profile version above.
