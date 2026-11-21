@@ -1,4 +1,5 @@
 import {join} from 'node:path';
+import {extractDocumentText} from '../tools/documents.js';
 import {OperationJournal} from '../runtime/operation-journal.js';
 import {optionalCallIdV21,optionalPinsV21} from '../runtime/v21-optional-recovery.js';
 import {MapReader} from '../research/versions/v4/map-reader.js';
@@ -212,7 +213,7 @@ export function createV21Composition(store:FileResearchStore,learning?:LearningS
       for(const id of usedIds){
         const frozen=sources.find(source=>source.ref.id===id);
         if(!frozen||!current.sources.some(ref=>isDeepStrictEqual(ref,frozen.ref))){invalid.push(id);continue;}
-        try{const bytes=await store.readSource(project.id,frozen.ref);if(bytesHash(bytes)!==frozen.bodyHash)invalid.push(id);}catch{invalid.push(id);}
+        try{const bytes=await store.readSource(project.id,frozen.ref);if(bytesHash(bytes)!==(frozen.originalHash??frozen.bodyHash))invalid.push(id);}catch{invalid.push(id);}
       }return invalid;
     },
     archiveOptionalProof:selection=>archiveOptionalProofV21(store.library,store.rawAnswers,selection),
@@ -221,6 +222,10 @@ export function createV21Composition(store:FileResearchStore,learning?:LearningS
     stopOptionalLearning:async(project)=>{await learning?.pauseOptionalProject(project.id,Math.max(project.epoch,project.activeEpoch?.epoch??0));},
     freezeSources:async project=>Promise.all(project.sources.map(async ref=>{
       const bytes=await store.readSource(project.id,ref);
+      if(project.researchLoopVersion==='4.0' && /\.pdf$/i.test(ref.path)){
+        const body=await extractDocumentText(bytes,ref.path).then(doc=>doc.text,()=>'PDF text unavailable. Inspect the original with read_document.');
+        return {ref:structuredClone(ref),body,bodyHash:bytesHash(Buffer.from(body)),originalHash:bytesHash(bytes)};
+      }
       return {ref:structuredClone(ref),body:Buffer.from(bytes).toString('utf8'),bodyHash:bytesHash(bytes)};
     })),
     invalidateReviewedEvidence:async(project,review)=>invalidateReviewedEvidenceV21(store.library,project,review),

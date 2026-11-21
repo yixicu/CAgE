@@ -2,10 +2,29 @@ import { latexDisplay } from './latex-display';
 import { plainEquations } from './plain-equations';
 import MarkdownIt from 'markdown-it';
 import katex from 'katex';
+import { sourceLabel } from './source-label';
 
 // This is the only HTML-producing boundary in the GUI. Raw document HTML is
 // always escaped; only markdown-it and untrusted-mode KaTeX generate markup.
-const md = new MarkdownIt({ html: false, linkify: false, breaks: false });
+const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
+md.linkify.set({ fuzzyLink: false, fuzzyEmail: false, fuzzyIP: false });
+md.linkify.add('ftp:', null).add('mailto:', null).add('//', null);
+
+export function sourceParts(text: string) {
+  const parts: { text: string; href?: string }[] = [];
+  let offset = 0;
+  for (const match of md.linkify.match(text) ?? []) {
+    if (!/^https?:\/\//i.test(match.raw)) continue;
+    const before = text.slice(offset, match.index);
+    const named = text[match.lastIndex] === ')' && before.match(/\[([^\[\]\n]+)\]\($/);
+    const prefix = named ? before.slice(0, named.index) : before;
+    if (prefix) parts.push({ text: prefix });
+    parts.push({ href: match.url, text: named ? named[1]! : sourceLabel(match.url) });
+    offset = match.lastIndex + (named ? 1 : 0);
+  }
+  if (offset < text.length) parts.push({ text: text.slice(offset) });
+  return parts;
+}
 const math = (source: string, displayMode: boolean) => {
   const renderedSource = latexDisplay(source);
   const html = katex.renderToString(renderedSource, {
@@ -115,6 +134,16 @@ md.block.ruler.before('fence', 'carnot_math_block', (state, startLine, endLine, 
 md.renderer.rules.carnot_math_block = (tokens, index) => `<div class="math-block">${math(tokens[index]!.content, true)}</div>\n`;
 md.renderer.rules.image = (tokens, index) => `<span class="image-placeholder">[Image: ${md.utils.escapeHtml(tokens[index]!.content)}]</span>`;
 md.renderer.rules.link_open = (tokens, index, options, _env, renderer) => {
+  const href = tokens[index]!.attrGet('href');
+  const label = tokens[index + 1];
+  if (typeof href === 'string' && /^https?:\/\//i.test(href)) {
+    tokens[index]!.attrSet('title', tokens[index]!.attrGet('title') || href);
+    if (label?.type === 'text' && tokens[index + 2]?.type === 'link_close' &&
+        (tokens[index]!.info === 'auto' || md.normalizeLink(label.content) === href)) {
+      label.content = sourceLabel(href);
+      tokens[index]!.attrJoin('class', 'source-name');
+    }
+  }
   tokens[index]!.attrSet('rel', 'noopener noreferrer');
   tokens[index]!.attrSet('target', '_blank');
   return renderer.renderToken(tokens, index, options);

@@ -135,3 +135,14 @@
     @apply text-accent;
   }
 }
+
+.source-name {
+  color: var(--color-action);
+  overflow-wrap: anywhere;
+}
+a.source-name {
+  text-decoration: underline;
+  text-decoration-color: var(--color-line-strong);
+  text-underline-offset: 3px;
+}
+a.source-name:hover { text-decoration-color: currentColor; }

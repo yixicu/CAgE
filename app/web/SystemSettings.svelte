@@ -43,13 +43,14 @@
       }} />
     {/key}
   {:else}
+    <PluginSettings projects={bootstrap.projects} />
     <section class="settings-panel"><h2>General</h2>
       <label class="general-row">Workspace notifications<input type="checkbox" checked={$showNotices} onchange={e=>setShowNotices(e.currentTarget.checked)}/></label>
       <div class="general-row"><span>Local storage</span><button onclick={async()=>{storageError='';try{await api.openStorage()}catch{storageError='Could not open the storage folder.'}}}>Open folder</button></div>
       {#if storageError}<p role="alert">{storageError}</p>{/if}
     </section>
     {#if desktopVersion}<DesktopUpdates version={desktopVersion} />{/if}
-    <PluginSettings />
+
   {/if}
 </div>
 

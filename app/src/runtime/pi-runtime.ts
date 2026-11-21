@@ -5,6 +5,7 @@ import {mapContextPresentation} from '../learning/knowledge-map-presentation.js'
 import { stagedOutputReserve, fitStagedWindow, limitProofPayloadV4, proofOutputAllowanceV4 } from './foreground-budget-v4.js';
 import { foregroundBudgetV4 } from '../research/versions/v4/foreground-budget.js';
 import { usesV3Proof } from '../research/versions/v3/proof-version.js';
+import { isFirecrawlTool } from '../plugins/firecrawl.js';
 import {KnowledgeMapTools} from './knowledge-map-tools.js';
 import type {MapReader} from '../research/versions/v4/map-reader.js';
 import {registerSubagentProvider} from './subagent-provider.js';
@@ -366,6 +367,10 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
         // V3 execution is a closed reviewed registry. Existing frozen read tools
         // remain available; plugin code/tools do not become execution authority.
         const reads=new Set(['read_original_answer','read_frozen_source','read_research_resource',SUBMIT_RESULT]);
+        if (spec.loop.researchLoopVersion === '4.0' && spec.role === 'theorist') {
+          reads.add('read_document');
+          for (const tool of tools) if (isFirecrawlTool(tool.name)) reads.add(tool.name);
+        }
         tools.splice(0,tools.length,...tools.filter(tool=>reads.has(tool.name)).map(boundedFrozenReadV3),...v3Tools.tools());
         if(['v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(('brief'in spec.context?spec.context.brief.operationRevision:spec.context.marker.optionalFlow?.operationRevision)??'')){
           const scopedValidator:ToolDefinition|undefined=v3Catalog&&frozen.catalogPin&&'brief'in spec.context?{
@@ -1356,7 +1361,7 @@ function validateBudget(budget: RoleBudget): void {
 function validateTools(tools: ToolDefinition[],v3=false): void {
   const names = new Set<string>();
   for (const tool of tools) {
-    if ((!CORE_TOOLS.has(tool.name) && !(v3&&['execute_registered_operations','retrieve_knowledge','read_operation_artifact','record_research_route'].includes(tool.name)) && !/^plugin_[a-z0-9_]{1,80}$/.test(tool.name)) || names.has(tool.name) || tool.reachesTools || tool.prepareLoadout || (tool.exposure && tool.exposure !== 'direct')) throw new RuntimeError('INVALID_TOOL');
+    if ((!CORE_TOOLS.has(tool.name) && !(v3&&(tool.name === 'read_document' || isFirecrawlTool(tool.name)||['execute_registered_operations','retrieve_knowledge','read_operation_artifact','record_research_route'].includes(tool.name))) && !/^plugin_[a-z0-9_]{1,80}$/.test(tool.name)) || names.has(tool.name) || tool.reachesTools || tool.prepareLoadout || (tool.exposure && tool.exposure !== 'direct')) throw new RuntimeError('INVALID_TOOL');
     names.add(tool.name);
   }
 }

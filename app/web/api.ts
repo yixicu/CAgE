@@ -1,3 +1,4 @@
+import type { SearchProvider } from '../src/shared/search-providers';
 import type { MonitorActivitySnapshot } from '../src/server/monitor-activity';
 import type { InheritedResearchView } from '../src/research/contracts/lineage';
 export type { InheritedResearchView };
@@ -192,10 +193,15 @@ export function subscribeEvents(onEvent: (event: WorkspaceEvent) => void, onConn
 }
 
 export interface PluginView {
+  provider?: SearchProvider; excludedProjects?: string[];
   id: string; name: string; version: string; description: string; requestedCapabilities: string[]; roleScopes: string[];
   installed: boolean; enabled: boolean; grants: { projectId: string; role: string; capabilities: string[] }[];
 }
 export const pluginsApi = {
+  credential: (p: SearchProvider) => request<{configured: boolean}>(`/plugins/${p}/credential`),
+  saveKey: (p: SearchProvider, key: string) => request<{configured: boolean}>(`/plugins/${p}/credential`, 'PUT', { key }),
+  removeKey: (p: SearchProvider) => request<{configured: boolean}>(`/plugins/${p}/credential`, 'DELETE'),
+  selectProvider: (provider: SearchProvider) => request<PluginView[]>('/plugins/firecrawl/provider', 'PUT', {provider}),
   list: () => request<PluginView[]>('/plugins'),
   install: (id: string) => request<PluginView[]>(`/plugins/${segment(id)}/install`, 'POST', {}),
   enable: (id: string) => request<PluginView[]>(`/plugins/${segment(id)}/enable`, 'POST', {}),

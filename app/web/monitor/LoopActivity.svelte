@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SourceText from "../SourceText.svelte";
   import type { AnyResearchProject } from '../../src/research/contracts/loop';
   import type { LoopView } from './loop-view';
   import { researchProgress } from './research-progress';
@@ -17,11 +18,11 @@
     hadOutput = hasOutput;
   });
 </script>
-<section class="my-4 rounded-lg bg-tint/25 px-3 py-2 text-xs" aria-label={`${progress.scope} research progress`}>
+<section class="my-4 rounded-lg border border-line bg-tint/25 px-4 py-3 text-xs" aria-label={`${progress.scope} research progress`}>
   <div class="flex items-center gap-2">
     <button class="group flex min-h-7 min-w-0 flex-1 items-center justify-start gap-2 border-0 p-0 text-left text-xs hover:bg-transparent" type="button" aria-expanded={open} aria-label={`${progress.scope} · Research progress${current && view.live ? ` · ${view.current}` : ''}`} onclick={() => open = !open}>
       <span class="shrink-0 text-muted"><Icon name={open ? 'chevronUp' : 'chevronDown'} size={12} /></span>
-      <span class="min-w-0 text-muted">{progress.scope} · {!open && current && view.live ? view.current : `Research progress${!open && progress.milestones.length ? ` · ${progress.milestones.length}` : ''}`}</span>
+      <span class="min-w-0 text-muted">{progress.scope} · {#if !open && current && view.live}<SourceText text={view.current} interactive={false} />{:else}Research progress{!open && progress.milestones.length ? ` · ${progress.milestones.length}` : ''}{/if}</span>
     </button>
     <MonitorButton onclick={onmonitor} />
   </div>
@@ -32,9 +33,9 @@
           <span class="absolute -left-3.75 top-1.5 h-1.25 w-1.25 rounded-full bg-line-strong" aria-hidden="true"></span>
           <details class="group/milestone min-w-0">
             <summary class="cursor-pointer list-none [&::-webkit-details-marker]:hidden" title={milestone.text}>
-              <span class="line-clamp-2 wrap-anywhere text-xs leading-relaxed group-open/milestone:line-clamp-none"><span class="mr-1.5 text-muted">{milestone.label}</span><span class="text-ink">{milestone.text}</span></span>
+              <span class="line-clamp-2 wrap-anywhere text-xs leading-relaxed group-open/milestone:line-clamp-none"><span class="milestone-label">{milestone.label}</span><span class="text-ink"><SourceText text={milestone.text} /></span></span>
             </summary>
-            {#if milestone.detail}<p class="m-0 mt-1 whitespace-pre-line wrap-anywhere text-xs leading-relaxed text-muted">{milestone.detail}</p>{/if}
+            {#if milestone.detail}<p class="m-0 mt-1 whitespace-pre-line wrap-anywhere text-xs leading-relaxed text-muted"><SourceText text={milestone.detail} /></p>{/if}
           </details>
         </li>
       {/each}
@@ -42,8 +43,12 @@
     {#if current && !progress.saved && (view.live || !hasOutput)}
       <p class="m-0 mt-2 flex items-start gap-2 rounded-control bg-accent/5 px-2 py-1.5 text-xs leading-relaxed" class:text-accent={view.live} class:text-muted={!view.live} role="status" aria-live="polite">
         <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" class:bg-accent={view.live} class:bg-muted={!view.live} aria-hidden="true"></span>
-        <span>{view.stale ? 'Connection unavailable · showing last reported progress' : view.current}{view.control ? ` · ${view.control}` : ''}</span>
+        <span><SourceText text={view.stale ? 'Connection unavailable · showing last reported progress' : view.current} />{view.control ? ` · ${view.control}` : ''}</span>
       </p>
     {:else if !progress.milestones.length}<p class="m-0 mt-2 text-xs text-muted">No saved milestones for this {view.boundary.toLowerCase()}.</p>{/if}
   {/if}
 </section>
+
+<style>
+  .milestone-label { display:block; color:var(--color-muted); font-size:11px; font-weight:600; line-height:1.5 }
+</style>

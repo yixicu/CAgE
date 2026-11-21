@@ -15,7 +15,11 @@ import { applyPresentation } from '../presentation/session-presentation.js';
 import { commandStateProjection } from '../research/user-commands.js';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { lstat, readFile, readdir, realpath, stat } from 'node:fs/promises';
+import { lstat, readFile, readdir, realpath, stat, rm } from 'node:fs/promises';
+import { atomicWrite, exists } from '../storage/atomic.js';
+import { searchProviders, type SearchProvider } from '../shared/search-providers.js';
+import { isFirecrawlTool, providerKeyFile } from '../plugins/firecrawl.js';
+import { documentTools } from '../tools/document-reader.js';
 import { basename, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ServerResponse } from 'node:http';
@@ -124,6 +128,7 @@ export async function createApp(options: AppOptions = {}): Promise<CarnotApp> {
 
 async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: string, active: StorageLocations): Promise<CarnotApp> {
   const dataRoot = active.research;
+  const firecrawlKeyFile = join(anchor, 'credentials', 'firecrawl.key');
   let configured = active;
   let preferences = await readPreferences(anchor);
   const sessionStates = await SessionStates.open(dataRoot);
@@ -158,7 +163,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     endedAttempts: project => project.schemaVersion === 1 ? endedV1Attempts(project) : project.schemaVersion === 2 ? endedV2Attempts(project) : [], onUnavailable: markUnavailable,
   });
   try {
-    plugins = options.plugins ?? await PluginHost.open(dataRoot);
+    plugins = options.plugins ?? await PluginHost.open(dataRoot, firecrawlKeyFile);
     runtime = options.runtime ?? await CAgERuntimeAdapter.create({ appDataDir: join(dataRoot, 'pi'), authRoot: join(anchor, 'pi'), recordsRoot: join(active.system, 'pi'), rawAnswers: store.rawAnswers, rawAnswersV0: store.rawAnswersV0,
       onProgress: progress => activity.observe(progress),
       resolveKnowledgeMap:async spec=>{
@@ -199,11 +204,16 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
         if ('contractVersion' in spec && spec.contractVersion === '2.1') {
           const sources = 'brief' in spec.context ? spec.context.brief.sources.map(source => source.ref) : spec.context.snapshot.sources.map(source => source.ref);
           const gateway = await createResearchTools({ workspaceRoot, sources, readSource: ref => store.readSource(spec.projectId, ref) });
-          return [...createCAgEResearchTools(gateway), ...createV21MemoryTools(spec, store.rawAnswers, store.library), ...plugins.toolsFor(spec.projectId, spec.role)];
+          const granted = plugins.toolsFor(spec.projectId, spec.role).filter(tool => !isFirecrawlTool(tool.name) || spec.loop.researchLoopVersion === '4.0');
+          const context=spec.context;
+          const reading=spec.loop.researchLoopVersion==='4.0' && spec.role==='theorist' && 'snapshot' in context
+            ? documentTools([context.project.originalHypothesis,context.snapshot.root.workingText,...context.project.refinements],context.snapshot.sources,ref=>store.readSource(spec.projectId,ref),granted)
+            : granted;
+          return [...createCAgEResearchTools(gateway), ...createV21MemoryTools(spec, store.rawAnswers, store.library), ...reading];
         }
         const sources = 'brief' in spec.context ? spec.context.brief.frozenSourceRefs : 'snapshot' in spec.context ? spec.context.snapshot.sources : spec.context.project.sources;
         const gateway = await createResearchTools({ workspaceRoot, sources, readSource: ref => store.readSource(spec.projectId, ref) });
-        return [...createCAgEResearchTools(gateway), ...researchMemoryTools(spec, store.library, spec.role === 'theorist' ? await store.readInherited(spec.projectId) : undefined), ...plugins.toolsFor(spec.projectId, spec.role)];
+        return [...createCAgEResearchTools(gateway), ...researchMemoryTools(spec, store.library, spec.role === 'theorist' ? await store.readInherited(spec.projectId) : undefined), ...plugins.toolsFor(spec.projectId, spec.role).filter(tool => !isFirecrawlTool(tool.name))];
       },
     });
   } catch (error) { if (!options.store) await store.close(); throw error; }
@@ -952,6 +962,22 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
   app.post<{ Params: { id: string }; Body: { value: string } }>('/api/providers/oauth/:id/respond', { schema: { params: idParams, body: body({ value: string(16384) }) } }, request => runtime.auth.answerLogin(request.params.id, request.body.value));
   app.delete<{ Params: { id: string } }>('/api/providers/oauth/:id', { schema: { params: idParams } }, request => { runtime.auth.cancelLogin(request.params.id); return { cancelled: true }; });
   app.get('/api/plugins', async () => plugins.discover());
+  for (const provider of Object.keys(searchProviders) as SearchProvider[]) {
+    const keyRoute = '/api/plugins/' + provider + '/credential';
+    const file = providerKeyFile(firecrawlKeyFile, provider);
+    app.get(keyRoute, async () => ({ configured: await exists(file) }));
+    app.put<{ Body: { key: string } }>(keyRoute, { schema: { body: body({ key: string(512) }) } }, async request => {
+      const key = request.body.key.trim();
+      if (!/^[!-~]+$/.test(key)) throw new ApiError(400, 'INVALID_KEY', 'Enter an API key without spaces.');
+      await atomicWrite(file, key);
+      return { configured: true };
+    });
+    app.delete(keyRoute, async () => {
+      await rm(file, { force: true });
+      return { configured: false };
+    });
+  }
+  app.put<{ Body: { provider: SearchProvider } }>('/api/plugins/firecrawl/provider', { schema: { body: body({ provider: { enum: Object.keys(searchProviders) } }) } }, async request => { await plugins.selectProvider(request.body.provider); return plugins.discover(); });
   for (const action of ['install', 'enable', 'disable'] as const) {
     app.post<{ Params: { id: string } }>(`/api/plugins/:id/${action}`, { schema: { params: idParams, body: body({}) } }, async request => { await plugins[action](request.params.id); return plugins.discover(); });
   }

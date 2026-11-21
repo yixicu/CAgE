@@ -56,7 +56,7 @@ export const ReceiptSchemaV21=legacyTagsSchemaV21(obj({...modes,...learning,oper
 export const RootInterpretationSchemaV21=obj(Object.fromEntries(['domain','conditions','symbols','strength','completionCriteria','obligations','returnToRoot'].map(key=>[key,RootSchemaV21.properties[key as keyof typeof RootSchemaV21.properties]])));
 export const PlanSchemaV21=obj({rootInterpretation:opt(RootInterpretationSchemaV21),ways:Type.Array(WaySchemaV21),questions:Type.Array(QuestionSchemaV21),strategy:text,reason:text,selectedResources:refs,rootChange:opt(obj({kind:en(['working','material','new-goal']),sourceCommandId:text,targetText:text,root:RootSchemaV21}))});
 export const CheckSchemaV21=obj({...learning,decisions:Type.Array(DecisionSchemaV21),wayDecisions:Type.Array(obj({wayId:text,status:en(['active','deferred','pruned']),reason:text})),closures:Type.Array(ClosureSchemaV21),rootSupport:Type.Union([obj({kind:Type.Literal('closure'),wayId:text}),obj({kind:Type.Literal('explicit'),obligations:Type.Array(SupportSchemaV21)})]),decision:en(['continue','pause','complete']),reason:text,summary:Type.String()});
-const frozenSource=obj({ref:source,body:Type.String(),bodyHash:hash});
+const frozenSource=obj({ref:source,body:Type.String(),bodyHash:hash,originalHash:opt(hash)});
 const resultContract=Type.Literal('scoped-refutation-v1');
 import {ScientificMapReadSchemaV4} from '../v4/map-evidence-schema.js';
 import {scientificMapChangesSchema,legacyScientificMapChangesSchema} from '../v4/scientific-map-write.js';

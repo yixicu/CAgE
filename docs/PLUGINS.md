@@ -4,6 +4,15 @@ CAgE loads trusted TypeScript factories from a catalog compiled into the applica
 
 ## Start from the existing extension points
 
+### Web search
+
+The V4 foreground Theorist can use `read_document` without installing a search provider or entering a key. Paste a public HTTP(S) URL in the question, or upload a PDF. The reader accepts those sources, links in delivered web text and results from an authorized web search. It returns text with continuation offsets, supports passage lookup, and reads PDFs by physical page. For ambiguous equations or layouts a vision-capable model can request an image of the original page. Direct reads contact the origin and run locally, support static HTML, plain text and PDF, and limit downloads to 20 MiB. Login sessions and JavaScript rendering are outside this reader.
+
+In **Settings → Plugins & general**, install **Web search**, choose Firecrawl, Tavily or Exa, and follow **Get an API key**. Save the key and enable the plugin. Each provider offers a free tier and maintains its own credit limits. Only the selected provider receives search queries and URLs opened with `open_web_result`. Each provider has a separate locally stored key.
+
+Enabling search gives the foreground Theorist access in existing and future V4 projects. Expand **Project exceptions** and check a project to disable its search access. Changing providers or excluding a project revokes affected tool handles. Direct URL and PDF reading remains available independently.
+ Settings expose only whether a key is saved. Use **Remove key** to clear it. The backend reads the current key on each call. A missing or rejected key, quota error, timeout, or provider outage returns an ordinary “Web search is temporarily unavailable” tool result so the Theorist can continue. Successful reads include the URL, access time, and up to 16,000 characters of source text. Search again after a restart or a new grant to reopen a result.
+
 | Source | What to look for |
 | --- | --- |
 | [Host and interfaces](../app/src/plugins/index.ts) | `TrustedPlugin`, `ScopedPluginApi`, manifest and grant validation, catalog, activation and revocation |
@@ -17,6 +26,7 @@ A manifest has exactly seven fields. Use a unique `id` matching `^[a-z0-9-]{1,64
 
 | Capability | API and consumption |
 | --- | --- |
+| `tool.firecrawl-search` | The bundled web search plugin supplies `web_search` and `open_web_result` to the authorized V4 foreground Theorist. |
 | `tool.text-statistics` | `registerTool(capability, tool)` accepts only the reviewed tool named `text_statistics`. Its parameter is `{text: string}`, limited to 200,000 UTF-16 code units by the implementation. It returns counts under `details` and as JSON in a text content block. |
 | `retrieval.read` | `registerRetriever({name, retrieve})` registers an async query function returning records with `sourceId`, `locator` and `text`. The host exposes these through `retrieversFor(projectId, role)`. The application currently has no consumer for this list. |
 | `events.read` | `subscribeEvents(handler)` delivers cloned project research events. A role grant authorizes a subscription, but the delivery filter matches the project ID only. A listener can receive events concerning other roles in that project. Settings-change events are excluded. |
@@ -57,7 +67,7 @@ export const eventCounter: TrustedPlugin = {
 
 ## Install, grant and revoke
 
-In **Settings → Plugins & general**, install the bundled plugin and enable it. Use the local API to grant a project and role access. The settings panel currently offers install, enable, disable and uninstall controls.
+In **Settings → Plugins & general**, install the bundled plugin and enable it. The web search plugin provides project exceptions there. For the example plugin use the local API to grant a project and role access.
 
 Use the running application's local origin. Read `requestToken` from `GET /api/bootstrap` and send it in `x-carnot-token` on subsequent API requests. Use an existing project ID from `GET /api/projects`. Successful plugin routes return an array containing each catalog entry's manifest, `installed`, `enabled` and `grants`.
 

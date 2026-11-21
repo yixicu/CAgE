@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SourceText from "../SourceText.svelte";
   import type { UserCommand } from '../../src/engine/types';
   import type { AnyResearchProject } from '../../src/research/contracts/loop';
   import type { MonitorActivitySnapshot } from '../../src/server/monitor-activity';
@@ -54,7 +55,7 @@
         <li class="m-0 min-w-0">
           <details class="group/modification my-0 min-w-0 rounded-control border border-line bg-canvas" data-modification-id={entry.id} ontoggle={event => expanded[entry.id] = event.currentTarget.open}>
             <summary class="min-w-0 list-none p-2 text-xs text-ink [&::-webkit-details-marker]:hidden" title={`#${index + 1} · ${entry.createdAt}`}>
-              <span class="line-clamp-2 wrap-anywhere whitespace-pre-wrap leading-relaxed group-open/modification:hidden"><span class={`mr-1.5 inline-block rounded-full px-1.5 py-0.5 align-baseline text-micro font-medium leading-none ${statusClasses[entry.status]}`} title={entry.detail ?? statusDescriptions[entry.status]}>{entry.status}</span>{entry.content}</span>
+              <span class="line-clamp-2 wrap-anywhere whitespace-pre-wrap leading-relaxed group-open/modification:hidden"><span class={`mr-1.5 inline-block rounded-full px-1.5 py-0.5 align-baseline text-micro font-medium leading-none ${statusClasses[entry.status]}`} title={entry.detail ?? statusDescriptions[entry.status]}>{entry.status}</span><SourceText text={entry.content} /></span>
               <span class="hidden min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 group-open/modification:flex">
                 <span class={`inline-flex shrink-0 rounded-full px-1.5 py-0.5 text-micro font-medium leading-tight ${statusClasses[entry.status]}`} title={entry.detail ?? statusDescriptions[entry.status]}>{entry.status}</span>
                 <span class="text-micro tabular-nums text-muted">#{index + 1}</span>

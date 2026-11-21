@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Bootstrap, ResearchProject } from './api';
   import type { ModelSelection } from '../src/engine/types';
+  import MarkdownView from './MarkdownView.svelte';
+  import { sourceParts } from './markdown';
+  import { tick } from 'svelte';
   import Icon from './Icon.svelte';
   import ModelTools from './AgentModelMenu.svelte';
   import ResearchModeSelect from './ResearchModeSelect.svelte';
@@ -22,7 +25,16 @@
   let modeEnabled = $derived($developerMode || !project || !researchModeLocked(project) || (project.schemaVersion === 3 && ['3.0','4.0'].includes(project.researchLoopVersion)));
   let number = $derived(currentResearchNumber(project));
   let input = $state<HTMLTextAreaElement>();
+  let editing = $state(false);
+  let draft = $derived(project ? refinement : hypothesis);
+  let sources = $derived(sourceParts(draft).filter(part => part.href));
+  async function editDraft() {
+    editing = true;
+    await tick();
+    focusInput(true);
+  }
   export function focusInput(moveCursorToEnd = false) {
+    if (!input && sources.length && !editing) { void editDraft(); return; }
     input?.focus({ preventScroll: true });
     if (input && moveCursorToEnd) input.setSelectionRange(input.value.length, input.value.length);
   }
@@ -45,8 +57,19 @@
       {#if project && queuedCount > 0}
         <button class="mt-0.75 min-h-0 shrink-0 rounded-small border border-accent/60 bg-accent/10 px-2 py-0.5 text-sm font-normal leading-5 text-accent hover:bg-accent/5 max-[600px]:text-control" type="button" aria-label={`View ${queuedCount} queued submission${queuedCount === 1 ? '' : 's'}`} title="View submitted inputs waiting for planning" onclick={onqueuehistory}>{queuedCount === 1 ? 'Queue' : `Queue: ${queuedCount}`}</button>
       {/if}
-      <textarea class={`min-w-0 flex-1 ${project ? 'text-sm max-[600px]:text-control' : ''}`} bind:this={input} aria-label={project?.researchLoopVersion === '4.0' ? 'Discuss or revise the proposition' : project ? 'Modify hypothesis' : 'Research hypothesis'} aria-describedby={project ? 'hypothesis-modification-hint' : undefined} value={project ? refinement : hypothesis} oninput={event => { if (project) refinement = event.currentTarget.value; else hypothesis = event.currentTarget.value; }} rows="2" placeholder={project?.researchLoopVersion === '4.0' ? 'Continue the argument, challenge a result, or revise the proposition…' : project ? 'Modify hypothesis…' : 'State your hypothesis…'} onkeydown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}></textarea>
+      {#if sources.length && !editing}
+        <div class="draft-preview"><div class="draft-body"><MarkdownView content={draft} /></div>
+          <button type="button" class="icon-button" title="Edit source text" aria-label="Edit source text" onclick={editDraft}><Icon name="edit" size={15} /></button>
+        </div>
+      {:else}
+      <textarea onfocus={() => editing = true} onblur={() => editing = false} class={`min-w-0 flex-1 ${project ? 'text-sm max-[600px]:text-control' : ''}`} bind:this={input} aria-label={project?.researchLoopVersion === '4.0' ? 'Discuss or revise the proposition' : project ? 'Modify hypothesis' : 'Research hypothesis'} aria-describedby={project ? 'hypothesis-modification-hint' : undefined} value={project ? refinement : hypothesis} oninput={event => { if (project) refinement = event.currentTarget.value; else hypothesis = event.currentTarget.value; }} rows="2" placeholder={project?.researchLoopVersion === '4.0' ? 'Continue the argument, challenge a result, or revise the proposition…' : project ? 'Modify hypothesis…' : 'State your hypothesis…'} onkeydown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}></textarea>
+      {/if}
     </div>
+    {#if editing && sources.length}
+      <div class="draft-links" aria-label="Pasted links"><Icon name="link" size={14} />
+        {#each [...new Map(sources.map(part => [part.href, part])).values()] as source}<span title={source.href}>{source.text}</span>{/each}
+      </div>
+    {/if}
     {#if project}<span id="hypothesis-modification-hint" class="visually-hidden">Edit the hypothesis or describe a change for the Theorist. Your submission waits for planning at the next safe {project.schemaVersion === 1 ? 'round' : 'Epoch'} boundary; it does not immediately replace the current hypothesis. When idle, use Start or Continue to begin planning.</span>{/if}
     <div class="composer-toolbar border-line/50"><div class="inline-actions flex-wrap">
       <button class="icon-button" type="button" aria-label="Attach sources" title="Attach Markdown, text, or PDF sources" disabled={active || busy} onclick={onattach}><Icon name="plus" /></button>
@@ -67,3 +90,11 @@
     </div></div>
   </form>
 </div>
+
+<style>
+  .draft-preview { display:flex; gap:12px; width:100%; min-height:3.2rem; align-items:flex-start }
+  .draft-body { flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere }
+  .draft-body :global(p) { margin:0; font-size:inherit }
+  .draft-links { display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--color-action); margin:4px 0 8px }
+  .draft-links span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 8px; border-radius:5px; background:var(--color-tint); font-size:12px }
+</style>
