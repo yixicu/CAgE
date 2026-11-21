@@ -296,9 +296,17 @@ export class ResearchEngine {
           }
           project.frontier.sort(compareFrontier);
           if (project.config.literatureEnabled && !planningControl.pause) {
+            const sourceIds = new Set(project.sources.map(source => source.id));
             const output = await this.optional(project, 'literature', { task: 'literature', input: { project: promptProject(project, endedAttempts(project)) } });
             if (output !== undefined) {
-              try { const literature = parseLiterature(output); for (const card of literature.evidence) { card.citation.verified = false; if (!project.evidence.some((existing) => JSON.stringify(existing) === JSON.stringify(card))) project.evidence.push(card); } }
+              try {
+                const literature = parseLiterature(output);
+                if (literature.evidence.some(card => !sourceIds.has(card.citation.sourceId))) throw Error('Citation outside the Literature session grants.');
+                for (const card of literature.evidence) {
+                  card.citation.verified = false;
+                  if (!project.evidence.some(existing => JSON.stringify(existing) === JSON.stringify(card))) project.evidence.push(card);
+                }
+              }
               catch { this.emit(project, 'research.warning', { message: 'Malformed optional literature evidence was ignored.' }); }
             }
           }

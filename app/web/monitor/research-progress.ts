@@ -129,5 +129,11 @@ export function researchProgress(project: AnyResearchProject, number = currentRe
   }
   if (saved) milestones.push({ id: 'checkpoint', label: 'Checkpoint saved', text: `${scope} findings preserved` });
   // Repeated references are one observation, never extra progress.
-  return { scope, saved, milestones: milestones.filter((entry, index) => milestones.findIndex(other => other.id === entry.id) === index) };
+  const seen = new Set<string>();
+  const firstOccurrences = milestones.filter(entry => {
+    if (seen.has(entry.id)) return false;
+    seen.add(entry.id);
+    return true;
+  });
+  return { scope, saved, milestones: firstOccurrences };
 }

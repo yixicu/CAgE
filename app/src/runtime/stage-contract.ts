@@ -13,7 +13,7 @@ type S = TSchema & {type?:string;properties?:Record<string,TSchema>;required?:st
 export const SUBMIT_RESULT = 'submit_research_result';
 export const ROUTE_PLAN = 'select_planning_routing';
 const strings=(values:string[])=>Type.String({enum:[...new Set(values)]});
-export interface ContractContext { contractVersion?: HandoffVersion; projectId?: string; invocation:AnyAgentInvocation | {task:'research_learn';input:{outputSchema:TSchema}}; documents?:ProofDocumentSession; routing?:unknown; resources?:{id:string;version:number}[]; proofs?:any[]; attempts?:{id:string;version:string}[] }
+export interface ContractContext { contractVersion?: HandoffVersion; projectId?: string; invocation:AnyAgentInvocation | {task:'research_learn';input:{outputSchema:TSchema}}; literatureSources?:readonly {id:string}[]; documents?:ProofDocumentSession; routing?:unknown; resources?:{id:string;version:number}[]; proofs?:any[]; attempts?:{id:string;version:string}[] }
 
 function chapterPurpose(path: string): ChapterPurpose {
   if (/^\/(ways|candidates)\/\*\/dependencyChapters\/\*$/.test(path)) return 'prerequisite';
@@ -41,7 +41,9 @@ export function projectContract(source:TSchema, context:ContractContext, version
   const snapshot=input.snapshot;
   const boundary=snapshot?.researchBoundary??input.researchBoundary??input.boundary;
   const resources=[...(boundary?.skills??[]),...(boundary?.strategies??[]),...(context.resources??[])];
-  const sources=snapshot?.sources??input.brief?.frozenSourceRefs??input.sources??[];
+  const sources=context.invocation.task==='literature'
+    ? context.literatureSources??[]
+    : snapshot?.sources??input.brief?.frozenSourceRefs??input.sources??[];
   const taskIds=[...(input.attemptIndex??[]),...(input.tasks??[])].map((x:any)=>x.id);
   let unavailableManuscript=false;
   const boundFields=new Map<string,Record<string,unknown>>();

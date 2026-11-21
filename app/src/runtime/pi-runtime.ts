@@ -1034,6 +1034,8 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       }
       if(Object.values(draft.state.operationReceipts??{}).some(receipt=>receipt.status!=='completed'))throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
       record.handoff=new StrictHandoff({invocation,documents:record.documents,contractVersion:HANDOFF_VERSION,projectId:record.spec.projectId,
+        ...(invocation.task==='literature' && record.spec.role==='literature' && 'project' in record.spec.context
+          ? {literatureSources:record.spec.context.project.sources} : {}),
         proofs:invocation.task==='research_learn'?learningProofGrants(invocation.input):(record.inherited?.proofs??[]).map(ref=>({ref})),
       },draft,accept,Boolean(record.v3Guidance && isLearningSpec(record.spec) && ['compact-english-v6','compact-english-v7','compact-english-v8','compact-english-v9','compact-english-v10','compact-english-v11','compact-english-v12','compact-english-v13','compact-english-v14'].includes(record.spec.context.learning.promptRevision??'') && record.spec.context.learning.resourceReadGrants?.recipe==='frozen-learning-resources-v1'),
       Boolean(record.v3Guidance && isLearningSpec(record.spec) && ['compact-english-v8','compact-english-v9','compact-english-v10','compact-english-v11','compact-english-v12','compact-english-v13','compact-english-v14'].includes(record.spec.context.learning.promptRevision??'') && record.spec.context.learning.purpose==='v2-strategy'),invocation.task==='research_learn'&&invocation.input.nativeHandoff==='native-handoff-v1');
