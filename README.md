@@ -4,7 +4,7 @@
 
 <h1 align="center">Carnot Agent Engine (CAgE)</h1>
 
-CAgE is a workspace specially designed to prove hypothesis and give report in human-understandable way. It start and trace back to "facts" that one admit, and prefer extending derivation with existing knowledge in ones own database.
+CAgE is a desktop agent system specially designed to prove logical hypothesis (in natural science areas) and give report in human-understandable way. It start and trace back to "facts" that one admit, and prefer formating derivation with existing knowledge in ones own database.
 
 ## Why I made it
 
