@@ -2,6 +2,14 @@
 
 Open **Maintenance Assistant** in the sidebar. Select a project for its saved rounds and V4 knowledge map, or **Shared library & Core map** for shared scientific nodes, Skills and Strategies. When installed, the Core map is imported once and is available to Theorists and their Workers. Opening a supplied argument does not accept it as a foundation. Choose a connected model. Leave **Allow changes** clear to inspect records or preview an edit. To apply a proposal, stay in the same scope, check **Allow changes**, and send a new instruction. The checkbox resets after submission and when you change scope.
 
+## Explore the Core map
+
+In the left sidebar, select **Knowledge** beside **cages**. With the optional basic physics map installed, the toolbar shows **Core map**. Use **Search titles** to find a node, or narrow the view by scientific field or node type. For example, search for `Hamilton` and use **Next match** to move between the particle Hamiltonian and Hamilton’s equations.
+
+![Planar Core map with the scalar-potential particle Hamiltonian highlighted among other quantum mechanics entries.](assets/readme/core-map-plane.png)
+
+Select a node to read its statement and any recorded assumptions or proof. Use the **Plane ⇄** button to switch to the spherical view. To look for a newer revision of the bundled map, open **Settings → Plugins & general → Core map updates**.
+
 ## Diagnose a project or recover an interrupted turn
 
 Select the project and ask “What happened in epoch 3? Show the failed call, its recorded error category and the public report, if available.” The assistant can read saved round outcomes, the project's last error, recent learning jobs, and V4 research-review and map-maintenance task statuses. A numbered epoch exposes its recorded call statuses and public reports. Ask the Theorist to solve or refute a new proposition.
