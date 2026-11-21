@@ -46,6 +46,8 @@ import { ProofDocumentSession, PROOF_DOCUMENT_INSTRUCTIONS, WORKER_DOCUMENT_INST
 import type { ProofRef } from '../learning/research-data.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { registerPublicCatalog } from './public-model-catalog.js';
+import { existsSync } from 'node:fs';
 import { appendFile, lstat, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { createAgentSession, ModelRuntime, SessionManager, SettingsManager, type AgentSession as PiSession, type ToolDefinition } from '@earendil-works/pi-coding-agent';
@@ -235,11 +237,18 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
     const root = await privateDirectory(resolve(options.appDataDir));
     const authRoot = options.authRoot ? await privateDirectory(options.authRoot) : root;
     const authDir = await privateDirectory(join(authRoot, 'auth'), authRoot);
+    const catalogCache = join(authDir, 'models-cache.json');
     const models = options.modelRuntime ?? await ModelRuntime.create({
-      authPath: join(authDir, 'auth.json'), modelsPath: join(authDir, 'models.json'), modelsStorePath: join(authDir, 'models-cache.json'),
+      authPath: join(authDir, 'auth.json'), modelsPath: join(authDir, 'models.json'), modelsStorePath: catalogCache,
       allowModelNetwork: false, refreshOnCreate: false,
     });
-    if (!options.modelRuntime) registerSubagentProvider(models);
+    if (!options.modelRuntime) {
+      registerSubagentProvider(models);
+      if (existsSync(catalogCache)) {
+        for (const credential of await models.listCredentials()) registerPublicCatalog(models, credential.providerId);
+        await models.refresh({ allowNetwork: false });
+      }
+    }
     const auth = await CAgEAuthManager.create(models, authDir);
     return new CAgERuntimeAdapter(options, models, auth, root);
   }

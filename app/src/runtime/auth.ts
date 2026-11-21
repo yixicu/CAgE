@@ -1,4 +1,5 @@
 import './oauth-branding.js';
+import { registerPublicCatalog } from './public-model-catalog.js';
 import { checkSubagentHost } from './subagent-provider.js';
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import type { AuthEvent, AuthPrompt, AuthType } from '@earendil-works/pi-ai';
 import { RuntimeError } from './errors.js';
 
-export interface ProviderView { id: string; name: string; apiKey: boolean; oauth: boolean; connected: boolean; credentialType?: AuthType }
+export interface ProviderView { id: string; name: string; apiKey: boolean; oauth: boolean; catalogRefreshSupported: boolean; connected: boolean; credentialType?: AuthType }
 export interface ModelView { provider: string; id: string; name: string; reasoning: boolean; contextWindow: number; maxTokens: number }
 export interface LoginView {
   id: string; provider: string; type: AuthType;
@@ -20,6 +21,7 @@ interface LoginRecord { view: LoginView; controller: AbortController; timer: Ret
 
 /** Backend-only facade over Pi's supported auth flows and official plaintext credential store. */
 export class CAgEAuthManager {
+  private readonly catalogRequests = new Map<string, Promise<number>>();
   private readonly logins = new Map<string, LoginRecord>();
   private constructor(private readonly models: ModelRuntime, private readonly authDir: string, private readonly deviceId: string) {}
   static async create(models: ModelRuntime, authDir: string): Promise<CAgEAuthManager> {
@@ -34,11 +36,29 @@ export class CAgEAuthManager {
     const credentials = new Map((await this.models.listCredentials()).map(item => [item.providerId, item.type]));
     return this.models.getProviders().map(provider => ({ id: provider.id, name: provider.name,
       apiKey: !!provider.auth.apiKey?.login, oauth: !!provider.auth.oauth,
+      catalogRefreshSupported: !!provider.refreshModels,
       connected: credentials.has(provider.id), ...(credentials.has(provider.id) ? { credentialType: credentials.get(provider.id)! } : {}),
     }));
   }
   listModels(provider?: string): ModelView[] {
     return this.models.getModels(provider).map(model => ({ provider: model.provider, id: model.id, name: model.name, reasoning: model.reasoning, contextWindow: model.contextWindow, maxTokens: model.maxTokens }));
+  }
+  async refreshModelCatalog(provider: string): Promise<number> {
+    if (!this.models.getProvider(provider)?.refreshModels) throw new RuntimeError('MODEL_CATALOG_UNSUPPORTED');
+    if (!(await this.hasStoredCredential(provider))) throw new RuntimeError('AUTH_REQUIRED');
+    if (process.env.PI_OFFLINE !== undefined) throw new RuntimeError('MODEL_CATALOG_OFFLINE');
+    const pending = this.catalogRequests.get(provider);
+    if (pending) return pending;
+    registerPublicCatalog(this.models, provider);
+    const request = this.models.refresh({ providers: [provider], force: true, allowNetwork: true, signal: AbortSignal.timeout(20000) })
+      .then(result => {
+        if (result.aborted || result.errors.has(provider)) throw new RuntimeError('MODEL_CATALOG_FAILED');
+        return this.models.getModels(provider).length;
+      })
+      .catch(() => { throw new RuntimeError('MODEL_CATALOG_FAILED'); })
+      .finally(() => this.catalogRequests.delete(provider));
+    this.catalogRequests.set(provider, request);
+    return request;
   }
   async hasStoredCredential(provider: string): Promise<boolean> { return (await this.models.listCredentials()).some(item => item.providerId === provider); }
   private assertMethod(provider: string, type: AuthType): void {

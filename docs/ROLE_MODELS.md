@@ -2,6 +2,8 @@
 
 Open Settings → Models & connections and connect the providers you want to use. Choose a model and, for models that support it, a thinking level. Save models stores the workspace defaults. New V4 sessions and explicit start boundaries copy these settings. An epoch keeps its frozen selections across restart and recovery. Changes to workspace settings apply at the next eligible boundary.
 
+Choose a connected provider and click **Refresh model list** to update its catalog. The first run uses the bundled Pi list. Later launches restore refreshed model descriptors from local storage. Built-in providers such as Anthropic, Google, OpenAI, DeepSeek and xAI load compatible chat entries from the public Pi catalog. CAgE sends no account key to this directory. Providers check model access when called. OpenRouter retains Pi’s key-specific filtering, and Radius uses its own discovery mechanism.
+
 | Setting | Work performed | Inherits from |
 | --- | --- | --- |
 | Theorist | Main research, tool use, routing, judgments and the final public report | CAgE default model |

@@ -1,5 +1,5 @@
 /** Stable public errors. Never attach provider exceptions, request bodies, keys or causes. */
-export type RuntimeErrorCode = 'SCIENTIFIC_STEP_REJECTED' | 'INSUFFICIENT_PERMISSION' | 'OPERATION_RECONCILIATION_REQUIRED' | 'TOOL_PROTOCOL_FAILED' | 'STRICT_REQUEST_REJECTED' | 'STRICT_OUTPUT_UNSUPPORTED' | 'STRICT_SCHEMA_UNSUPPORTED' | 'MODEL_REQUIRED' | 'MODEL_UNAVAILABLE' | 'AUTH_REQUIRED' | 'AUTH_FAILED' | 'AUTH_UNSUPPORTED' | 'AUTH_CANCELLED' | 'AUTH_INPUT_REQUIRED' | 'INVALID_CONFIGURATION' | 'INVALID_TOOL' | 'INVALID_OUTPUT' | 'SESSION_NOT_FOUND' | 'SESSION_BUSY' | 'PROVIDER_FAILED' | 'BUDGET_EXHAUSTED' | 'BUDGET_UNAVAILABLE' | 'CONTEXT_EXHAUSTED' | 'TOOL_FAILED';
+export type RuntimeErrorCode = 'MODEL_CATALOG_FAILED' | 'MODEL_CATALOG_OFFLINE' | 'MODEL_CATALOG_UNSUPPORTED' | 'SCIENTIFIC_STEP_REJECTED' | 'INSUFFICIENT_PERMISSION' | 'OPERATION_RECONCILIATION_REQUIRED' | 'TOOL_PROTOCOL_FAILED' | 'STRICT_REQUEST_REJECTED' | 'STRICT_OUTPUT_UNSUPPORTED' | 'STRICT_SCHEMA_UNSUPPORTED' | 'MODEL_REQUIRED' | 'MODEL_UNAVAILABLE' | 'AUTH_REQUIRED' | 'AUTH_FAILED' | 'AUTH_UNSUPPORTED' | 'AUTH_CANCELLED' | 'AUTH_INPUT_REQUIRED' | 'INVALID_CONFIGURATION' | 'INVALID_TOOL' | 'INVALID_OUTPUT' | 'SESSION_NOT_FOUND' | 'SESSION_BUSY' | 'PROVIDER_FAILED' | 'BUDGET_EXHAUSTED' | 'BUDGET_UNAVAILABLE' | 'CONTEXT_EXHAUSTED' | 'TOOL_FAILED';
 const messages: Record<RuntimeErrorCode, string> = {
   OPERATION_RECONCILIATION_REQUIRED: 'A prior save may have taken effect without a durable receipt. Saved work is preserved; reconcile this operation before retrying it.',
   TOOL_PROTOCOL_FAILED: 'The model returned an incomplete or unsupported tool-call batch. Saved work remains available; no scientific conclusion was assigned.',
@@ -7,6 +7,9 @@ const messages: Record<RuntimeErrorCode, string> = {
   STRICT_OUTPUT_UNSUPPORTED: 'This provider or endpoint does not support the required strict research contract. Automatic execution was blocked; no JSON-mode fallback is allowed.',
   STRICT_SCHEMA_UNSUPPORTED: 'The selected strict provider cannot represent this task or tool schema. Automatic execution was blocked before dispatch.',
   MODEL_REQUIRED: 'Choose a provider and model before starting research.',
+  MODEL_CATALOG_UNSUPPORTED: 'This provider does not offer a refreshable model catalog.',
+  MODEL_CATALOG_OFFLINE: 'Model catalog refresh is disabled by PI_OFFLINE.',
+  MODEL_CATALOG_FAILED: 'Could not refresh the model catalog. Your saved model selection is unchanged. Try again when connected.',
   MODEL_UNAVAILABLE: 'The selected model is unavailable. Choose an available model explicitly.',
   AUTH_REQUIRED: 'Connect the selected provider in settings before starting research.',
   AUTH_FAILED: 'Provider sign-in or credential storage failed. Check provider settings and try again.',

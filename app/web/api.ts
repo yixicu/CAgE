@@ -27,7 +27,7 @@ export interface LearningTaskView { name?:string;createdAt?:string; id: string; 
 export interface LearningView { tasks: LearningTaskView[] }
 export interface ConnectionReview { id: string; resource: { id: string; version: number }; status: 'queued' | 'running' | 'completed' | 'no-change' | 'failed' | 'paused'; message?: string; coverage?: { candidateCount: number; includedCount: number; omittedCount: number } }
 export interface ModelDescriptor { provider: string; id: string; name: string; reasoning: boolean }
-export interface ProviderStatus { id: string; name: string; configured: boolean; oauthSupported: boolean; apiKeySupported?: boolean }
+export interface ProviderStatus { id: string; name: string; configured: boolean; oauthSupported: boolean; catalogRefreshSupported?: boolean; apiKeySupported?: boolean }
 export interface UnavailableProject { id: string; name?: string; code: 'PROJECT_UNAVAILABLE'; message: string }
 export interface StorageLocations { system: string; research: string }
 export interface StorageSettings { active: StorageLocations; configured: StorageLocations }
@@ -149,6 +149,7 @@ export const api = {
   },
   saveKey: (provider: string, key: string) => request<ProviderStatus[]>('/providers/key', 'POST', { provider, key }),
   disconnect: (provider: string) => request<ProviderStatus[]>(`/providers/${segment(provider)}`, 'DELETE'),
+  refreshModelCatalog: (provider: string) => request<{count: number}>(`/providers/${segment(provider)}/models/refresh`, 'POST', {}),
   beginOAuth: (provider: string, type: 'oauth' | 'api_key' = 'oauth', method?: 'browser' | 'device_code') => request<OAuthFlow>('/providers/oauth', 'POST', { provider, type, method }),
   oauth: (id: string) => request<OAuthFlow>(`/providers/oauth/${segment(id)}`),
   answerOAuth: (id: string, value: string) => request<OAuthFlow>(`/providers/oauth/${segment(id)}/respond`, 'POST', { value }),

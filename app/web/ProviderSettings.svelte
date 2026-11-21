@@ -16,6 +16,7 @@
   let selected = $state('');
   let key = $state('');
   let busy = $state(false);
+  let refreshingCatalog = $state(false);
   let error = $state('');
   let message = $state('');
   let flow = $state<OAuthFlow | undefined>();
@@ -80,6 +81,20 @@
         {#if provider.configured}<button type="button" class="danger-text" disabled={busy || !!flow && !terminal(flow.status)} onclick={() => run(async () => { await api.disconnect(selected); await onchange(); message = 'Provider disconnected for all CAgE projects.'; })}>Disconnect</button>{/if}
       </div>
     </form>
+    {#if provider.configured && provider.catalogRefreshSupported}
+      <div class="catalog-setting">
+        <div><strong>Model catalog</strong><p>Starts with Pi’s bundled list. A manual refresh saves the latest catalog for future sessions.</p></div>
+        <button type="button" disabled={busy || !!flow && !terminal(flow.status)} onclick={() => run(async () => {
+          refreshingCatalog = true;
+          try {
+            const name = provider!.name;
+            const { count } = await api.refreshModelCatalog(selected);
+            await onchange();
+            message = `${name} catalog refreshed · ${count} models available for selection.`;
+          } finally { refreshingCatalog = false; }
+        })}>{refreshingCatalog ? 'Refreshing…' : 'Refresh model list'}</button>
+      </div>
+    {/if}
   {/if}
   {#if flow}
     <div class="oauth-box">
@@ -121,3 +136,9 @@
   </form>
   <LearningFallbackSettings {preferences} {models} {onchange} />
 </section>
+
+<style>
+  .catalog-setting {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--color-line)}
+  .catalog-setting strong {font-size:13px}
+  .catalog-setting p {font-size:12px;color:var(--color-muted);margin:3px 0}
+</style>

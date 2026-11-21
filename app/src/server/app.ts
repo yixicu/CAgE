@@ -70,7 +70,7 @@ import { SessionStates, type SessionState } from './session-state.js';
 
 import { openProviderBrowser } from './provider-browser.js';
 
-export interface ApplicationRuntime extends AnyAgentRuntime, Partial<LearningRuntime> { runMaintenance?(request:MaintenanceRequest):Promise<string>; auth: Pick<CAgEAuthManager, 'listProviders' | 'listModels' | 'saveApiKey' | 'startLogin' | 'getLogin' | 'answerLogin' | 'cancelLogin' | 'logout'>; invokeTheoryV4?(request:TheoryRequestV4):Promise<unknown>; hasForegroundInvocation?(): boolean; canQueueBackgroundLearning?(): boolean; shutdown(): Promise<void> }
+export interface ApplicationRuntime extends AnyAgentRuntime, Partial<LearningRuntime> { runMaintenance?(request:MaintenanceRequest):Promise<string>; auth: Pick<CAgEAuthManager, 'listProviders' | 'listModels' | 'refreshModelCatalog' | 'saveApiKey' | 'startLogin' | 'getLogin' | 'answerLogin' | 'cancelLogin' | 'logout'>; invokeTheoryV4?(request:TheoryRequestV4):Promise<unknown>; hasForegroundInvocation?(): boolean; canQueueBackgroundLearning?(): boolean; shutdown(): Promise<void> }
 export interface AppOptions {
   desktopVersion?: string;
   openProviderBrowser?: (url: string) => Promise<void>;
@@ -337,7 +337,7 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     const safe = publicError(error);
     void reply.status(safe.status).send({ error: safe.code, message: safe.message });
   });
-  const providerViews = async () => (await runtime.auth.listProviders()).map(provider => ({ id: provider.id, name: provider.name, configured: provider.connected, oauthSupported: provider.oauth, apiKeySupported: provider.apiKey }));
+  const providerViews = async () => (await runtime.auth.listProviders()).map(provider => ({ id: provider.id, name: provider.name, configured: provider.connected, oauthSupported: provider.oauth, catalogRefreshSupported: provider.catalogRefreshSupported, apiKeySupported: provider.apiKey }));
   const assertModels = async (selections: (ModelSelection | undefined)[]) => {
     if (!selections.length) return;
     const providers = await providerViews(); const models = runtime.auth.listModels();
@@ -958,6 +958,8 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
     const heartbeat = setInterval(() => { if (!response.writableEnded) response.write(': keepalive\n\n'); }, 20000); heartbeat.unref();
     response.on('close', () => { clearInterval(heartbeat); streams.delete(response); });
   });
+  app.post<{ Params: { provider: string } }>('/api/providers/:provider/models/refresh', { schema: { body: body({}) } },
+    async request => ({ count: await runtime.auth.refreshModelCatalog(request.params.provider) }));
   app.post<{ Body: { provider: string; key: string } }>('/api/providers/key', { schema: { body: body({ provider: string(200), key: string(16384) }) } }, async request => { await runtime.auth.saveApiKey(request.body.provider, request.body.key); return providerViews(); });
   app.delete<{ Params: { provider: string } }>('/api/providers/:provider', async request => { await runtime.auth.logout(request.params.provider); return providerViews(); });
   const desktopOpener = options.desktopVersion && process.platform === 'win32' ? options.openProviderBrowser ?? openProviderBrowser : undefined;
