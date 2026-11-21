@@ -4,41 +4,43 @@
 
 <h1 align="center">Carnot Agent Engine (CAgE)</h1>
 
-CAgE is a local-first workspace for working through theorems and hypotheses. I built it to give the model a particular kind of constraint: start from the facts I accept, use methods I can follow, and show how each new result follows.
+CAgE is a workspace specially designed to prove hypothesis and give report in human-understandable way. It start and trace back to "facts" that one admit, and prefer extending derivation with existing knowledge in ones own database.
 
 ## Why I made it
 
-Most of the agents I use are built for coding. When I ask for a derivation, they have a much harder time telling what I already know. Sometimes a model introduces a theorem I've never seen and uses it to settle the very question I wanted to understand. Other times it spends a page proving something I'd happily take as a *fundamental fact*. And yes, GPT, sometimes I'd like to solve a simple problem without computing a single eigenvalue.
-
-What I wanted was a way to say which facts we can start from, then follow the argument from there.
+Most of the agents are built for coding, and they are terrible in theoretical stuff and logics. They constantly introduce theorems and tools never seen and never necessary for the question I asked (yes GPT I am specially referring to you for all those damn eigenvector analyses). Most of my following-up question only makes the agent start proving deep mathmatical structures and basic concepts (which it could and should take as a "fact").
 
 ## What's in the project?
 
-- **Skill map and knowledge map.** Skills and Strategies guide the model toward methods that have worked for me. The knowledge map records what a derivation can draw on, from definitions and observations to theorems and their proofs. The optional **Core map** provides a starting collection of undergraduate physics and the mathematics it uses. Each project can choose its own foundations.
-- **Full derivation chain.** The model is asked to stay close to the field of the original hypothesis and build on established results. If the argument needs a new theorem, the model is asked to supply the missing derivation so I can inspect that step too.
-- **Self-evolution.** After a research round, background agents can review the conversation for results worth adding to the map. Across sessions, they look for recurring preferences, methods worth turning into Skills or Strategies, and connections between existing results.
+- **Skill map + knowledge map.** *Skills and Strategies* records possible methods from past experiences that might work for future unseen hypothesis, and records user-preference on directions. *knowledge map* records what a derivation can draw on, from definitions/observations/"facts".
 
-[![The physics Core map in spherical view, showing connections among mechanics, electromagnetism, relativity and quantum mechanics.](docs/assets/readme/core-map-sphere.png)](docs/assets/readme/core-map-sphere.png)
 
-*The bundled Core map in spherical view. Node colors distinguish fields, and line styles identify relations such as prerequisites and uses of a definition. [Explore the map in the desktop app](docs/MAINTENANCE.md#explore-the-core-map).*
+Attached a **Core map** providing college-level physic knowledge connections (and relavent math tricks), you can choose to download and use directly. 
+
+
+- **Full derivation chain.** The model is asked to stay close to the field of the original hypothesis and prefer using alreadying existing knowledge, report is built on established results with a full trace back to "facts" and definitions. (In the case where a new theorem is necessary, it will supply the missing derivation from existing knowledge.)
+
+
+- **Self-evolution.** ...Yeah at this stage every agent should have this stuff. Model will use past conversations to condense skills/strategies and knowledge, an extra agent will try to extract possible upper-structure from existing report (if someone really wishes to know whats the reason behind).
+
+[![Sample of core-map](docs/assets/readme/core-map-sphere.png)](docs/assets/readme/core-map-sphere.png)
 
 ## Downloads
 
-### Install with an agent (recommended)
-
-Open your usual coding agent (such as ChatGPT with local tools or Claude Code) and paste this request:
-
+### recommended download
+- open any other agents.
+- paste this request:
 ```text
-Please install CAgE from https://github.com/yixicu/CAgE on this computer.
+Install CAgE from https://github.com/yixicu/CAgE on this computer.
 Read the project's installation docs to resolve technical questions.
-If a choice depends on my preferences, pause and ask me.
+pause and ask me.if a choice depends on my preferences, 
 ```
 
 ### Other ways to install
 
-**Windows desktop.** Download the x64 installer from [Releases](https://github.com/yixicu/CAgE/releases/latest). Select the basic physics map during setup to explore the example above. Connect a provider in **Settings → Models & connections**. To check for updates, open **Settings → Plugins & general**.
+**Windows desktop.** Download the x64 installer from [Releases](https://github.com/yixicu/CAgE/releases/latest). You can choose to use existing *Nodes and other dependencies*.
 
-**macOS.** I'd like to build a Mac desktop version once I have a Mac to test it on.
+**macOS.** ...I dont have a mac :(   will build in the future.
 
 **Linux preview.** Download the `linux-system-node.tar.gz` asset from the same release and extract it. With Node.js 24.19 or later in the 24.x series and npm 11.9, run the following commands in the extracted folder. The first command downloads the production dependencies. The second starts CAgE in your system browser.
 
@@ -60,21 +62,28 @@ Open the local address printed by the server.
 
 **Upgrading an existing source checkout.** Stop the old server before pulling updates. Starting from `app/` reopens the repository root's existing `.carnot-data/`, including its provider connections and storage settings. A fresh checkout uses `app/.carnot-data/`. If both directories exist, the launcher shows both paths. Enter `1` for the pre-update layout or `2` for the post-update layout. It remembers your choice for this checkout. Delete `app/.carnot-workspace-choice` to choose again, or set `CARNOT_DATA_DIR` to override the choice for one launch. Back up your workspace and any separately configured research and log directories before changing their locations.
 
-## How to use CAgE
+## How to use
 
 ### General usage
 
-Connect your provider in **Settings → Models & connections**, open **New research**, and enter a hypothesis in the chat box. For example: *Can you derive Hamilton's equations from stationary action? Show where the derivation needs an invertible relation between velocity and momentum.*
+As every other agents the main part is the chatting window.
 
-The left sidebar holds your session history and the **cages** views for Skills and Knowledge. The right-hand monitor lets you follow the current research session.
 
-Use **Maintenance Assistant** in the sidebar to inspect a saved round, see where a call failed, or attach study notes for the assistant to turn into proposed map entries. You can review a proposal before allowing changes. [Maintenance guide](docs/MAINTENANCE.md)
+As most other agents the left sidebar stores session history and skill list, right sidebar is a monitor for current session.
 
-To have the V4 Theorist read a paper, paste its public URL or attach the PDF. To have it *search* for papers, install **Web search** in **Settings → Plugins & general**, choose a search provider, add its API key, and enable the plugin. [Web search setup](docs/PLUGINS.md#web-search)
 
-### What if I can't connect my provider?
+As every other agents the provider and API key is configured in *settings*.
 
-So far, I've only tested the connection with my own ChatGPT subscription. If another provider gives you trouble, tell me which provider you tried and what error you saw. [Open an issue](https://github.com/yixicu/CAgE/issues)
+
+Use **Maintenance Assistant** in left sidebar to identify logs (if there is a bug), or attach study notes for the assistant to turn into proposed map entries. You can review a proposal before allowing changes. [Maintenance guide](docs/MAINTENANCE.md)
+
+
+The *Web-searching* abilities (e.g. reading online paper from Arxiv) is defaulted not configured. To use it open the plugin in **Settings → Plugins & general**. (this might require extra API configuration.) 
+
+
+### I cant connect my provider
+
+Unfortunately I only tested connection with my own ChatGPT subscription. For possible issue with another providers, [Open an issue](https://github.com/yixicu/CAgE/issues).
 
 ### I found a bug
 
@@ -82,17 +91,20 @@ Please include what you were doing, what you expected, and what happened. [Repor
 
 ### I found a bug and want to fix it now
 
-Point your coding agent to the architecture guide. It traces a request from the desktop UI to the research engine and shows which part of the repository owns each feature. [Architecture guide](docs/AGENTS.md)
+Let other agents read the architecture guide. [Architecture guide](docs/AGENTS.md)
 
-### How do I build a plugin?
+### I want my own plugin
 
-Start with the bundled text-statistics example. The plugin guide walks through defining a tool, granting it to a role, and checking which research stages can use it. [Plugin development guide](docs/PLUGINS.md)
+See [Plugin development guide](docs/PLUGINS.md).
 
-### Can I keep using my existing agents?
+### I still want to use my old agents
 
-Yes. A running Codex session can supply independent subagents for CAgE's research roles. Ask your agent to follow the setup guide and start the bundled local host, then pair it in **Settings → Models & connections → Local subagents**. I recommend giving the guide directly to your agent. It includes the instructions for driving a research run. [Subagent setup](docs/SUBAGENTS.md)
+You can run the task in other agents (e.g. Codex) and let it distribute subagents to roleplay in this project.
 
-### Already reading this as an AI agent?
+Let the agent follow setup guide and start the bundled local host, then pair in **Settings → Models & connections → Local subagents**.[Subagent setup](docs/SUBAGENTS.md)
+
+### What if I am already an AI?
+For possible AI reading this page, below is a general code structure.
 
 | Folder | What you'll find |
 | --- | --- |
@@ -106,7 +118,9 @@ Yes. A running Codex session can supply independent subagents for CAgE's researc
 
 ## References
 
-CAgE's backend uses the [Pi agent runtime](https://github.com/earendil-works/pi). Other projects I've looked at while developing CAgE include:
+CAgE's backend uses the [Pi agent runtime](https://github.com/earendil-works/pi).
+
+Other projects that might or might not be used during developing:
 
 - [All Agentic Architectures](https://github.com/FareedKhan-dev/all-agentic-architectures)
 - [Claude Code](https://github.com/anthropics/claude-code)
