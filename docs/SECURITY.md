@@ -6,4 +6,6 @@ Workers receive only explicitly authorized source reads and private note writes.
 
 Pi provider credentials and research data live in the application data directory. The default `.carnot-data/` folder is ignored by Git. Keep it out of archives and distribution packages, and restrict access to the local user account. An external workspace can be selected with `CARNOT_DATA_DIR`. Never attach real keys, session logs, private papers or full research prompts to an issue.
 
-For a security concern, contact the repository owner through a private channel already available to you. Describe the behavior and affected version without publishing a working credential or private research content.
+## Report a vulnerability
+
+To report a suspected vulnerability privately, open the repository's **Security** tab and select **Report a vulnerability**. Include the affected CAgE version, the impact and the steps needed to reproduce it using sample data. Omit credentials, session tokens and private research content. [Open a private vulnerability report](https://github.com/yixicu/CAgE/security/advisories/new)

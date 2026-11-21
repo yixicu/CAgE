@@ -1,0 +1,44 @@
+name: Installation, startup or upgrade error
+description: Report a problem installing, opening, or updating CAgE.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove usernames, full personal paths and credentials from any error messages. For a suspected security vulnerability, use **Security → Report a vulnerability**.
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+      placeholder: Windows 11 x64 or Ubuntu 24.04 x86-64
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Windows desktop installer
+        - Linux system-Node archive
+        - Source checkout
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: CAgE version
+      description: For upgrades, include both the previous and target versions. For a source checkout, give the commit if known.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Runtime and workspace storage
+      description: If known, give the Node.js version and the workspace filesystem (such as NTFS, ext4 or exFAT). Mention network or removable storage if applicable.
+  - type: textarea
+    id: result
+    attributes:
+      label: Steps, expected result and actual result
+      description: Include the launch command or installer step and the visible error. A short redacted excerpt is sufficient.
+    validations:
+      required: true

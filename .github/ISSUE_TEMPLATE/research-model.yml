@@ -1,0 +1,40 @@
+name: Research or model error
+description: Report a research session, model connection, or tool call that did not behave as expected.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Issues are public when the repository is public. Use a sample research question. Remove API keys, OAuth tokens, private research text and identifying file paths from any excerpts. For a suspected security vulnerability, use **Security → Report a vulnerability**.
+  - type: input
+    id: version
+    attributes:
+      label: CAgE version
+      description: Enter the release version or the commit if running from source.
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Provider and model ID
+      description: Use the provider and model shown in Settings. If the failure occurred before selecting a model, say so.
+    validations:
+      required: true
+  - type: input
+    id: stage
+    attributes:
+      label: Research version, role and stage
+      description: Include what was visible when the problem occurred, such as V4, Theorist, or report confirmation.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest sample question and the action that triggered the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+      description: Include the displayed error code, tool name or affected field if available.
+    validations:
+      required: true
