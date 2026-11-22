@@ -22,10 +22,10 @@ export function strictProviderModel<T extends Target>(model:T,configured?:Strict
   const capability=strictCapability(model,configured);
   return {...model,...(capability.baseUrl?{baseUrl:capability.baseUrl}:{})};
 }
-export function structuredOutputPayload(payload:unknown,model:Target,codecs:ReadonlyMap<string,SchemaCodec>,configured?:StrictCapability, version: import('./strict-schema.js').HandoffVersion = 'cage-native-2'):unknown {
+export function structuredOutputPayload(payload:unknown,model:Target,codecs:ReadonlyMap<string,SchemaCodec>,configured?:StrictCapability, version: import('./strict-schema.js').HandoffVersion = 'cage-native-2',onlyTool?:string):unknown {
   handoffVersion(version);
   if(model.api==='google-generative-ai' && version==='cage-native-2'){
-    const request=payload as {config?:{tools?:{functionDeclarations?:{name:string;parametersJsonSchema?:unknown}[]}[]}};
+    const request=payload as {config?:{toolConfig?:Record<string,unknown>;tools?:{functionDeclarations?:{name:string;parametersJsonSchema?:unknown}[]}[]}};
     const config=request?.config;
     if(!Array.isArray(config?.tools)||!config.tools.length)throw new RuntimeError('STRICT_OUTPUT_UNSUPPORTED');
     const tools=config.tools.map(group=>{
@@ -36,7 +36,8 @@ export function structuredOutputPayload(payload:unknown,model:Target,codecs:Read
         return {...declaration,parametersJsonSchema:codec.schema};
       })};
     });
-    return {...request,config:{...config,tools}};
+    if(onlyTool&&(tools.flatMap(group=>group.functionDeclarations).length!==1||tools[0]?.functionDeclarations[0]?.name!==onlyTool))throw new RuntimeError('TOOL_PROTOCOL_FAILED');
+    return {...request,config:{...config,tools,...(onlyTool?{toolConfig:{...config.toolConfig,functionCallingConfig:{mode:'ANY',allowedFunctionNames:[onlyTool]}}}:{})}};
   }
   const protocol=model.api==='openai-completions'?'chat-tools':['openai-responses','azure-openai-responses','openai-codex-responses'].includes(model.api)?'response-tools':model.api==='anthropic-messages'?'anthropic-tools':undefined;
   if (!protocol) throw new RuntimeError('STRICT_OUTPUT_UNSUPPORTED');
@@ -48,6 +49,7 @@ export function structuredOutputPayload(payload:unknown,model:Target,codecs:Read
   body.tools=tools.map(tool=>{
     const declaration=capability.protocol==='chat-tools'?tool.function:tool;
     if(!declaration || (capability.protocol!=='anthropic-tools' && tool.type!=='function'))throw new RuntimeError('STRICT_SCHEMA_UNSUPPORTED');
+    if(onlyTool&&(tools.length!==1||declaration.name!==onlyTool))throw new RuntimeError('TOOL_PROTOCOL_FAILED');
     const codec=codecs.get(declaration.name);if(!codec)throw new RuntimeError('STRICT_SCHEMA_UNSUPPORTED');
     const converted={...declaration,...(capability.protocol==='anthropic-tools'?{input_schema:codec.schema}:{parameters:codec.schema})};
     if(version==='cage-strict-1')converted.strict=true;
@@ -58,5 +60,11 @@ export function structuredOutputPayload(payload:unknown,model:Target,codecs:Read
   // Auto works with thinking models; text is never accepted as delivery.
   if(capability.protocol==='anthropic-tools')body.tool_choice={type:'auto',disable_parallel_tool_use:true};
   else {body.parallel_tool_calls=false;body.tool_choice='auto';}
+  // Some thinking endpoints accept only automatic tool selection. Their local stage gate still applies.
+  if(onlyTool){
+    if(capability.protocol==='response-tools'&&['openai','azure-openai-responses'].includes(model.provider))body.tool_choice={type:'function',name:onlyTool};
+    if(capability.protocol==='chat-tools'&&['openai','cage-subagents'].includes(model.provider))body.tool_choice={type:'function',function:{name:onlyTool}};
+    if(capability.protocol==='anthropic-tools'&&model.provider==='anthropic'&&!body.thinking)body.tool_choice={type:'tool',name:onlyTool,disable_parallel_tool_use:true};
+  }
   return body;
 }

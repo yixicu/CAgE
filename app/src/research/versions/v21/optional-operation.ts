@@ -103,8 +103,24 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
  // The immutable operation still validates and stores the full route. A V4 Worker
  // only supplies its scientific content; the assignment already owns this key.
  const assignedKey=worker&&revision==='v4-proof-5'?c.brief?.way.methodKey:undefined;
- const wireSchema=assignedKey?structuredClone(schema):schema;
+ const compactReviews=!worker&&revision==='v4-proof-5';
+ const wireSchema=assignedKey||compactReviews?structuredClone(schema):schema;
+ if(compactReviews){
+  const outcome=wireSchema.properties.outcome as TSchema & {properties:Record<string,TSchema>};
+  outcome.properties.dependencyArtifactIds={...outcome.properties.dependencyArtifactIds,description:'For a completed root proof, list each fully read supporting Worker original you adopt here once.'};
+  delete wireSchema.properties.adoptions;
+  const exposed=new Set((Array.isArray(frozen.artifacts)?frozen.artifacts:[]).map(a=>a.id));
+  if(c.marker?.optionalFlow?.artifacts.some(a=>exposed.has(a.id)&&(a.authorRole!=='theorist'||a.qualification==='needs-review'))){
+   wireSchema.properties.reviews=Type.Optional(Type.Array(obj({
+    artifactId:text,status:Type.Union([Type.Literal('rejected'),Type.Literal('deferred'),Type.Literal('valid')]),
+    reason:text,scientificFailure:Type.Optional(Type.Boolean())
+   }),{description:'Only for rejection, deferral, or a separate review of the original claim.'}));
+  }
+ }
  if(assignedKey){
+  wireSchema.properties.action=Type.Union([Type.Literal('complete'),Type.Literal('pause')]);
+  delete wireSchema.properties.workers;
+  delete wireSchema.properties.adoptions;
   const route=wireSchema.properties.route as TSchema&{required:string[];properties:Record<string,TSchema>};
   route.required=route.required.filter(key=>key!=='methodKey');
   route.properties.methodKey={...route.properties.methodKey!,description:'Assigned by the program; omit.'};
@@ -112,6 +128,18 @@ export function createOptionalOperationV21(task:'v21_theorist'|'v21_optional_wor
  const validate=(value:unknown):OptionalControlV21=>{
   if(assignedKey&&value&&typeof value==='object'&&'route' in value&&value.route&&typeof value.route==='object'&&!Array.isArray(value.route))
    value={...value,route:{...value.route,methodKey:assignedKey}};
+  if(compactReviews&&value&&typeof value==='object'&&'reviews' in value){
+   exact(wireSchema,value);
+   const {reviews,...control}=value as Record<string,unknown> & {reviews:Omit<OptionalControlV21['adoptions'][number],'outcome'>[]};
+   const artifacts=c.marker?.optionalFlow?.artifacts??[];
+   value={...control,adoptions:reviews.map(review=>{
+    const target=artifacts.find(a=>a.id===review.artifactId);
+    if(!target)throw new ContractValidationError(['Review requires an exposed original artifact.'],'semantic');
+    if(review.status==='valid'&&target.qualification!=='valid'&&!readOriginal(target.originalRef))
+     throw new ContractValidationError(['Read the complete original before affirming this review.'],'semantic');
+    return {...review,outcome:target.control.outcome};
+   })};
+  }
   if(schema.properties.mapChanges){
    const format=scientificMapFormatIssue((value as OptionalControlV21|undefined)?.mapChanges);if(format)throw format;
   }

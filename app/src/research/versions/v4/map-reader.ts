@@ -1,4 +1,5 @@
-import {mapContextPresentation,mapRecordPresentation,MAP_PRESENTATION,type MapDetail} from '../../../learning/knowledge-map-presentation.js';
+import type {AgentSessionSpecV21} from '../../contracts/v21.js';
+import {mapContextPresentation,mapOpenPresentation,mapRecordPresentation,MAP_PRESENTATION,type MapDetail} from '../../../learning/knowledge-map-presentation.js';
 import type {TranscriptContext} from '@earendil-works/pi-ai';
 import type {KnowledgeMapToolEvent} from '../../../runtime/knowledge-map-tools.js';
 import {join} from 'node:path';
@@ -9,12 +10,34 @@ import {findMapWriteRead} from './scientific-map-write.js';
 import {mapBasisChoices,retainMapOpenBases} from '../../../learning/knowledge-map-support.js';
 import {atomicWrite,readJson,exists} from '../../../storage/atomic.js';
 
+type CoreRead = {selection:string; fingerprint:string; detail?:MapDetail};
+type ReaderState = {view:MapView;opened:MapOpenResult[];openViews?:Record<string,MapView>;proofSelections?:string[];batches?:Record<string,{hash:string;cursor:number;results:unknown[]}>;continued?:CoreRead[];deliveredCore?:CoreRead[]};
+function unavailableCore(error:unknown){
+ return error instanceof MapError&&['NOT_FOUND','FORBIDDEN','STALE_SOURCE'].includes(error.code);
+}
+function coreRead(read:MapOpenResult,detail?:MapDetail):CoreRead {
+ return {selection:read.selection,...(detail?{detail}:{}),fingerprint:stableHash([mapOpenPresentation(read,detail),read.reviewToken])};
+}
+
+function visibleOpens(input?:TranscriptContext){
+ const visible=new Map<string,MapDetail|undefined>();
+ for(const msg of input?.messages??[]){
+  if(msg.role!=='toolResult'||msg.toolName!=='open_map_knowledge'||msg.isError)continue;
+  for(const part of msg.content)if(part.type==='text'){
+   try{const card=JSON.parse(part.text);if(typeof card?.selection==='string')visible.set(card.selection,card.level==='proof'||visible.get(card.selection)==='proof'?'proof':undefined);}catch{}
+  }
+ }
+ return visible;
+}
+
 /** Host-owned exact read checkpoint. Scientific agents see ordinary native readers. */
 export class MapReader {
  get refutationEvidence(){return this.grant.refutationEvidence===true;}
  private deliveredOpens?:Set<string>;
- private state?:{view:MapView;opened:MapOpenResult[];openViews?:Record<string,MapView>;proofSelections?:string[];batches?:Record<string,{hash:string;cursor:number;results:unknown[]}>};
- constructor(private readonly library:ResearchLibrary,private readonly grant:MapGrant,private readonly file?:string,private readonly presentation:typeof MAP_PRESENTATION|'legacy'=MAP_PRESENTATION,readonly modelDirectedKnowledge=false){}
+ private state?:ReaderState;
+ private sentContinuation?:string;
+ private pendingContinuation?:{reads:CoreRead[];presented:string};
+ constructor(private readonly library:ResearchLibrary,private readonly grant:MapGrant,private readonly file?:string,private readonly presentation:typeof MAP_PRESENTATION|'legacy'=MAP_PRESENTATION,readonly modelDirectedKnowledge=false,private readonly precedingFile?:string){}
  static async validateUses(library:ResearchLibrary,root:string,projectId:string,callId:string,refs:string[],worker:boolean,rows:unknown[],expectedDirected?:boolean,expectedObservations?:boolean,writing?:true){
   const taskId=callId+'_session',saved=await readJson<{view:MapView;opened:MapOpenResult[]}>(MapReader.path(root,projectId,taskId)),grant=saved.view.grant;
   if(expectedDirected!==undefined&&!!saved.view.modelDirectedKnowledge!==expectedDirected)throw new MapError('FORBIDDEN','Saved map reader differs from the frozen proof capability');
@@ -28,6 +51,14 @@ export class MapReader {
   const evidence=rows as {type?:string;kind?:string;tool?:string;callId?:string;result?:MapOpenResult;presentation?:string;input?:{detail?:string}}[];
   const delivered=evidence.filter(row=>row.type==='knowledge-map-tool-result'&&row.tool==='open_map_knowledge'&&row.result&&evidence.some(done=>done.kind==='effect-completed'&&done.callId===row.callId&&done.tool===row.tool));
   await this.validate();const state=await this.load(),result:MapOpenResult[]=[];
+  // Native tool opens and previously read statements delivered in this call's
+  // authority message enter the same exact-citation validation below.
+  const carried=evidence as {kind?:string;reads?:CoreRead[]}[];
+  for(const receipt of carried.filter(row=>row.kind==='v4-core-context').flatMap(row=>row.reads??[])){
+   const old=state.opened.find(read=>read.coreReview&&read.selection===receipt.selection&&coreRead(read,receipt.detail).fingerprint===receipt.fingerprint);
+   if(old&&state.continued?.some(r=>r.selection===receipt.selection&&r.fingerprint===receipt.fingerprint))
+    delivered.push({result:old,presentation:MAP_PRESENTATION,input:{detail:receipt.detail}});
+  }
   const ambiguous=new Set<string>();
   for(const row of delivered){
    // A user-supplied derivation is readable on demand. It is never a proof basis in a citation receipt.
@@ -64,19 +95,57 @@ export class MapReader {
   }
   return result.filter(r=>!ambiguous.has(r.selection));
  }
+ static precedingSession(spec:AgentSessionSpecV21){
+  if(spec.role!=='theorist'||!('marker' in spec.context)||spec.context.snapshot.theoryRevision!=='v4-operation-5')return;
+  const {marker,project,snapshot}=spec.context;
+  const current=marker.calls.findIndex(call=>call.id+'_session'===spec.id);
+  if(current<0||marker.projectId!==spec.projectId||project.id!==spec.projectId)return;
+  // An earlier epoch is eligible only if its turn is in this frozen discussion.
+  const priorTurn=snapshot.discussion?.turns.at(-1);
+  const epoch=priorTurn&&project.epochs.find(e=>e.id===priorTurn.epochId&&e.projectId===spec.projectId);
+  const completed=(call:typeof marker.calls[number])=>call.task==='v21_theorist'&&call.status==='completed';
+  const previous=marker.calls.slice(0,current).findLast(completed)??epoch?.calls.findLast(completed);
+  return previous&&previous.id+'_session';
+ }
  static path(root:string,projectId:string,taskId:string){return join(root,'v4','map-reads',stableHash([projectId,taskId])+'.json');}
  private async load(){
-  if(!this.state){const saved=this.file&&await exists(this.file)?await readJson<{view:MapView;opened:MapOpenResult[]}>(this.file):undefined;
+  if(!this.state){const saved=this.file&&await exists(this.file)?await readJson<ReaderState>(this.file):undefined;
    if(saved&&stableHash(saved.view.grant)!==stableHash(this.grant))throw Error('Map read authority changed');
    if(saved&&Boolean(saved.view.modelDirectedKnowledge)!==this.modelDirectedKnowledge)throw Error('Map read contract changed');
    this.state=saved??{view:await this.library.freezeKnowledgeMap(this.grant),opened:[]};
    if(!saved&&this.modelDirectedKnowledge)this.state.view.modelDirectedKnowledge=true;
-   if(!saved&&this.presentation==='legacy')delete this.state.view.presentation;await this.save();}
+   if(!saved&&this.presentation==='legacy')delete this.state.view.presentation;
+   if(!saved&&this.precedingFile)await this.continueCore(this.state,this.precedingFile);await this.save();}
   return this.state;
  }
+ private async continueCore(state:ReaderState,file:string){
+  if(!this.modelDirectedKnowledge||this.grant.purpose!=='map-proof'||!await exists(file))return;
+  const prior=await readJson<ReaderState>(file),grant=prior.view.grant;
+  if(grant.projectId!==this.grant.projectId||grant.ownerId!==this.grant.ownerId||grant.profileId!==this.grant.profileId||grant.purpose!=='map-proof')return;
+  for(const receipt of prior.deliveredCore??[]){
+   const old=prior.opened.find(read=>read.selection===receipt.selection);
+   if(!old?.coreReview||!old.ref||!state.view.refs.some(ref=>sameMapRef(ref,old.ref!)))continue;
+   try{
+    const current=await this.library.openKnowledgeMap(state.view,mapHandle(old.ref),this.grant);
+    if(!current.coreReview||coreRead(current,receipt.detail).fingerprint!==receipt.fingerprint)continue;
+    state.opened.push(current);(state.continued??=[]).push(receipt);
+   }catch(error){if(!unavailableCore(error))throw error;}
+  }
+ }
  private async save(){if(this.file)await atomicWrite(this.file,JSON.stringify(this.state));}
- async validate(){const state=await this.load();const opened:MapOpenResult[]=[];
+ async validate(freshView?:MapView){const state=await this.load();const opened:MapOpenResult[]=[];
+  const currentView=state.continued?.length?freshView??await this.library.freezeKnowledgeMap(this.grant):undefined;
+  if(currentView&&this.modelDirectedKnowledge)currentView.modelDirectedKnowledge=true;
   for(const old of state.opened){
+   const previous=state.continued?.find(r=>r.selection===old.selection);
+   if(previous&&currentView){
+    if(!old.ref||!currentView.refs.some(ref=>sameMapRef(ref,old.ref!)))continue;
+    try{
+     const now=await this.library.openKnowledgeMap(currentView,old.selection,this.grant);
+     if(now.coreReview&&coreRead(now,previous.detail).fingerprint===previous.fingerprint)opened.push(now);
+    }catch(error){if(!unavailableCore(error))throw error;}
+    continue;
+   }
    const view=state.openViews?.[old.selection]??(!old.ref||state.view.refs.some(r=>sameMapRef(r,old.ref!))?state.view:await this.library.freezeKnowledgeMap({...this.grant,allowedRefs:[old.ref]}));
    try{opened.push(retainMapOpenBases(old,await this.library.openKnowledgeMap(view,old.ref?mapHandle(old.ref):old.selection,view.grant)));}
    catch(error){if(!this.modelDirectedKnowledge||!mapReadFeedback(error))throw error;}
@@ -84,7 +153,7 @@ export class MapReader {
   if(!this.modelDirectedKnowledge||stableHash(opened)!==stableHash(state.opened)){state.opened=opened;await this.save();}
  }
  async lookup(query:MapQuery){const state=await this.load();await this.validate();return this.library.queryKnowledgeMap(state.view,query,this.grant);}
- async open(selection:string,detail?:MapDetail){const state=await this.load(),opened=await this.library.openKnowledgeMap(state.view,selection,this.grant);state.openViews??={};state.openViews[selection]=structuredClone(state.view);if(detail==='proof'){state.proofSelections??=[];if(!state.proofSelections.includes(selection))state.proofSelections.push(selection);}state.opened=state.opened.filter(o=>o.selection!==selection);state.opened.push(opened);await this.save();return opened;}
+ async open(selection:string,detail?:MapDetail){const state=await this.load(),opened=await this.library.openKnowledgeMap(state.view,selection,this.grant);if(state.continued?.some(r=>r.selection===selection))state.continued=state.continued.filter(r=>r.selection!==selection);state.openViews??={};state.openViews[selection]=structuredClone(state.view);if(detail==='proof'){state.proofSelections??=[];if(!state.proofSelections.includes(selection))state.proofSelections.push(selection);}state.opened=state.opened.filter(o=>o.selection!==selection);state.opened.push(opened);await this.save();return opened;}
  async refresh(){const state=await this.load();await this.validate();const presentation=state.view.presentation;state.view=await this.library.freezeKnowledgeMap(this.grant);state.view.presentation=presentation;if(this.modelDirectedKnowledge)state.view.modelDirectedKnowledge=true;await this.save();return {revision:state.view.revision,profileVersion:state.view.profile.version};}
  async view(){return structuredClone((await this.load()).view);}
  async readBatch(id:string,reads:import('../../../learning/knowledge-map.js').MapReadCall[]){
@@ -101,27 +170,55 @@ export class MapReader {
  }
  async projectBatchResults(results:unknown[]){const state=await this.load();const records=Object.values(state.batches??{}).flatMap(b=>b.results as MapReadRecord[]);return Promise.all(results.map(r=>{const call=(r as {call:MapReadCall}).call;const record=records.findLast(x=>stableHash(x.call)===stableHash(call));return record?projectMapReadRecord(this.library,record):{call,error:'STALE_SOURCE',notice:'Historical read requires a fresh native lookup.'};}));}
  async context(){
-  const state=await this.load();await this.validate();
-  const current=await this.library.freezeKnowledgeMap(this.grant);
+  const state=await this.load(),current=await this.library.freezeKnowledgeMap(this.grant);
+  await this.validate(current);
   const accepted=state.view.profile.accepted.filter(r=>current.profile.accepted.some(now=>sameMapRef(r,now))
    &&(!this.modelDirectedKnowledge||[current,state.view].every(v=>v.refs.some(now=>sameMapRef(r,now)))));
   return {presentation:state.view.presentation,proofSelections:state.proofSelections,profile:{...state.view.profile,accepted},revision:state.view.revision,opened:state.opened};
  }
  async initialContext(query:string){const context=await this.context();return this.modelDirectedKnowledge?{...context,selection:await this.lookup({mode:'directory'})}:context.presentation===MAP_PRESENTATION?{...context,selection:await this.lookup({query,mode:'candidates'})}:context;}
- async authority(input?:TranscriptContext):Promise<unknown>{
+ async authority(input?:TranscriptContext,contextBytes=Infinity):Promise<unknown>{
   const context=await this.context();
   if(this.modelDirectedKnowledge){
-   const visible=new Set<string>();
-   for(const msg of input?.messages??[]){
-    if(msg.role!=='toolResult'||msg.toolName!=='open_map_knowledge'||msg.isError)continue;
-    for(const part of msg.content)if(part.type==='text'){
-     try{const card=JSON.parse(part.text);if(typeof card?.selection==='string')visible.add(card.selection);}catch{}
-    }
-   }
+   const visible=visibleOpens(input);
    const state=await this.load(),directory=await this.library.queryKnowledgeMap(state.view,{mode:'directory'},this.grant);
-   return mapContextPresentation({...context,selection:directory,opened:context.opened.filter(r=>!visible.has(r.selection)&&(!this.deliveredOpens||this.deliveredOpens.has(r.selection)))});
+   const continued=(state.continued??[]).filter(receipt=>context.opened.some(read=>read.selection===receipt.selection&&coreRead(read,receipt.detail).fingerprint===receipt.fingerprint));
+   const carried=new Set(continued.map(r=>r.selection));
+   const direct=context.opened.filter(r=>!visible.has(r.selection)&&!carried.has(r.selection)&&(!this.deliveredOpens||this.deliveredOpens.has(r.selection)));
+   const base=mapContextPresentation({...context,selection:directory,opened:direct});
+   const opened=[...base.opened],priorCoreIndex:{selection:string;title?:string;detail?:MapDetail}[]=[],delivered:CoreRead[]=[];
+   let remaining=contextBytes-Buffer.byteLength(JSON.stringify(base));
+   for(const receipt of continued){
+    if(visible.has(receipt.selection))continue;
+    const read=context.opened.find(r=>r.selection===receipt.selection)!;
+    const card=mapOpenPresentation(read,receipt.detail),size=Buffer.byteLength(JSON.stringify(card));
+    if(size>remaining){priorCoreIndex.push({selection:read.selection,title:read.title,detail:receipt.detail});continue;}
+    remaining-=size;opened.push(card);delivered.push(receipt);
+   }
+   const projection={...base,opened,...(priorCoreIndex.length?{priorCoreIndex}: {})};
+   this.pendingContinuation=delivered.length?{reads:delivered,presented:JSON.stringify({currentKnowledgeAuthority:projection})}:undefined;
+   return projection;
   }
   return {profile:context.profile,entries:context.opened.map(({selection,ref,qualification,accepted,supports})=>({selection,ref,qualification,accepted,supports:supports.map(s=>({id:s.id,status:s.status}))})),notice:'These current qualifications supersede earlier read statuses. A withdrawn acceptance or pending claim is not an established premise.'};
+ }
+ async recordContinuedDelivery(input:TranscriptContext,capture:(event:{kind:'v4-core-context';reads:CoreRead[]})=>Promise<void>){
+  if(this.grant.purpose!=='map-proof')return;
+  const pending=this.pendingContinuation,state=await this.load(),visible=visibleOpens(input);
+  const available=new Map(state.opened.filter(r=>r.coreReview).map(r=>[r.selection,r]));
+  const known=new Map<string,CoreRead>();
+  for(const receipt of [...state.deliveredCore??[],...state.continued??[]]){
+   const read=available.get(receipt.selection);
+   if(read&&coreRead(read,receipt.detail).fingerprint===receipt.fingerprint)known.set(receipt.selection,receipt);
+  }
+  for(const [selection,detail] of visible){
+   const read=available.get(selection);
+   if(read&&this.deliveredOpens?.has(selection))known.set(selection,coreRead(read,detail??known.get(selection)?.detail));
+  }
+  const latest=[...known.values()];
+  if(stableHash(latest)!==stableHash(state.deliveredCore??[])){state.deliveredCore=latest;await this.save();}
+  if(!pending||!input.messages.some(m=>m.role==='user'&&m.content===pending.presented))return;
+  const fingerprint=stableHash(pending.reads);
+  if(fingerprint!==this.sentContinuation){await capture({kind:'v4-core-context',reads:pending.reads});this.sentContinuation=fingerprint;}
  }
  async projectForeground(input:TranscriptContext,rows:unknown[]):Promise<TranscriptContext>{
   if(!this.modelDirectedKnowledge)return input;

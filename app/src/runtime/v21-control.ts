@@ -1,6 +1,6 @@
 import {workerDispatchRule} from '../research/versions/v21/optional-types.js';
 import {scientificMapFormatIssue} from '../research/versions/v4/scientific-map-write.js';
-import { DeclarationSupplementError } from './declaration-supplement.js';
+import { DeclarationSupplementError,extraDeclarationFields } from './declaration-supplement.js';
 import {guidanceReferenceComparisonV3,type GuidanceReferenceStateV3} from './guidance-reference-repair.js';
 import { preflightV21MemoryTool } from './v21-memory-tools.js';
 import type { AssistantMessage, AssistantMessageEvent } from '@earendil-works/pi-ai';
@@ -50,14 +50,14 @@ export class V21Control {
   private missingDeclaration=false;
   get declarationDispatchLimit(){return this.missingDeclaration&&this.supplement?2:1;}
   get supplementPrompt():string|undefined {
-    if(this.supplement)return 'The original manuscript and all other fields are saved. Check that the saved manuscript supports the correction. Submit only the fields in the refreshed tool schema. If the manuscript itself needs revision, leave the declaration unsubmitted. Use the terminal tool once with no prose. ';
-    if(this.missingDeclaration)return 'The original manuscript is saved. Supply its missing declaration once through the terminal tool. Use only the saved argument and evidence. Write no new prose. ';
+    if(this.supplement)return 'The original manuscript and all other fields are saved. Check that the saved manuscript supports the correction. Submit only the fields in the refreshed tool schema. If the manuscript itself needs revision, leave the declaration unsubmitted. Use the terminal tool once with no prose.\n'+this.feedback;
+    if(this.missingDeclaration)return this.feedback;
   }
   constructor(readonly journal: OperationJournal, tools: ToolDefinition[], private readonly schema: TSchema, private readonly prepare: (value: unknown) => unknown, readonly judgmentBatch = false, private readonly options: V21ControlOptions = {}) {
     for (const tool of tools) this.tools.set(tool.name,tool);
     // Keep saved operation pins stable. Only the provider-facing description changes.
     const fields=(schema as Shape).properties;
-    const wireSchema=options.optionalProof&&fields?.action
+    const wireSchema=options.optionalProof&&fields?.action&&fields.workers
       ? {...schema,properties:{...fields,action:{...fields.action,description:workerDispatchRule}}}
       : schema;
     for (const tool of tools) this.codecs.set(tool.name, canonicalCodec(tool.name === SUBMIT_RESULT ? wireSchema : tool.parameters));
@@ -93,10 +93,8 @@ export class V21Control {
       }
     }
     if (message.stopReason === 'stop' && !calls.length && !this.evidence.size) {
-      if(this.options.declarationSupplement&&!this.correction&&this.canRequestFormatCorrection()&&message.content.some(part=>part.type==='text'&&part.text.trim())){
-        this.missingDeclaration=true;
-        this.feedback='The manuscript is present. Its terminal declaration is missing.';
-        await this.journal.capture({kind:'v4-missing-declaration'});
+      if(this.options.declarationSupplement&&!this.correction&&!this.missingDeclaration&&message.content.some(part=>part.type==='text'&&part.text.trim())){
+        await this.requestDeclaration();
         return;
       }
       if (this.judgmentBatch) { await this.rejectUnassessed('No complete scientific declaration was supplied; metadata repair cannot invent it.'); return; }
@@ -141,6 +139,8 @@ export class V21Control {
         await this.rejectScientificStep(error.message);
         return;
       }
+      if(this.missingDeclaration&&this.options.declarationSupplement&&!this.supplement&&error instanceof ContractValidationError&&error.kind==='format')
+        error=extraDeclarationFields(this.schema,this.declaration)??error;
       if(error instanceof DeclarationSupplementError&&this.options.declarationSupplement&&this.declarationSeen&&!this.supplement&&
         (!this.correction&&this.canRequestFormatCorrection()||this.missingDeclaration&&this.journal.state.corrections===1)){
         this.supplement=error;
@@ -166,6 +166,11 @@ export class V21Control {
         else { this.fingerprints.add(feedback); this.feedback = feedback; }
       } else this.fatal = error instanceof RuntimeError ? error : new RuntimeError('TOOL_PROTOCOL_FAILED');
     }
+  }
+  protected async requestDeclaration(){
+    this.missingDeclaration=true;
+    this.feedback='The manuscript is saved. Submit its declaration through submit_research_result without repeating the proof.';
+    await this.journal.capture({kind:'v4-missing-declaration'});
   }
   /** Version-specific pure input feedback; historical controls do not opt in. */
   protected async rejectToolArguments(_error:unknown,_calls:Extract<AssistantMessage['content'][number],{type:'toolCall'}>[]):Promise<boolean>{return false;}
@@ -206,18 +211,27 @@ export class V21Control {
     if(repair?.removed.length)await this.journal.capture({kind:'v3-zero-exposure-guidance-correction',path:'/route/resourceRefs',original:(this.declaration as any).route.resourceRefs,corrected:(value as any).route.resourceRefs,removed:repair.removed});
   }
   permits(id: string): boolean { return !this.options.cancelled?.() && !this.fatal && !this.feedback && this.prepared.has(id); }
+  protected async commitPreparedTerminal(id:string) {
+    if(!this.permits(id))throw new RuntimeError('TOOL_PROTOCOL_FAILED');
+    const value=this.prepared.get(id);
+    await this.journal.capture({kind:'effect-pending',callId:id,tool:SUBMIT_RESULT});
+    try {
+      if(this.options.cancelled?.())throw new RuntimeError('BUDGET_EXHAUSTED');
+      await this.options.resultReady?.(value);
+      await this.journal.complete(value);
+      this.value=value;
+      this.accepted=true;
+      return {content:[{type:'text' as const,text:'Recorded.'}],details:{}};
+    } catch {this.fatal=new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');throw this.fatal;}
+  }
   async execute(tool: ToolDefinition, args: Parameters<ToolDefinition['execute']>): Promise<Awaited<ReturnType<ToolDefinition['execute']>>> {
+    if(tool.name===SUBMIT_RESULT)return this.commitPreparedTerminal(args[0]);
     if (!this.permits(args[0])) throw new RuntimeError('TOOL_PROTOCOL_FAILED');
     const value = this.prepared.get(args[0]);
     // All validation was pure and complete before this durable effect boundary.
     await this.journal.capture({ kind: 'effect-pending', callId: args[0], tool: tool.name });
     try {
       if (this.options.cancelled?.()) throw new RuntimeError('BUDGET_EXHAUSTED');
-      if (tool.name === SUBMIT_RESULT) {
-        await this.options.resultReady?.(value);
-        await this.journal.complete(value); this.value = value; this.accepted = true;
-        return { content: [{ type: 'text', text: 'Recorded.' }], details: {} };
-      }
       const effective = [...args] as Parameters<ToolDefinition['execute']>; effective[1] = value;
       const result = await tool.execute(...effective);
       await this.journal.capture({ kind: 'effect-completed', callId: args[0], tool: tool.name, details: result.details });

@@ -221,7 +221,8 @@ async function openWorkspace(options: AppOptions, sourceRoot: string, anchor: st
             }
           }
         }
-        return new MapReader(store.library,{...(('brief' in spec.context?spec.context.brief:spec.context.snapshot).resultContract?{refutationEvidence:true}:{}),purpose:spec.role==='theorist'?'map-proof':'map-worker',ownerId:'local-user',projectId:spec.projectId,taskId:spec.id,profileId:'profile_'+stableHash(['local-user',spec.projectId]),...(spec.role==='theorist'?{}:{allowedRefs})},MapReader.path(dataRoot,spec.projectId,spec.id),('brief'in spec.context?spec.context.brief.knowledgeMapPresentation:spec.context.snapshot.knowledgeMapPresentation)??'legacy',('brief'in spec.context?spec.context.brief:spec.context.snapshot).modelDirectedKnowledge);
+        const previous=MapReader.precedingSession(spec);
+        return new MapReader(store.library,{...(('brief' in spec.context?spec.context.brief:spec.context.snapshot).resultContract?{refutationEvidence:true}:{}),purpose:spec.role==='theorist'?'map-proof':'map-worker',ownerId:'local-user',projectId:spec.projectId,taskId:spec.id,profileId:'profile_'+stableHash(['local-user',spec.projectId]),...(spec.role==='theorist'?{}:{allowedRefs})},MapReader.path(dataRoot,spec.projectId,spec.id),('brief'in spec.context?spec.context.brief.knowledgeMapPresentation:spec.context.snapshot.knowledgeMapPresentation)??'legacy',('brief'in spec.context?spec.context.brief:spec.context.snapshot).modelDirectedKnowledge,previous?MapReader.path(dataRoot,spec.projectId,previous):undefined);
       },
       resolveCatalogV3:async spec=>{
         const bounds='brief'in spec.context?spec.context.brief:spec.context.snapshot;

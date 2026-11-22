@@ -5,10 +5,12 @@ import type {GuidanceReferenceStateV3} from './guidance-reference-repair.js';
 import type { AssistantMessage, AssistantMessageEvent } from '@earendil-works/pi-ai';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import type { TSchema } from 'typebox';
+import type {ToolArgumentEvidence} from './tool-argument-audit.js';
 import { V21Control } from './v21-control.js';
 import { V0AnswerCollector } from './v0-answer.js';
 import { SUBMIT_RESULT } from './stage-contract.js';
-import { ContractValidationError } from './strict-schema.js';
+import {completionCandidate,openProgressNote,manuscriptSchema,publicPhase,readManuscript,SUBMIT_MANUSCRIPT} from './proof-delivery.js';
+import { canonicalCodec, ContractValidationError, type SchemaCodec } from './strict-schema.js';
 import { validateOperationArgumentsV3, OperationInputErrorV3 } from '../research/versions/v3/operations.js';
 import { decodeSafeToolArguments, SafeToolArgumentsError } from './safe-tool-arguments.js';
 import { RuntimeError } from './errors.js';
@@ -17,17 +19,6 @@ import type { V3Execution } from '../research/versions/v3/integration.js';
 import type { OptionalRetainedV21 } from './v21-optional-control.js';
 import type { OptionalControlV21, OptionalTheoristResultV21 } from '../research/versions/v21/optional-types.js';
 
-function publicPhase(signature?:string):unknown{
-  try{return signature && JSON.parse(signature)?.phase;}catch{return undefined;}
-}
-
-// Unphased text accompanying a completion may be either progress or the finished paper.
-export function completionCandidate(message:AssistantMessage):string{
-  const calls=message.content.filter(p=>p.type==='toolCall');
-  if(calls.length!==1||calls[0]!.name!==SUBMIT_RESULT||calls[0]!.arguments.action!=='complete')return '';
-  return message.content.flatMap(p=>p.type==='text'&&!publicPhase(p.textSignature)?[p.text]:[]).join('');
-}
-export const confirmPrevious='Use previous answer';
 /** V3 alone permits dynamic tools in the same Pi conversation. Every public
  * response is retained; only the terminal declaration freezes the manuscript. */
 export class ProofControlV3 extends V21Control {
@@ -42,8 +33,19 @@ export class ProofControlV3 extends V21Control {
   private hasAnswerText=false;
   private requestedManuscript=false;
   private previousCandidate='';
+  private originalCodec?:SchemaCodec;
+  private manuscriptReceipt?:string;
+  private confirmedCall?:string;
+  private manuscriptRetried=false;
+  get deliveryStage():'research'|'manuscript'|'declaration' {
+    return this.originalCodec?'manuscript':this.correction?'declaration':'research';
+  }
+  get requiredTool(){
+    if(!this.declarationSupplement)return undefined;
+    return this.deliveryStage==='manuscript'?SUBMIT_MANUSCRIPT:this.deliveryStage==='declaration'?SUBMIT_RESULT:undefined;
+  }
+  private deferredCompletion?: {message:AssistantMessage;evidence:ToolArgumentEvidence};
   needsManuscript=false;
-  get writingManuscript(){return this.requestedManuscript&&!this.correction;}
   private dispatchNumber = 0;
   private currentRecorded = false;
   private invalidText = false;
@@ -62,7 +64,7 @@ export class ProofControlV3 extends V21Control {
   }
   get retained(): OptionalRetainedV21 | undefined { return this.retainedState.value; }
   override startDispatch():void {
-    super.startDispatch();this.announced.clear();this.dispatchNumber++;this.toolRejections.clear();
+    super.startDispatch();this.announced.clear();this.dispatchNumber++;this.toolRejections.clear();this.manuscriptReceipt=undefined;this.confirmedCall=undefined;
     if(this.pendingToolCorrection){this.pendingToolCorrection=false;this.toolCorrectionDispatches++;void this.journal.capture({kind:'v3-tool-correction-dispatch',count:this.toolCorrectionDispatches,...(this.nativeHandoff?{limit:1}:budgetControlsEnabledV3(this.capacityPolicy)?{limit:2}:{controlsEnabled:false})}).catch(()=>{});}
     if(!this.correction){this.currentRecorded=false;this.current=this.collector;}
   }
@@ -83,8 +85,12 @@ export class ProofControlV3 extends V21Control {
     await this.journal.capture({kind:'v3-tool-input-rejected',category,message,callIds:calls.map(c=>c.id),correctionDispatches:this.toolCorrectionDispatches,...(this.nativeHandoff?{limit:1}:budgetControlsEnabledV3(this.capacityPolicy)?{limit:2}:{controlsEnabled:false})});
     return true;
   }
-  override permits(id:string):boolean{return !this.cancelled()&&!this.fatal&&(this.toolRejections.has(id)||super.permits(id));}
+  override permits(id:string):boolean{return !this.cancelled()&&!this.fatal&&(id===this.manuscriptReceipt||this.toolRejections.has(id)||super.permits(id));}
   override async execute(tool:ToolDefinition,args:Parameters<ToolDefinition['execute']>):Promise<Awaited<ReturnType<ToolDefinition['execute']>>>{
+    if(this.manuscriptReceipt===args[0]&&this.permits(args[0])){
+      if(this.confirmedCall)await this.commitPreparedTerminal(this.confirmedCall);
+      return {content:[{type:'text',text:'Manuscript received.'}],details:{}};
+    }
     const error=this.toolRejections.get(args[0]);
     if(error){if(!this.permits(args[0]))throw new RuntimeError('TOOL_PROTOCOL_FAILED');return {content:[{type:'text',text:JSON.stringify({error,executed:false,...(this.nativeHandoff?{correctionsRemaining:1-this.toolCorrectionDispatches-this.journal.state.corrections}:budgetControlsEnabledV3(this.capacityPolicy)?{correctionsRemaining:2-this.toolCorrectionDispatches}:{}),instruction:this.nativeHandoff?'Correct only the reported tool-input format. Preserve scientific content.':'Correct only the tool call format. Do not change supplied values, assumptions or conclusions. You may instead continue without this computation.'})}],details:{v3InputError:true}};}
     const result=await super.execute(tool,args);
@@ -129,43 +135,94 @@ export class ProofControlV3 extends V21Control {
   override async prepareMessage(message:AssistantMessage,skippedOperation=false):Promise<void>{
     const progressParts:number[]=[];
     let manuscript='';
+    const manuscriptTurn=this.deliveryStage==='manuscript'||this.declarationSupplement&&!this.correction&&message.content.some(p=>p.type==='toolCall'&&p.name===SUBMIT_MANUSCRIPT);
     if(this.declarationSupplement && !this.correction){
       const calls=message.content.filter(part=>part.type==='toolCall');
       const mixed=calls.length>0&&!calls.some(call=>call.name===SUBMIT_RESULT && call.arguments.action!=='complete');
+      const completion=calls.some(call=>call.name===SUBMIT_RESULT&&call.arguments.action==='complete');
+      const unphasedDraft=!manuscriptTurn&&!calls.length&&message.stopReason==='stop'&&!message.content.some(p=>p.type==='text'&&publicPhase(p.textSignature)==='final_answer');
       let publicIndex=-1;
       for(const [i,part] of message.content.entries()){
         if(part.type==='thinking')continue;
         publicIndex++;
         if(part.type!=='text')continue;
         const phase=publicPhase(part.textSignature);
-        if(phase==='commentary'||mixed&&phase!=='final_answer'){
+        if(phase==='commentary'||unphasedDraft||completion||mixed&&phase!=='final_answer'){
           progressParts.push(publicIndex);
           if(part.text.trim()&&!this.announced.has(i))this.onCommentary?.(part.text);
         }else manuscript+=part.text;
       }
     }
-    const confirmation=this.requestedManuscript&&!this.correction&&message.stopReason==='stop'&&manuscript.trim()===confirmPrevious;
-    const confirmedPrevious=confirmation&&!!this.previousCandidate.trim();
-    if(confirmation)manuscript=this.previousCandidate;
-    await this.journal.capture({...(confirmedPrevious?{confirmedPrevious:true}:{}),...(progressParts.length?{progressParts}:{}),kind:'v3-original-message',dispatch:this.dispatchNumber,correction:this.correction,message:{...message,content:message.content.filter(part=>part.type!=='thinking')}});
+    let confirmedPrevious=false;
+    if(manuscriptTurn){
+      let answer;
+      try{
+        if(skippedOperation)throw new RuntimeError('TOOL_PROTOCOL_FAILED');
+        answer=readManuscript(message,[...this.evidence.values()],!!this.previousCandidate.trim());
+      }catch(error){
+        await this.journal.capture({kind:'v4-manuscript-rejected',dispatch:this.dispatchNumber,reason:error instanceof Error?error.message:'Invalid manuscript',message:{...message,content:message.content.filter(p=>p.type!=='thinking')},evidence:[...this.evidence.values()]});
+        this.currentRecorded=true;
+        if(!this.manuscriptRetried&&(error instanceof ContractValidationError||error instanceof SafeToolArgumentsError&&error.kind==='format')){
+          this.manuscriptRetried=true;
+          this.originalCodec??=this.codecs.get(SUBMIT_MANUSCRIPT);
+          this.needsManuscript=true;
+          this.feedback=error.message;
+          return;
+        }
+        this.fatal=error instanceof RuntimeError?error:new RuntimeError('INVALID_OUTPUT');
+        return;
+      }
+      confirmedPrevious='usePrevious' in answer;
+      manuscript='markdown' in answer?answer.markdown:this.previousCandidate;
+      this.manuscriptReceipt=message.content.find(p=>p.type==='toolCall')!.id;
+      if(this.originalCodec)this.codecs.set(SUBMIT_MANUSCRIPT,this.originalCodec);
+      this.originalCodec=undefined;
+    }
+    await this.journal.capture({...(manuscriptTurn?{deliveryStage:'manuscript'}:{}),...(confirmedPrevious?{confirmedPrevious:true}:{}),...(progressParts.length?{progressParts}:{}),kind:'v3-original-message',dispatch:this.dispatchNumber,correction:this.correction,message:{...message,content:message.content.filter(part=>part.type!=='thinking')}});
     for(const evidence of this.evidence.values())await this.journal.capture({kind:'v21-optional-arguments',dispatch:this.dispatchNumber,evidence});
     if(!this.correction)this.recordCurrent(this.declarationSupplement?manuscript:undefined);
     if(this.invalidText){this.fatal=new RuntimeError('TOOL_PROTOCOL_FAILED');return;}
     if(this.cancelled()){this.fatal=new RuntimeError('BUDGET_EXHAUSTED');return;}
     const submission=message.content.find(part=>part.type==='toolCall'&&part.name===SUBMIT_RESULT);
     const terminal=!!submission;
+    if(this.declarationSupplement&&!this.correction&&!this.completed.some(part=>part.trim())&&submission?.type==='toolCall'&&message.stopReason==='toolUse'&&this.evidence.size===1){
+      const evidence=this.evidence.get(submission.id);
+      if(evidence?.tool===SUBMIT_RESULT&&openProgressNote(submission.arguments)){
+        try{
+          const note=openProgressNote(decodeSafeToolArguments(evidence).value);
+          if(note)this.completed=[note];
+        }catch(error){if(!(error instanceof SafeToolArgumentsError))throw error;}
+      }
+    }
     if(this.declarationSupplement&&!this.correction){
-      const answerText=!!manuscript.trim()&&(message.stopReason==='stop'||terminal);
+      const answerText=!!manuscript.trim()&&(message.stopReason==='stop'||terminal||manuscriptTurn);
       this.hasAnswerText ||= answerText;
       if(this.requestedManuscript && !answerText){this.fatal=new RuntimeError('INVALID_OUTPUT');return;}
-      if(!this.hasAnswerText && (submission?.type==='toolCall' && submission.arguments.action==='complete' || message.stopReason==='stop' && progressParts.length)){
+      if(!this.hasAnswerText && (submission?.type==='toolCall' && (submission.arguments.action==='complete'||submission.arguments.action==='pause') || message.stopReason==='stop' && progressParts.length)){
         this.needsManuscript=true;this.requestedManuscript=true;
         this.previousCandidate=completionCandidate(message);
-        this.feedback=this.previousCandidate.trim()?`If your preceding text is already the complete answer, reply exactly “${confirmPrevious}”. Otherwise write the complete derivation now.`:'The progress message was saved. Write the actual answer and derivation now.';
+        const evidence=submission?.type==='toolCall'&&this.evidence.get(submission.id);
+        if(this.previousCandidate&&evidence&&this.evidence.size===1){
+          const publicMessage={...message,content:message.content.filter(part=>part.type!=='thinking')};
+          this.deferredCompletion=structuredClone({message:publicMessage,evidence});
+        }
+        this.originalCodec=this.codecs.get(SUBMIT_MANUSCRIPT)!;
+        this.codecs.set(SUBMIT_MANUSCRIPT,canonicalCodec(manuscriptSchema(!!this.previousCandidate.trim())));
+        this.feedback='Submit the manuscript using the available tool.';
         return;
       }
     }
-    if(terminal||this.declarationSupplement&&message.stopReason==='stop'&&message.content.some(p=>p.type==='text'&&p.text.trim())){await this.preserveOriginal();if(!this.retained||this.retained.technical.completeness!=='complete'){this.fatal=new RuntimeError('INVALID_OUTPUT');return;}}
+    if(manuscriptTurn||terminal||this.declarationSupplement&&message.stopReason==='stop'&&message.content.some(p=>p.type==='text'&&p.text.trim())){await this.preserveOriginal();if(!this.retained||this.retained.technical.completeness!=='complete'){this.fatal=new RuntimeError('INVALID_OUTPUT');return;}}
+    if(confirmedPrevious&&this.deferredCompletion){
+      const {message:original,evidence}=this.deferredCompletion;
+      this.deferredCompletion=undefined;
+      this.evidence.clear();
+      this.evidence.set(evidence.toolCallId,evidence);
+      await super.prepareMessage(original);
+      if(super.permits(evidence.toolCallId))this.confirmedCall=evidence.toolCallId;
+      return;
+    }
+    if(manuscriptTurn){await this.requestDeclaration();return;}
     await super.prepareMessage(message,skippedOperation);
   }
 }

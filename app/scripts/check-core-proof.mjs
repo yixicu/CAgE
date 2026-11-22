@@ -35,6 +35,10 @@ const route={mode:'lexical',query:'Schrodinger',branch:'Strategy',selection:1,re
 const lookup={mode:'lexical',query:'Schrodinger',selection:'quantum',relation:'related',direction:'outgoing',offset:0,limit:10};
 const queries=[['retrieve_knowledge',route],['retrieve_knowledge',{...route,mode:'directory'}],['lookup_map_knowledge',lookup],
  ['retrieve_knowledge',{...route,mode:'directory'}],['lookup_map_knowledge',{...lookup,mode:'exact'}],['retrieve_knowledge',{...route,mode:'directory'}]];
+const repairQuery=process.argv.includes('--repair-query');
+const retryManuscript=process.argv.includes('--retry-manuscript');
+const unmarkedOpening=process.argv.includes('--unmarked-opening');
+if(repairQuery)queries[0]=['lookup_map_knowledge',{...lookup,limit:-1}];
 let sequence=0,seen=[],titleRequested=false;
 const text=(part,phase)=>({type:'message',role:'assistant',id:'msg_'+sequence,phase,content:[{type:'output_text',text:part}]});
 const call=(name,args)=>({type:'function_call',id:'fc_'+sequence,call_id:'call_'+sequence,name,arguments:JSON.stringify(args)});
@@ -48,8 +52,16 @@ globalThis.fetch=async(input,init)=>{
  const output=[];
  if(turn===1)output.push(text('I will derive it.','commentary'));
  if(turn<=queries.length)output.push(call(...queries[turn-1]));
- else if(turn===7){output.push(text(confirm?answer:'Next I will match the waves.'),call('submit_research_result',declaration));}
- else if(turn===8)output.push(text(empty?'':confirm?'Use previous answer':answer,'final_answer'));
+ else if(turn===7){
+   output.push(text(confirm?answer:'Next I will match the waves.'));
+   if(!unmarkedOpening)output.push(call('submit_research_result',declaration));
+ }
+ else if(turn===8||retryManuscript&&turn===9){
+   assert.deepEqual(body.tools[0].parameters.required,['answer']);
+   assert.deepEqual(body.tool_choice,{type:'function',name:'submit_manuscript'});
+   if(retryManuscript&&turn===8)output.push(text('Use previous answer','final_answer'));
+   else output.push(call('submit_manuscript',{answer:empty?{markdown:''}:confirm?{usePrevious:true}:{markdown:answer}}));
+ }
  else output.push(call('submit_research_result',declaration));
  if(page&&turn===8){
    try {
@@ -102,11 +114,19 @@ if(progressError)throw progressError;
 assert.equal(result.status,empty?'paused':'completed',result.lastError);
 if(!empty)assert.equal(result.lastError,undefined);
 assert.ok(titleRequested);
-assert.deepEqual(seen[7],[]);
-if(!empty)assert.deepEqual(seen[8],['submit_research_result']);
+assert.deepEqual(seen[7],['submit_manuscript']);
+if(confirm&&!empty)assert.equal(seen.length,8+Number(retryManuscript)+Number(unmarkedOpening));
+else if(!empty)assert.deepEqual(seen[8],['submit_research_result']);
 const logs=await fs.readdir(path.join(dir,'pi/v21-call-journal'));
 const rows=(await fs.readFile(path.join(dir,'pi/v21-call-journal',logs[0],'capture.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);
-assert.equal(rows.filter(row=>row.kind==='v3-knowledge-retrieval'&&!row.result.directedRouteFeedback).length,4);
+assert.equal(rows.filter(row=>row.kind==='v3-knowledge-retrieval'&&!row.result.directedRouteFeedback).length,repairQuery?3:4);
+if(repairQuery)assert.equal(rows.filter(row=>row.kind==='v3-tool-input-rejected').length,1);
+if(retryManuscript)assert.equal(rows.filter(row=>row.kind==='v4-manuscript-rejected').length,1);
+if(confirm&&!empty){
+  assert.ok(rows.some(row=>row.kind==='v3-original-message'&&row.confirmedPrevious));
+  assert.equal(rows.filter(row=>row.kind==='effect-pending'&&row.tool==='submit_research_result').length,1);
+  assert.equal(rows.some(row=>row.kind==='v4-missing-declaration'),unmarkedOpening);
+}
 const reads=rows.filter(row=>row.tool==='lookup_map_knowledge'&&row.type==='knowledge-map-tool-result');
 assert.equal(reads.length,2);
 assert.ok(reads[0].result.total>0);
@@ -115,6 +135,16 @@ assert.deepEqual(activity.commentary.map(n=>n.text),['I will derive it.',confirm
 const raw=await Promise.all((await fs.readdir(path.join(dir,'raw-answers')).catch(error=>{if(error.code==='ENOENT')return [];throw error})).map(async f=>JSON.parse(await fs.readFile(path.join(dir,'raw-answers',f),'utf8'))));
 if(empty)assert.ok(raw.every(r=>r.ref.completeness!=='complete'));else assert.ok(raw.some(r=>r.body===answer));
 if (!empty) {
+  const {recoverOptionalResultV21}=await import('../dist/runtime/v21-optional-recovery.js');
+  const project=await app.carnot.store.loadProject(p.id),epoch=project.epochs.at(-1);
+  const completed=epoch.calls.find(call=>call.result?.control?.action==='complete');
+  const state=JSON.parse(await fs.readFile(path.join(dir,'pi/v21-call-journal',logs[0],'state.json'),'utf8'));
+  const captured=rows.slice(0,rows.findIndex(row=>row.kind==='v21-optional-result-ready'));
+  const journal={state:{...state,status:'pending'},async captured(){return captured},async capture(row){captured.push(row)},async complete(value){this.state.status='completed';this.state.result=value}};
+  const spec={role:'theorist',projectId:p.id,loop:{researchLoopVersion:'4.0'},budget:{capacityPolicy:epoch.snapshot.capacityPolicy},context:{project,snapshot:epoch.snapshot,marker:epoch,grants:[],deliveries:[]}};
+  const recovered=await recoverOptionalResultV21(spec,completed,journal,app.carnot.store.rawAnswers,{async proofReferences(){return completed.result.mapKnowledge}});
+  assert.deepEqual(recovered,completed.result);
+  console.log('PASS restore typed delivery before final journal acknowledgment');
   assert.equal(result.name,title);
   assert.equal(result.nameSource,'theorist');
   assert.equal((await app.carnot.store.loadProject(p.id)).name,title);

@@ -38,3 +38,22 @@ Select the Pi provider that matches the credential you obtained. For example, Mo
 These examples use the descriptors in the locked Pi catalog. The test sends a research request through CAgE and the provider SDK, supplies local HTTP fixtures, checks tool arguments, and verifies the archived manuscript. Account entitlements, model availability, quotas and model behavior on a real research problem require the corresponding live service. A refreshed catalog can list models outside this test matrix. Google Vertex AI uses a separate Pi adapter and is outside the verified Gemini API path.
 
 When diagnosing a failure, record the role, provider, model ID, research version, stage and displayed error. A 401 or 403 points to the credential or the account's access to that endpoint. A 429 indicates a service limit. For `STRICT_OUTPUT_UNSUPPORTED`, check the selected protocol and the project's handoff version. Older projects using `cage-strict-1` require an endpoint with explicit strict-schema support. For an invalid tool delivery, inspect the named tool and field in the round record. A missing field, an interrupted response and a provider rejection require different fixes. Remove keys, tokens and private research text before sharing a diagnostic.
+
+## V4 proof delivery
+
+Theorist and Worker submit the finished derivation through `submit_manuscript`. The tool accepts one Markdown string and preserves it verbatim, including equations, section breaks and inline citations.
+
+```json
+{"answer":{"markdown":"## Derivation\n…"}}
+```
+
+| Stage | Accepted delivery | Next step |
+| --- | --- | --- |
+| Research | Research tools, progress messages, or a complete manuscript | A submitted manuscript is saved and the program requests its declaration. |
+| Manuscript requested | One call to `submit_manuscript` with Markdown | If the program has an eligible preceding draft, the schema also offers `{"answer":{"usePrevious":true}}`. An explicitly confirmed draft can reuse its original completion declaration. |
+| Declaration | One call to `submit_research_result` with the role's scientific decision | The program validates the outcome, references and authority before archiving. |
+| Metadata repair | Only the fields selected by the existing correction schema | The saved manuscript is preserved. |
+
+A Worker can finish or pause its assignment. The assigned route identity comes from the program. Explicit commentary remains available as progress. Providers that mark a final answer can still deliver that text before the declaration. Unmarked standalone prose remains a draft until its delivery is explicit. Replaying a saved turn checks the original tool arguments and call identity.
+
+On continuation, the Theorist can reuse a Core node at the level previously read when its version, content and access still match. If the context budget only permits listing the node, the Theorist can open it again for the evidence. To adopt a fully read Worker original, the Theorist lists its artifact ID in `outcome.dependencyArtifactIds`. The program binds the archived dependency to the original evidence. A separate review is available for decisions such as deferral or rejection.

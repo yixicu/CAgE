@@ -64,6 +64,7 @@ import type { AgentInvocationV2, AgentSessionSpecV2, Usage } from '../research/c
 import { CAgEAuthManager } from './auth.js';
 import { invokeModeratorV4, physicalCapacityV4 } from './theory-v4.js';
 import type { TheoryRequestV4 } from '../research/versions/v4/moderator.js';
+import {manuscriptTool,SUBMIT_MANUSCRIPT} from './proof-delivery.js';
 import { isSystemMaintenanceTool, scienceToolDenial, RuntimeError, publicRuntimeError } from './errors.js';
 import { isolatedResources } from './resources.js';
 import { outputIssues, outputSchema } from './output-contract.js';
@@ -412,6 +413,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
         tools.push(...new KnowledgeMapTools(mapReader,async event=>{if(!activityRecord?.v21Journal)throw new RuntimeError('INVALID_CONFIGURATION');await activityRecord.v21Journal.capture(event);},(await mapReader.view()).presentation).tools());
       }
       const proofCheckpoint=isV21Spec(spec)&&("snapshot" in spec.context?spec.context.snapshot:spec.context.brief).contextCompaction?new ProofCheckpoint(await privateDirectory(join(sessionRoot,"proof-checkpoints"),recordsRoot)):undefined;
+      if(v3Tools&&isV21Spec(spec)&&('brief'in spec.context?spec.context.brief:spec.context.snapshot).inquiryGuidance==='theorist-prior-v3')tools.push(manuscriptTool);
       if(proofCheckpoint)tools.push(...proofCheckpoint.tools());
       if(isV21Spec(spec))tools.push(...discussionTools(spec,model.contextWindow));
       validateTools(tools,!!v3Tools);
@@ -614,7 +616,12 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
     if (record.closed) throw new RuntimeError('SESSION_NOT_FOUND');
   }
   private syncAvailableTools(record: ActiveSession): void {
-    const tools=(record.v21Control instanceof OptionalProofControlV21||record.v0Control?.correction||record.v0Control?.singleRequest||record.v21Control?.judgmentBatch&&record.v21Control.correction)?record.originalTools.filter(t=>t.name===SUBMIT_RESULT):(record.decisionOnly || record.preparationOnly)?record.originalTools.filter(t=>t.name===SUBMIT_RESULT):record.originalTools;
+    const required=record.v21Control instanceof ProofControlV3?record.v21Control.requiredTool:undefined;
+    const terminalOnly=record.v21Control instanceof OptionalProofControlV21||record.v0Control?.correction||
+      record.v0Control?.singleRequest||record.v21Control?.judgmentBatch&&record.v21Control.correction||
+      record.decisionOnly||record.preparationOnly;
+    const name=required??(terminalOnly?SUBMIT_RESULT:undefined);
+    const tools=name?record.originalTools.filter(tool=>tool.name===name):record.originalTools;
     record.pi.setActiveToolsByName(record.handoff ? record.handoff.compile(tools) : tools.filter(t=>t.name!==ROUTE_PLAN).map(t=>t.name));
   }
   private attachUsageAndSafety(record: ActiveSession): void {
@@ -657,6 +664,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       const dispatch=record.turns + (isV21Spec(record.spec) || isV0Spec(record.spec)||record.spec.budget.capacityPolicy ? 1 : 0);
       const dispatchId=randomUUID();
       let pendingGuidance:ReturnType<RuntimeGuidanceV3['project']>['exposure']|undefined,payloadAdmitted=false;
+      let coreDispatchContext:typeof context|undefined;
       let admission:LearningTransportAdmission|undefined,authorityGuard:(()=>void)|void,requestStarted=false;
       const rejectUnsent=async(error:unknown):Promise<never>=>{
         if(admission&&!requestStarted&&record.learningDispatch?.state==='unknown')await admission.notAdmitted('Local admission authority rejected before transport publication.');
@@ -728,7 +736,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
           const view=record.v3Guidance.project(input,schemas);input=view.context;
           if(record.mapReader?.modelDirectedKnowledge){
             if(record.v21Journal)input=await record.mapReader.projectForeground(input,await record.v21Journal.captured());
-            input={...input,messages:[...input.messages,{role:'user' as const,timestamp:Date.now(),content:JSON.stringify({currentKnowledgeAuthority:await record.mapReader.authority(input)})}]};
+            input={...input,messages:[...input.messages,{role:'user' as const,timestamp:Date.now(),content:JSON.stringify({currentKnowledgeAuthority:await record.mapReader.authority(input,model.contextWindow>0?Math.max(0,(model.contextWindow-model.maxTokens-1024)*3-schemaBytes-Buffer.byteLength(JSON.stringify(input))):undefined)})}]};
           }
           if(retryingOverflow&&record.proofCheckpoint){
             input=await record.proofCheckpoint.compact(projectDiscussionReads(input,512),true);
@@ -764,6 +772,7 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
             if(known)await record.v3Catalog.node(base.catalogPin,id);
           }
         }
+        if(record.mapReader?.modelDirectedKnowledge&&record.v21Journal)coreDispatchContext=input;
         if(record.v0Journal)await record.v0Journal.capture({kind:'v0-dispatch-input',messages:input.messages.map(message=>message.role==='assistant'?{...message,content:message.content.filter(part=>part.type!=='thinking')}:message)});
         const legacy=record.handoff?.version===LEGACY_HANDOFF_VERSION;
         const capability=legacy?this.options.strictCapability?.(model):undefined;
@@ -811,9 +820,10 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
             if(record.v3Guidance&&(!isDeepStrictEqual(payload,before)||!isDeepStrictEqual(original,before)))throw new RuntimeError('INVALID_CONFIGURATION');
             if(record.v3Guidance&&(options?.signal?.aborted||this.shuttingDown||record.v21OptionalCancelled))throw new RuntimeError('BUDGET_EXHAUSTED');
             const verifyToolBudget=(value:unknown)=>{if(pendingGuidance){const prose=schemaGuidanceProseV3(providerTools(value));if(prose.reduce((sum,text)=>sum+guidanceCostV3(text),0)>(pendingGuidance.toolLines??0))throw new RuntimeError('INVALID_CONFIGURATION');}};
-            if (record.answerCollector || record.v21Control instanceof ProofControlV3 && record.v21Control.writingManuscript && !providerTools(original)?.length){verifyToolBudget(original);const limited=limitPayload(original);payloadAdmitted=true;return limited;}
+            if (record.answerCollector){verifyToolBudget(original);const limited=limitPayload(original);payloadAdmitted=true;return limited;}
             const codecs = record.v0Control?.codecs ?? record.v21Control?.codecs ?? record.handoff!.codecs;
-            const body=structuredOutputPayload(original, target, codecs,capability,record.handoff?.version ?? HANDOFF_VERSION);
+            const onlyTool=record.v21Control instanceof ProofControlV3?record.v21Control.requiredTool:undefined;
+            const body=structuredOutputPayload(original,target,codecs,capability,record.handoff?.version??HANDOFF_VERSION,onlyTool);
             for(const [name,codec] of codecs)wireSchemas.set(name,structuredClone(codec.schema));
             audit.captureRemoteTools(body);
             verifyToolBudget(body);
@@ -858,6 +868,11 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
       }, async event => {
         if(proofBudgetV4 && record.dispatchError && event.type==='done') throw record.dispatchError;
         if(record.v3Guidance&&pendingGuidance&&payloadAdmitted&&event.type!=='start'&&event.type!=='error'){
+          if(coreDispatchContext&&record.v21Journal){
+            const journal=record.v21Journal;
+            await record.mapReader!.recordContinuedDelivery(coreDispatchContext,event=>journal.capture({...event,dispatch:journal.state.dispatches}));
+            coreDispatchContext=undefined;
+          }
           const exposure=pendingGuidance;pendingGuidance=undefined;
           if(record.v21Journal)await record.v21Journal.capture({...exposure,dispatch:record.v21Journal.state.dispatches});
           else await appendFile(record.v3GuidanceLog!,JSON.stringify({...exposure,dispatch:record.turns})+'\n',{mode:0o600});
@@ -1312,11 +1327,11 @@ export class CAgERuntimeAdapter implements AnyAgentRuntime {
           control.needsManuscript=false;
           prompt=control.feedback;
           control.feedback=undefined;
-          record.pi.setActiveToolsByName([]);
+          this.syncAvailableTools(record);
           continue;
         }
         await journal.correction(nativeHandoff?control.declarationDispatchLimit:budgetControlsEnabledV3(spec.budget.capacityPolicy)?2:undefined);control.correction=true;this.syncAvailableTools(record);
-        prompt=control.supplementPrompt?control.supplementPrompt+'Diagnostics:\n'+control.feedback:nativeHandoff?'Correct only the reported tool-input metadata format through submit_research_result. Keep the saved report and all scientific decisions unchanged. Diagnostics:\n'+control.feedback:(record.v3Guidance?.guidanceReferenceState()?'Preserve the original proof and every scientific field. Submit metadata only through submit_research_result; no text or research calls.\nOnly add missing classification tags and remove originally frozen route.resourceRefs with zero body bytes ever delivered. Keep every partially or fully delivered reference, order and duplicates; add or substitute nothing.\nKeep route identity, description, reason, verdict, assumptions, dependencies and adoptions unchanged. Diagnostics:\n'+control.feedback:'Your exact original and initial scientific declaration are immutable. Submit only a metadata correction through submit_research_result. No new public text, proof, resource calls, assumptions, obligations, scope, dependencies, adoption, worker contracts, verdict or route choice. Preserve every field, its absence and array order. Only missing classification tags may be filled. Never erase caveats or invent a missing declaration. Diagnostics:\n'+control.feedback);
+        prompt=control.supplementPrompt??(nativeHandoff?'Correct only the reported tool-input metadata format through submit_research_result. Keep the saved report and all scientific decisions unchanged. Diagnostics:\n'+control.feedback:(record.v3Guidance?.guidanceReferenceState()?'Preserve the original proof and every scientific field. Submit metadata only through submit_research_result; no text or research calls.\nOnly add missing classification tags and remove originally frozen route.resourceRefs with zero body bytes ever delivered. Keep every partially or fully delivered reference, order and duplicates; add or substitute nothing.\nKeep route identity, description, reason, verdict, assumptions, dependencies and adoptions unchanged. Diagnostics:\n'+control.feedback:'Your exact original and initial scientific declaration are immutable. Submit only a metadata correction through submit_research_result. No new public text, proof, resource calls, assumptions, obligations, scope, dependencies, adoption, worker contracts, verdict or route choice. Preserve every field, its absence and array order. Only missing classification tags may be filled. Never erase caveats or invent a missing declaration. Diagnostics:\n'+control.feedback));
         control.feedback=undefined;
       }
     }finally{await control.preserveOriginal(true);await journal.flush();}
@@ -1439,7 +1454,7 @@ function validateBudget(budget: RoleBudget): void {
 function validateTools(tools: ToolDefinition[],v3=false): void {
   const names = new Set<string>();
   for (const tool of tools) {
-    if ((!CORE_TOOLS.has(tool.name) && !(v3&&(tool.name === 'read_document' || isFirecrawlTool(tool.name)||['execute_registered_operations','retrieve_knowledge','read_operation_artifact','record_research_route'].includes(tool.name))) && !/^plugin_[a-z0-9_]{1,80}$/.test(tool.name)) || names.has(tool.name) || tool.reachesTools || tool.prepareLoadout || (tool.exposure && tool.exposure !== 'direct')) throw new RuntimeError('INVALID_TOOL');
+    if ((!CORE_TOOLS.has(tool.name) && !(v3&&(tool.name === 'read_document' || tool.name===SUBMIT_MANUSCRIPT || isFirecrawlTool(tool.name)||['execute_registered_operations','retrieve_knowledge','read_operation_artifact','record_research_route'].includes(tool.name))) && !/^plugin_[a-z0-9_]{1,80}$/.test(tool.name)) || names.has(tool.name) || tool.reachesTools || tool.prepareLoadout || (tool.exposure && tool.exposure !== 'direct')) throw new RuntimeError('INVALID_TOOL');
     names.add(tool.name);
   }
 }

@@ -162,6 +162,20 @@ class ConditionResearchRunnerV21 {
     artifactId:a.id,status:'valid' as const,outcome:structuredClone(a.control.outcome),reason:control.outcome.reason
    }))]}};
   }
+  if(!branch&&f.operationRevision==='v4-proof-5'&&result.control.adoptions.length){
+   const adoptions=result.control.adoptions.map(review=>{
+    const target=f.artifacts.find(a=>a.id===review.artifactId);
+    if(!target)return review;
+    const outcome={...review.outcome};
+    // The review owns its judgment. Omitted provenance stays with the original.
+    for(const key of ['knowledgeRefs','sourceRefs','receiptRefs'] as const){
+     const original=target.control.outcome[key];
+     if(outcome[key]===undefined&&original!==undefined)outcome[key]=[...original];
+    }
+    return {...review,outcome};
+   });
+   result={...result,control:{...result.control,adoptions}};
+  }
   if(this.theory && !branch) {
     const prefix='method:theory-use/';
     const used=(result.control.outcome.tags??[]).filter(tag=>tag.startsWith(prefix)).map(tag=>tag.slice(prefix.length));

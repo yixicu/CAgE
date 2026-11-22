@@ -1,5 +1,5 @@
-import {completionCandidate,confirmPrevious} from './v3-control.js';
-import { DeclarationSupplementError } from './declaration-supplement.js';
+import {completionCandidate,openProgressNote,readManuscript} from './proof-delivery.js';
+import { DeclarationSupplementError,extraDeclarationFields } from './declaration-supplement.js';
 import {sameObservationEvidence} from '../research/versions/v4/map-evidence-schema.js';
 import type {MapReader} from '../research/versions/v4/map-reader.js';
 import type {MapOpenResult} from '../learning/knowledge-map.js';
@@ -51,7 +51,7 @@ export async function validateOptionalResultV21(spec:AgentSessionSpecV21,invocat
  const operation=optionalOperationV21(spec,invocation);operation.observeEvidence({mapWriteReads,publicBody:body});if(['v3-operation-1','v3-operation-2','v3-operation-3','v3-operation-4','v3-operation-5','v3-operation-6','v4-proof-2','v4-proof-3','v4-proof-4','v4-proof-5'].includes(invocation.operation?.revision??''))operation.observeEvidence({...(mapEnabled?{mapKnowledge:mapKnowledge??[]}:{}),receipts:r.v3Execution?.receipts??[],...(r.v3Execution?.catalogPin?{catalogMaterials:r.v3Execution.catalogMaterials??[],knowledgeReads:r.v3Execution.knowledgeReads??[]}:{}),...(resources?{resources}:{}),...(deliveries?{deliveries}:{})});operation.validatePrepared(r.control);
  if(!body.trim())throw new RuntimeError('INVALID_CONFIGURATION');return structuredClone(r);
 }
-type SavedRow={kind:string;confirmedPrevious?:true;progressParts?:number[];dispatch?:number;correction?:boolean;message?:AssistantMessage;event?:AnswerCaptureEvent;evidence?:ToolArgumentEvidence;owner?:RawAnswerOwnerV21;text?:string;technical?:TechnicalStateV21;declaration?:unknown;result?:unknown};
+type SavedRow={kind:string;callId?:string;tool?:string;deliveryStage?:'manuscript';confirmedPrevious?:true;progressParts?:number[];dispatch?:number;correction?:boolean;message?:AssistantMessage;event?:AnswerCaptureEvent;evidence?:ToolArgumentEvidence;owner?:RawAnswerOwnerV21;text?:string;technical?:TechnicalStateV21;declaration?:unknown;result?:unknown};
 /** Finish persistence only. A pending/uncertain provider call is never replayed. */
 export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocation:AgentInvocationV21,journal:OperationJournal,raw:RawAnswerStoreV21,mapReader?:MapReader):Promise<OptionalTheoristResultV21|undefined> {
  if(journal.state.dispatches===0)return undefined;
@@ -97,11 +97,17 @@ export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocati
   const bounds='brief'in spec.context?spec.context.brief:spec.context.snapshot;
   const declarationThenPatch=journal.state.corrections===2&&rows.some(r=>r.kind==='v4-missing-declaration')&&rows.some(r=>r.kind==='v4-declaration-supplement');
   const supplement=last?.correction&&bounds.inquiryGuidance==='theorist-prior-v3'&&(journal.state.corrections===1||declarationThenPatch);
-  if(!last?.message||last.dispatch!==journal.state.dispatches||last.correction&&!supplement||last.message.stopReason!=='toolUse'||!intent?.technical||intent.technical.completeness!=='complete'||intent.technical.executionStatus!=='completed'||!intent.text||rows.some(row=>row.kind==='v21-optional-cancelled'))return undefined;
-  const calls=last.message.content.filter(p=>p.type==='toolCall');if(calls.length!==1||calls[0]!.name!==SUBMIT_RESULT)return undefined;
-  const terminal=calls[0]!,terminalIndex=last.message.content.findIndex(p=>p.type==='toolCall'&&p.id===terminal.id);
-  if(last.message.content.slice(terminalIndex+1).some(p=>p.type!=='thinking'))return undefined;
-  const argumentRows=rows.filter(row=>row.kind==='v21-optional-arguments'&&row.dispatch===last.dispatch&&row.evidence);
+  // Only resume a confirmed prior call after the normal validator admitted its effect.
+  const manuscriptFollows=(turn:number,prior:number)=>prior===turn-1||prior===turn-2&&rows.some(r=>r.kind==='v4-manuscript-rejected'&&r.dispatch===turn-1);
+  const deferred=last?.confirmedPrevious&&!last.correction&&(last.deliveryStage==='manuscript'||last.message?.stopReason==='stop')
+    ? rows.findLast(r=>r.kind==='v3-original-message'&&r.dispatch!==undefined&&manuscriptFollows(last.dispatch!,r.dispatch)&&!r.correction):undefined;
+  const source=deferred??last;
+  if(!last?.message||last.dispatch!==journal.state.dispatches||last.correction&&!supplement||source?.message?.stopReason!=='toolUse'||intent&&(!intent.technical||intent.technical.completeness!=='complete'||intent.technical.executionStatus!=='completed'||!intent.text)||rows.some(row=>row.kind==='v21-optional-cancelled'))return undefined;
+  const calls=source.message.content.filter(p=>p.type==='toolCall');if(calls.length!==1||calls[0]!.name!==SUBMIT_RESULT)return undefined;
+  const terminal=calls[0]!,terminalIndex=source.message.content.indexOf(terminal);
+  if(deferred&&(!rows.some(r=>r.kind==='effect-pending'&&r.callId===terminal.id&&r.tool===SUBMIT_RESULT)||last.deliveryStage!=='manuscript'&&last.message.content.some(p=>p.type==='toolCall')))return undefined;
+  if(source.message.content.slice(terminalIndex+1).some(p=>p.type!=='thinking'))return undefined;
+  const argumentRows=rows.filter(row=>row.kind==='v21-optional-arguments'&&row.dispatch===source.dispatch&&row.evidence);
   if(argumentRows.length!==1)return undefined;const evidence=argumentRows[0]!.evidence!;
   if(evidence.toolCallId!==terminal.id||evidence.tool!==terminal.name||!isDeepStrictEqual(evidence.sdkArguments,terminal.arguments))return undefined;
   const declaration=decodeSafeToolArguments(evidence).value,savedDeclaration=rows.find(row=>row.kind==='v21-declaration-constraints')?.declaration;
@@ -109,40 +115,71 @@ export async function recoverOptionalResultV21(spec:AgentSessionSpecV21,invocati
   const scientificMessages=rows.filter(row=>row.kind==='v3-original-message'&&!row.correction);
   const publicText=scientificMessages.map((row,i)=>{
    const text=row.message?.content.filter((_,index)=>!row.progressParts?.includes(index)).flatMap(p=>p.type==='text'?[p.text]:[]).join('')??'';
-   if(!row.confirmedPrevious)return text;
    const prior=scientificMessages[i-1],candidate=prior?.message&&completionCandidate(prior.message);
-   if(!candidate?.trim()||prior?.dispatch!==row.dispatch!-1||row.message?.stopReason!=='stop'||text.trim()!==confirmPrevious)throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
+   if(row.deliveryStage==='manuscript'){
+     if(!row.message)throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
+     const canReuse=!!candidate?.trim()&&prior?.dispatch!==undefined&&manuscriptFollows(row.dispatch!,prior.dispatch);
+     const args=rows.filter(r=>r.kind==='v21-optional-arguments'&&r.dispatch===row.dispatch&&r.evidence).map(r=>r.evidence!);
+     const answer=readManuscript(row.message,args,canReuse);
+     if(!!row.confirmedPrevious!==('usePrevious' in answer))throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
+     return 'markdown' in answer?answer.markdown:candidate!;
+   }
+   if(!row.confirmedPrevious)return text;
+   if(!candidate?.trim()||prior?.dispatch!==row.dispatch!-1||row.message?.stopReason!=='stop'||text.trim()!=='Use previous answer')throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
    return candidate;
   }).filter(Boolean).join('\n\n');
-  if(publicText!==intent.text||!isDeepStrictEqual(intent.owner,optionalOwnerV21(spec,invocation)))throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
-  const retained=await recoverOptionalOriginalV21(spec,invocation,journal,raw);if(!retained)return undefined;
+  const note=bounds.inquiryGuidance==='theorist-prior-v3'&&!last.correction&&!publicText.trim()?openProgressNote(declaration):'';
+  const retainedText=note||publicText;
+  const owner=optionalOwnerV21(spec,invocation);
+  if(intent){
+   if(retainedText!==intent.text||!isDeepStrictEqual(intent.owner,owner))throw new RuntimeError('OPERATION_RECONCILIATION_REQUIRED');
+  }else if(invocation.task!=='v21_theorist'||!note||last.correction||source.message.content.length!==1||
+    rows.some(r=>r.kind==='effect-pending'&&r.callId===terminal.id))return undefined;
+
   const events=rows as unknown as {kind:string;receipt?:import('../research/versions/v3/operations.js').OperationReceiptV3;instance?:import('../research/versions/v3/route-instances.js').RouteInstanceV3}[],base='brief'in spec.context?spec.context.brief.v3:spec.context.snapshot.v3;
   const receipts=events.flatMap(r=>r.kind==='v3-operation-receipt'&&r.receipt?[r.receipt]:[]),materials=restoredGuidance?.catalogMaterials??[],known=new Set([...(base?.catalogNodeIds??[]),...materials.map(m=>m.node.id)]);
-  const execution:import('../research/versions/v3/integration.js').V3Execution={receipts,modelRequests:journal.state.dispatches,toolDispatches:events.filter(r=>r.kind==='v3-execution-pending'||r.kind==='v3-route-instance').length,completedTools:receipts.filter(r=>r.status==='completed').length,...(base?.methodNetwork?{methodNetworkPin:base.methodNetwork.pin,routeInstances:[...new Map(events.flatMap(r=>r.kind==='v3-route-instance'&&r.instance?[[r.instance.id,r.instance] as const]:[])).values()]}:{}),...(base?.catalogPin?{catalogPin:base.catalogPin,catalogNodeIds:base.catalogNodeIds??[],catalogMaterials:materials,knowledgeReads:(restoredGuidance?.knowledgeReads??[]).filter(id=>known.has(id))}:{})};
-  const operation=optionalOperationV21(spec,invocation);operation.observeEvidence({publicBody:intent.text,mapWriteReads,mapKnowledge,receipts,resources,deliveries,...(base?.catalogPin?{catalogMaterials:materials,knowledgeReads:execution.knowledgeReads}:{}),rootDelivered:restoredGuidance?.rootDelivered});
+  const execution:import('../research/versions/v3/integration.js').V3Execution={receipts,modelRequests:journal.state.dispatches,toolDispatches:events.filter(r=>r.kind==='v3-execution-pending'||r.kind==='v3-route-instance'||r.kind==='v3-knowledge-retrieval'||r.kind==='v3-operation-artifact-read').length,completedTools:receipts.filter(r=>r.status==='completed').length,...(base?.methodNetwork?{methodNetworkPin:base.methodNetwork.pin,routeInstances:[...new Map(events.flatMap(r=>r.kind==='v3-route-instance'&&r.instance?[[r.instance.id,r.instance] as const]:[])).values()]}:{}),...(base?.catalogPin?{catalogPin:base.catalogPin,catalogNodeIds:base.catalogNodeIds??[],catalogMaterials:materials,knowledgeReads:(restoredGuidance?.knowledgeReads??[]).filter(id=>known.has(id))}:{})};
+  const operation=optionalOperationV21(spec,invocation);operation.observeEvidence({publicBody:retainedText,mapWriteReads,mapKnowledge,receipts,resources,deliveries,...(base?.catalogPin?{catalogMaterials:materials,knowledgeReads:execution.knowledgeReads}:{}),rootDelivered:restoredGuidance?.rootDelivered});
   let effective=declaration;
   if(supplement){
    if(last.message.content.some(p=>p.type==='text'&&p.text.length))return undefined;
-   const messages=rows.filter(r=>r.kind==='v3-original-message'),previous=messages.at(-2);
-   if(!previous?.message||!!previous.correction!==declarationThenPatch||previous.dispatch!==last.dispatch!-1)return undefined;
+   const messages=rows.filter(r=>r.kind==='v3-original-message'),priorTurn=messages.at(-2);
+   if(!priorTurn?.message||!!priorTurn.correction!==declarationThenPatch||priorTurn.dispatch!==last.dispatch!-1)return undefined;
+   // Old confirmed turns subsequently requested a full declaration; newer ones can need a field patch.
+   const repairingConfirmed=priorTurn.confirmedPrevious&&rows.some(r=>r.kind==='v4-declaration-supplement')&&!rows.some(r=>r.kind==='v4-missing-declaration');
+   const previous=repairingConfirmed?messages.at(-3):priorTurn;
+   if(!previous?.message||repairingConfirmed&&(previous.correction||!manuscriptFollows(priorTurn.dispatch!,previous.dispatch!)))return undefined;
    if(declarationThenPatch){
     const bodyMessage=messages.at(-3);
-    if(!bodyMessage?.message||bodyMessage.correction||bodyMessage.dispatch!==previous.dispatch!-1||bodyMessage.message.stopReason!=='stop'||bodyMessage.message.content.some(p=>p.type==='toolCall'))return undefined;
+    if(!bodyMessage?.message||bodyMessage.correction||bodyMessage.dispatch!==previous.dispatch!-1||bodyMessage.deliveryStage!=='manuscript'&&(bodyMessage.message.stopReason!=='stop'||bodyMessage.message.content.some(p=>p.type==='toolCall')))return undefined;
    }
-   const priorCalls=previous.message.content.filter(p=>p.type==='toolCall');
+   const priorCalls=previous.deliveryStage==='manuscript'?[]:previous.message.content.filter(p=>p.type==='toolCall');
    if(priorCalls.length===1&&priorCalls[0]!.name===SUBMIT_RESULT){
     if(previous.message.stopReason!=='toolUse'||previous.message.content.slice(previous.message.content.indexOf(priorCalls[0]!)+1).some(p=>p.type!=='thinking'))return undefined;
     const priorEvidence=rows.filter(r=>r.kind==='v21-optional-arguments'&&r.dispatch===previous.dispatch&&r.evidence);
     if(priorEvidence.length!==1||priorEvidence[0]!.evidence!.toolCallId!==priorCalls[0]!.id||priorEvidence[0]!.evidence!.tool!==SUBMIT_RESULT||!isDeepStrictEqual(priorEvidence[0]!.evidence!.sdkArguments,priorCalls[0]!.arguments))return undefined;
     const first=decodeSafeToolArguments(priorEvidence[0]!.evidence!).value;
     if(!isDeepStrictEqual(savedDeclaration,first)||!rows.some(r=>r.kind==='v4-declaration-supplement'))return undefined;
-    try{operation.prepare(first);return undefined;}catch(error){
+    const extra=extraDeclarationFields(operation.wireSchema??operation.schema,first);
+    if(extra&&rows.some(r=>r.kind==='v4-declaration-supplement'&&(r as {fields?:unknown}).fields==='omit-extra-fields')){
+     effective=extra.restore(first,declaration);
+    }else try{operation.prepare(first);return undefined;}catch(error){
      if(!(error instanceof DeclarationSupplementError))return undefined;
      effective=error.restore(first,declaration);
     }
-   }else if(declarationThenPatch||priorCalls.length||previous.message.stopReason!=='stop'||!rows.some(r=>r.kind==='v4-missing-declaration')||savedDeclaration!==undefined&&!isDeepStrictEqual(savedDeclaration,declaration))return undefined;
+   }else if(declarationThenPatch||priorCalls.length||previous.deliveryStage!=='manuscript'&&previous.message.stopReason!=='stop'||!rows.some(r=>r.kind==='v4-missing-declaration')||savedDeclaration!==undefined&&!isDeepStrictEqual(savedDeclaration,declaration))return undefined;
   }
-  const result={...retained,control:operation.prepare(effective),v3Execution:execution,mapKnowledge};
+  const control=operation.prepare(effective);
+  if(!intent){
+   if(!['dispatch','continue'].includes(control.action))return undefined;
+   // Old builds stopped before recording the open progress note. Its complete
+   // audited declaration has now passed the original frozen operation.
+   const technical:TechnicalStateV21={executionStatus:'completed',completeness:'complete',stopReason:'toolUse',
+    usage:{turns:journal.state.dispatches,toolCalls:scientificMessages.reduce((n,r)=>n+(r.message?.content.filter(p=>p.type==='toolCall').length??0),0),tokensKnown:false,costKnown:false}};
+   await journal.capture({kind:'v21-optional-save-intent',owner,text:retainedText,technical});
+  }
+  const retained=await recoverOptionalOriginalV21(spec,invocation,journal,raw);if(!retained)return undefined;
+  const result={...retained,control,v3Execution:execution,mapKnowledge};
   await validateOptionalResultV21(spec,invocation,result,raw,resources,deliveries,mapKnowledge,mapWriteReads);
   await journal.capture({kind:'v21-optional-local-terminal-reconciliation',terminalCallId:terminal.id,dispatch:last.dispatch});await journal.capture({kind:'v21-optional-result-ready',result});
   // Reuse the standard persisted-result audit before completing the local journal.

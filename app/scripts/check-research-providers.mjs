@@ -263,13 +263,17 @@ async function checkProject(app, model) {
     else assert.equal(body.model, model.id);
     const names = wireTools(model.api, body).map(t => t.name);
     const step = steps.push(names);
-    assert.ok(step <= 3, 'Unexpected research dispatch '+step);
-    if (step === 2) {
-      assert.deepEqual(names, []);
-      return fixtureStream(model, {text:manuscript, id:'manuscript'});
+    assert.ok(step <= 2, 'Unexpected research dispatch '+step);
+    if (step === 1) {
+      const declaration=wireTools(model.api,body).find(tool=>tool.name==='submit_manuscript');
+      const schema=declaration.parameters??declaration.input_schema??declaration.parametersJsonSchema;
+      assert.deepEqual(schema.required,['answer']);
+      return fixtureStream(model,{name:'submit_manuscript',args:{answer:{markdown:manuscript}},id:'manuscript',omitId:model.provider==='google'});
     }
     assert.ok(names.includes(toolName));
-    if (step === 3) assert.deepEqual(names, [toolName]);
+    assert.deepEqual(names, [toolName]);
+    if(model.provider==='google')assert.deepEqual(body.toolConfig.functionCallingConfig,{mode:'ANY',allowedFunctionNames:[toolName]});
+    if(model.provider==='openai')assert.deepEqual(body.tool_choice,{type:'function',name:toolName});
     return fixtureStream(model, {name:toolName, args:declaration, id:'call_'+step, omitId:model.provider === 'google'});
   };
   await api('POST', '/api/projects/'+project.id+'/start', {});
@@ -279,7 +283,7 @@ async function checkProject(app, model) {
   const result = await api('GET', '/api/projects/'+project.id);
   assert.equal(result.status, 'completed', JSON.stringify({error:result.lastError, status:result.status, steps}));
   assert.equal(result.name, title);
-  assert.equal(steps.length, 3, JSON.stringify(steps));
+  assert.equal(steps.length, 2, JSON.stringify(steps));
   return project.id;
 }
 
