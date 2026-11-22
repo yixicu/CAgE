@@ -90,4 +90,16 @@ if (process.argv[2]) {
   const { body } = JSON.parse(await readFile(process.argv[2], 'utf8'));
   checkDisplays(body, (body.match(/^\\\[$/gm) ?? []).length);
 }
-console.log('PASS formula repair, fragment replacement, literal Markdown, and proof rendering');
+// Exercise the full report renderer with valid reference links late in a long manuscript.
+const sections = Array.from({length: 512}, (_, i) => [
+  '## Mode ' + i,
+  'The boundary term vanishes on this interval. '.repeat(18) + 'See [derivation][source].',
+  '$$\nE_n = n^2 E_1\n$$',
+].join('\n\n'));
+const longProof = sections.join('\n\n') + '\n\n[source]: https://example.org/derivation\n\nEnd of proof.';
+const longHtml = renderMarkdown(longProof, {paperMath: true});
+assert.equal((longHtml.match(/<h2>/g) ?? []).length, sections.length);
+assert.equal((longHtml.match(/class="math-block"/g) ?? []).length, sections.length);
+assert.equal((longHtml.match(/href="https:\/\/example\.org\/derivation"/g) ?? []).length, sections.length);
+assert.ok(longHtml.includes('End of proof.'));
+console.log('PASS formula repair, fragment replacement, literal Markdown, and proof rendering (' + Buffer.byteLength(longProof) + ' byte long report)');
